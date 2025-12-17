@@ -1,0 +1,241 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { MOCK_COURSES } from '../constants';
+import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
+export const CourseDetails: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const course = MOCK_COURSES.find(c => c.id === id);
+  const [isMuted, setIsMuted] = useState(true);
+  const [openChapter, setOpenChapter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'REVIEWS'>('OVERVIEW');
+  const [showSticky, setShowSticky] = useState(false);
+  
+  // Ref for the main Call-to-Action button to track visibility
+  const mainCtaRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Show sticky footer when the main CTA is NOT visible
+        setShowSticky(!entry.isIntersecting);
+      },
+      {
+        threshold: 0,
+        rootMargin: "-100px 0px 0px 0px" // Offset slightly so it triggers before it's completely gone
+      }
+    );
+
+    if (mainCtaRef.current) {
+      observer.observe(mainCtaRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  if (!course) return <div>Course not found</div>;
+
+  const handleBuy = () => {
+    navigate(`/checkout/${course.id}`);
+  };
+
+  return (
+    <div className="pb-24 bg-white">
+      {/* Video Trailer Header */}
+      <div className="relative h-[40vh] md:h-[60vh] bg-black group">
+        <video
+          src="https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4"
+          poster="https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920"
+          autoPlay
+          loop
+          muted={isMuted}
+          playsInline
+          className="w-full h-full object-cover opacity-80"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90"></div>
+        <div className="absolute bottom-8 left-0 right-0 max-w-7xl mx-auto px-4 flex justify-between items-end">
+           <div className="animate-fade-in-up w-3/4">
+              <div className="flex items-center gap-2 mb-3">
+                 {course.rating && <div className="bg-yellow-500 text-black px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg"><Star size={12} fill="currentColor"/> {course.rating}</div>}
+                 <span className="bg-white/20 backdrop-blur text-white px-3 py-0.5 rounded text-xs font-bold border border-white/20">{course.type}</span>
+              </div>
+              <h1 className="text-3xl md:text-6xl font-bold text-white mb-3 leading-tight">{course.title}</h1>
+              <p className="text-sm md:text-xl text-gray-200 hidden md:block">By Eyebuckz Academy</p>
+           </div>
+           <button 
+             onClick={() => setIsMuted(!isMuted)}
+             className="bg-white/10 p-3 rounded-full hover:bg-white/20 backdrop-blur-md transition text-white border border-white/10"
+           >
+             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+           </button>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* Main Content */}
+        <div className="lg:col-span-2">
+            
+          {/* Tabs Navigation */}
+          <div className="flex border-b border-slate-200 mb-8 overflow-x-auto no-scrollbar">
+              {(['OVERVIEW', 'CURRICULUM', 'REVIEWS'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-6 py-4 font-bold text-sm transition border-b-2 whitespace-nowrap ${
+                        activeTab === tab 
+                        ? 'border-brand-600 text-brand-600' 
+                        : 'border-transparent text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                      {tab}
+                  </button>
+              ))}
+          </div>
+
+          <div className="min-h-[300px]">
+            {activeTab === 'OVERVIEW' && (
+                <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-slate-900">Course Overview</h2>
+                    <p className="text-slate-600 leading-relaxed text-lg">
+                    {course.description}. Designed for visual storytellers who want to master the craft. We cover everything from pre-production planning to post-production delivery.
+                    </p>
+                    
+                    <h3 className="text-xl font-bold text-slate-900 mt-8 mb-4">What you'll learn</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {course.features.map((feat, i) => (
+                            <div key={i} className="flex items-start gap-3 text-slate-600">
+                                <Zap size={18} className="text-brand-600 mt-1 flex-shrink-0" />
+                                <span>{feat}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Mobile Enroll Button (Main CTA) */}
+                    <div className="mt-8 lg:hidden">
+                       <button 
+                          ref={mainCtaRef}
+                          onClick={handleBuy}
+                          className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
+                        >
+                          Enroll for ₹{course.price.toLocaleString()}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'CURRICULUM' && (
+                <div className="space-y-4 animate-fade-in">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-slate-900">Course Content</h2>
+                        <span className="text-slate-500 text-sm">{course.chapters.length} Chapters</span>
+                    </div>
+                    {course.chapters.map((chapter, index) => (
+                        <div key={chapter.id} className="border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
+                            <button 
+                            onClick={() => setOpenChapter(openChapter === chapter.id ? null : chapter.id)}
+                            className="w-full flex items-center justify-between p-5 hover:bg-slate-100 transition"
+                            >
+                            <div className="flex items-center gap-4">
+                                <span className="text-slate-400 font-mono font-bold">0{index + 1}</span>
+                                <span className="font-bold text-slate-800 text-left">{chapter.title}</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-slate-500">{chapter.duration}</span>
+                                {openChapter === chapter.id ? <ChevronUp size={20} className="text-brand-600" /> : <ChevronDown size={20} className="text-slate-400" />}
+                            </div>
+                            </button>
+                            {openChapter === chapter.id && (
+                            <div className="p-5 bg-white text-sm text-slate-500 border-t border-slate-200 flex items-center gap-2">
+                                <Lock size={14} /> Content locked. Enroll to access video and resources.
+                            </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {activeTab === 'REVIEWS' && (
+                <div className="space-y-6 animate-fade-in">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-6">Student Reviews</h2>
+                    {(course.reviews && course.reviews.length > 0) ? (
+                        course.reviews.map(review => (
+                            <div key={review.id} className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 font-bold">
+                                            {review.user[0]}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-slate-900">{review.user}</div>
+                                            <div className="text-xs text-slate-500">{review.date}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex text-yellow-400">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} size={16} fill={i < review.rating ? "currentColor" : "none"} />
+                                        ))}
+                                    </div>
+                                </div>
+                                <p className="text-slate-600">{review.comment}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-slate-400">No reviews yet.</p>
+                    )}
+                </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Sidebar (Always Visible) */}
+        <div className="hidden lg:block">
+          <div className="sticky top-24 bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50">
+            <h3 className="text-4xl font-bold text-slate-900 mb-2">₹{course.price.toLocaleString()}</h3>
+            <p className="text-slate-500 text-sm mb-8">One-time payment. Lifetime access.</p>
+            
+            <button 
+              onClick={handleBuy}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 mb-4 flex items-center justify-center gap-2"
+            >
+              <Zap size={20} /> Enroll Now
+            </button>
+            
+            <div className="space-y-4 mt-8 border-t border-slate-100 pt-6">
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                    <User size={18} className="text-brand-600" />
+                    <span>Beginner to Advanced</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                    <Zap size={18} className="text-brand-600" />
+                    <span>Instant Access</span>
+                </div>
+                 <div className="flex items-center gap-3 text-sm text-slate-600">
+                    <Lock size={18} className="text-brand-600" />
+                    <span>Secure Payment</span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
+      <div className={`fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 lg:hidden z-40 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.1)] safe-pb transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div>
+          <p className="text-xs text-slate-500">Total Price</p>
+          <p className="text-xl font-bold text-slate-900">₹{course.price.toLocaleString()}</p>
+        </div>
+        <button 
+          onClick={handleBuy}
+          className="bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg"
+        >
+          Enroll Now
+        </button>
+      </div>
+    </div>
+  );
+};
