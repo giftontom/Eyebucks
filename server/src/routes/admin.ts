@@ -4,11 +4,139 @@ import { AppError } from '../middleware/errorHandler';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { emailService } from '../services/emailService';
 import { certificateService } from '../services/certificateService';
+import { cloudinaryService } from '../services/cloudinaryService';
+import multer from 'multer';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const router = Router();
 
+// Configure multer for video uploads
+const uploadDir = path.join(__dirname, '../../uploads/videos');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `video-${uniqueSuffix}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only MP4, MOV, AVI, and WebM are allowed.'));
+    }
+  }
+});
+
 // All admin routes require authentication and admin role
 router.use(authenticate, requireAdmin);
+
+// ============================================
+// VIDEO UPLOAD
+// ============================================
+
+/**
+ * POST /api/admin/videos/upload
+ * Upload video to Cloudinary
+ */
+router.post('/videos/upload', upload.single('video'), async (req: Request, res: Response, next: NextFunction) => {
+  let tempFilePath: string | null = null;
+
+  try {
+    if (!req.file) {
+      throw new AppError('No video file provided', 400);
+    }
+
+    tempFilePath = req.file.path;
+
+    // Check if Cloudinary is configured
+    if (!cloudinaryService.isConfigured()) {
+      // In development without Cloudinary, return mock response
+      console.log('[Admin] Cloudinary not configured, returning mock video data');
+
+      const mockPublicId = `mock_video_${Date.now()}`;
+      const mockUrl = `https://placeholder-video.com/${mockPublicId}.mp4`;
+
+      // Clean up temp file
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+
+      return res.json({
+        success: true,
+        mock: true,
+        video: {
+          publicId: mockPublicId,
+          secureUrl: mockUrl,
+          url: mockUrl,
+          duration: 300, // 5 minutes mock
+          thumbnail: `https://placeholder-image.com/${mockPublicId}.jpg`,
+          format: 'mp4'
+        },
+        message: 'Mock video upload (Cloudinary not configured)'
+      });
+    }
+
+    // Upload to Cloudinary
+    console.log('[Admin] Uploading video to Cloudinary:', req.file.originalname);
+
+    const result = await cloudinaryService.uploadVideo({
+      file: tempFilePath,
+      folder: 'eyebuckz/videos',
+      publicId: `module_${Date.now()}`
+    });
+
+    // Clean up temp file
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+      tempFilePath = null;
+    }
+
+    // Generate thumbnail
+    const thumbnail = cloudinaryService.getVideoThumbnail(result.publicId, 0);
+
+    res.json({
+      success: true,
+      video: {
+        publicId: result.publicId,
+        secureUrl: result.secureUrl,
+        url: result.url,
+        duration: result.duration,
+        thumbnail: thumbnail,
+        format: result.format,
+        bytes: result.bytes,
+        width: result.width,
+        height: result.height
+      }
+    });
+  } catch (error) {
+    // Clean up temp file on error
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (cleanupError) {
+        console.error('[Admin] Failed to clean up temp file:', cleanupError);
+      }
+    }
+
+    console.error('[Admin] Video upload failed:', error);
+    next(error);
+  }
+});
 
 // ============================================
 // DASHBOARD ANALYTICS

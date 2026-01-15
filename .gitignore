@@ -41,6 +41,10 @@ dist-ssr
 server/certificates/
 certificates/
 
+# Uploaded videos (temporary)
+server/uploads/
+uploads/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -8,6 +8,7 @@ import { enrollmentService } from '../services/enrollmentService';
 import { progressService, AUTO_SAVE_INTERVAL } from '../services/progressService';
 import { useToast } from '../components/Toast';
 import { EnrollmentGate } from '../components/EnrollmentGate';
+import { CloudinaryVideoPlayer, CloudinaryVideoPlayerHandle } from '../components/CloudinaryVideoPlayer';
 
 export const Learn: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +31,7 @@ export const Learn: React.FC = () => {
   const [showCompletionNotification, setShowCompletionNotification] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<CloudinaryVideoPlayerHandle>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeChapterIndex = course?.chapters.findIndex(c => c.id === activeChapterId) ?? 0;
@@ -242,10 +243,11 @@ export const Learn: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseLeave={() => setShowControls(false)}
         >
-            <video
+            <CloudinaryVideoPlayer
                 ref={videoRef}
+                cloudinaryPublicId={course.chapters[activeChapterIndex]?.cloudinaryPublicId}
+                fallbackUrl={course.chapters[activeChapterIndex]?.videoUrl || `https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4?quality=${quality}`}
                 className="w-full h-full"
-                src={`https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4?quality=${quality}`}
                 controls={false}
                 onTimeUpdate={handleTimeUpdate}
                 onClick={handlePlayPause}

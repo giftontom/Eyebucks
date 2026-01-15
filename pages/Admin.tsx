@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import { useToast } from '../components/Toast';
+import { VideoUploader } from '../components/VideoUploader';
 
 export const Admin: React.FC = () => {
   const { user } = useAuth();
@@ -32,10 +33,12 @@ export const Admin: React.FC = () => {
   const [selectedCourseForModules, setSelectedCourseForModules] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [videoUploadMode, setVideoUploadMode] = useState<'url' | 'upload'>('url');
   const [moduleFormData, setModuleFormData] = useState({
     title: '',
     duration: '',
     videoUrl: '',
+    cloudinaryPublicId: '',
     isFreePreview: false
   });
 
@@ -1145,15 +1148,63 @@ export const Admin: React.FC = () => {
                             placeholder="15:30"
                         />
                     </div>
+                    {/* Video Source Toggle */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Video URL *</label>
-                        <input
-                            type="url"
-                            value={moduleFormData.videoUrl}
-                            onChange={(e) => setModuleFormData({ ...moduleFormData, videoUrl: e.target.value })}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
-                            placeholder="https://youtube.com/watch?v=..."
-                        />
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Video Source *</label>
+                        <div className="flex gap-2 mb-3">
+                            <button
+                                type="button"
+                                onClick={() => setVideoUploadMode('url')}
+                                className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                                    videoUploadMode === 'url'
+                                        ? 'bg-brand-600 text-white'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                Enter URL
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setVideoUploadMode('upload')}
+                                className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                                    videoUploadMode === 'upload'
+                                        ? 'bg-brand-600 text-white'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                            >
+                                Upload Video
+                            </button>
+                        </div>
+
+                        {/* Conditional rendering based on mode */}
+                        {videoUploadMode === 'url' ? (
+                            <div>
+                                <input
+                                    type="url"
+                                    value={moduleFormData.videoUrl}
+                                    onChange={(e) => setModuleFormData({ ...moduleFormData, videoUrl: e.target.value })}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                                    placeholder="https://youtube.com/watch?v=..."
+                                />
+                            </div>
+                        ) : (
+                            <VideoUploader
+                                initialVideoUrl={moduleFormData.videoUrl}
+                                onUploadComplete={(videoData) => {
+                                    // Convert duration from seconds to MM:SS
+                                    const minutes = Math.floor(videoData.duration / 60);
+                                    const seconds = Math.floor(videoData.duration % 60);
+                                    const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                                    setModuleFormData({
+                                        ...moduleFormData,
+                                        videoUrl: videoData.secureUrl,
+                                        cloudinaryPublicId: videoData.publicId,
+                                        duration: durationStr
+                                    });
+                                }}
+                            />
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <input

@@ -12,7 +12,8 @@ export interface Module {
   duration: string;
   durationSeconds: number;
   isCompleted: boolean;
-  videoUrl: string; 
+  videoUrl: string;
+  cloudinaryPublicId?: string; // Optional: for Cloudinary-hosted videos
   isFreePreview?: boolean;
 }
 
