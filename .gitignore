@@ -37,6 +37,10 @@ dist-ssr
 *.db
 *.sqlite
 
+# Generated certificates
+server/certificates/
+certificates/
+
 # OS
 .DS_Store
 Thumbs.db

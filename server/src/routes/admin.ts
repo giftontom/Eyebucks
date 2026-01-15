@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../utils/db';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { emailService } from '../services/emailService';
+import { certificateService } from '../services/certificateService';
 
 const router = Router();
 
@@ -921,6 +923,24 @@ router.post('/certificates', async (req: Request, res: Response, next: NextFunct
     // Generate certificate number
     const certificateNumber = `EYEBUCKZ-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
+    const issueDate = new Date();
+    const completionDate = new Date();
+
+    // Generate PDF certificate
+    let pdfPath: string | null = null;
+    try {
+      pdfPath = await certificateService.generateCertificate({
+        studentName: user.name,
+        courseTitle: course.title,
+        certificateNumber,
+        issueDate,
+        completionDate
+      });
+    } catch (pdfError) {
+      console.error('[Admin] Failed to generate certificate PDF:', pdfError);
+      // Continue even if PDF generation fails
+    }
+
     const certificate = await prisma.certificate.create({
       data: {
         userId,
@@ -928,11 +948,26 @@ router.post('/certificates', async (req: Request, res: Response, next: NextFunct
         certificateNumber,
         studentName: user.name,
         courseTitle: course.title,
-        issueDate: new Date(),
-        completionDate: new Date(),
-        status: 'ACTIVE'
+        issueDate,
+        completionDate,
+        status: 'ACTIVE',
+        pdfUrl: pdfPath ? certificateService.getCertificateUrl(certificateNumber) : null
       }
     });
+
+    // Send certificate issued email (don't fail if email sending fails)
+    try {
+      const certificateUrl = certificateService.getCertificateUrl(certificateNumber);
+
+      await emailService.sendCertificateIssued(
+        user.email,
+        user.name,
+        course.title,
+        certificateUrl
+      );
+    } catch (emailError) {
+      console.error('[Admin] Failed to send certificate email:', emailError);
+    }
 
     res.json({
       success: true,

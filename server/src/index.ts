@@ -51,6 +51,7 @@ import progressRouter from './routes/progress';
 import checkoutRouter from './routes/checkout';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
+import certificatesRouter from './routes/certificates';
 
 // API Routes
 app.use('/api/courses', coursesRouter);
@@ -59,6 +60,7 @@ app.use('/api/progress', progressRouter);
 app.use('/api/checkout', checkoutRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/certificates', certificatesRouter);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../utils/db';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate } from '../middleware/auth';
+import { emailService } from '../services/emailService';
 import crypto from 'crypto';
 
 const router = Router();
@@ -167,6 +168,36 @@ router.post('/verify', authenticate, async (req: Request, res: Response, next: N
         }
       });
 
+      // Get user details for email
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true }
+      });
+
+      // Send emails (don't fail if email sending fails)
+      if (user) {
+        try {
+          await Promise.all([
+            emailService.sendEnrollmentConfirmation(
+              user.email,
+              user.name,
+              course.title,
+              courseId
+            ),
+            emailService.sendPaymentReceipt(
+              user.email,
+              user.name,
+              course.title,
+              course.price,
+              orderId,
+              enrollment.paymentId
+            )
+          ]);
+        } catch (emailError) {
+          console.error('[Checkout] Failed to send emails:', emailError);
+        }
+      }
+
       return res.json({
         success: true,
         mock: true,
@@ -219,6 +250,36 @@ router.post('/verify', authenticate, async (req: Request, res: Response, next: N
     });
 
     console.log('[Checkout] Enrollment created:', enrollment.id);
+
+    // Get user details for email
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    });
+
+    // Send emails (don't fail if email sending fails)
+    if (user) {
+      try {
+        await Promise.all([
+          emailService.sendEnrollmentConfirmation(
+            user.email,
+            user.name,
+            course.title,
+            courseId
+          ),
+          emailService.sendPaymentReceipt(
+            user.email,
+            user.name,
+            course.title,
+            course.price,
+            orderId,
+            paymentId
+          )
+        ]);
+      } catch (emailError) {
+        console.error('[Checkout] Failed to send emails:', emailError);
+      }
+    }
 
     res.json({
       success: true,
@@ -341,7 +402,41 @@ async function handlePaymentCaptured(payload: any) {
 
   console.log('[Webhook] Enrollment created via webhook:', enrollment.id);
 
-  // TODO: Send enrollment confirmation email
+  // Get user and course details for email
+  const [user, course] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    }),
+    prisma.course.findUnique({
+      where: { id: courseId },
+      select: { title: true, price: true }
+    })
+  ]);
+
+  // Send enrollment confirmation and payment receipt emails
+  if (user && course) {
+    try {
+      await Promise.all([
+        emailService.sendEnrollmentConfirmation(
+          user.email,
+          user.name,
+          course.title,
+          courseId
+        ),
+        emailService.sendPaymentReceipt(
+          user.email,
+          user.name,
+          course.title,
+          amount,
+          orderId,
+          paymentId
+        )
+      ]);
+    } catch (emailError) {
+      console.error('[Webhook] Failed to send emails:', emailError);
+    }
+  }
 }
 
 /**
