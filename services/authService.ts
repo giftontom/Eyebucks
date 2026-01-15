@@ -1,97 +1,151 @@
 import { User } from '../types';
+import { apiClient } from './apiClient';
 
 const USER_KEY = 'eyebuckz_user';
-const SESSION_TOKEN_KEY = 'eyebuckz_session_token';
-
-// Simulating a backend database of sessions
-// In a real app, this would be Redis or Postgres
-let MOCK_SERVER_SESSION_STORE: Record<string, string> = {}; 
 
 export const authService = {
-  login: async (): Promise<User> => {
-    // Simulating Google OAuth response delay
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockUser: User = {
-          id: 'u_123',
-          name: 'Demo User',
-          email: 'demo@example.com',
-          avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200',
-          role: 'USER',
-          google_id: 'g_12345',
-          // Intentionally leaving phone_e164 undefined to trigger "Gap Check"
-        };
-        
-        // Generate a new session token
-        const newToken = `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        // SERVER SIDE SIMULATION: Invalidate old sessions for this user
-        // We store the "valid" token for this user ID. Any other token is now invalid.
-        MOCK_SERVER_SESSION_STORE[mockUser.id] = newToken;
-        localStorage.setItem(SESSION_TOKEN_KEY, newToken);
+  /**
+   * Login with Google OAuth credential
+   * Exchanges Google token for JWT and creates session
+   */
+  loginWithGoogle: async (credential: string): Promise<User> => {
+    try {
+      // In development mode without Google Client ID, use mock credentials
+      const isDevelopmentMode = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-        resolve(mockUser);
-      }, 800);
-    });
+      let authData;
+      if (isDevelopmentMode && !credential) {
+        // Development mode: use mock credentials
+        authData = {
+          email: 'test@example.com',
+          name: 'Test User',
+          picture: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200',
+          sub: 'google_dev_' + Date.now()
+        };
+        console.log('[Auth] Development mode: Using mock Google credentials');
+      } else {
+        // Production mode: send Google credential to backend
+        authData = {
+          credential
+        };
+      }
+
+      // Call backend API to create/login user
+      const response = await apiClient.googleAuth(authData as any);
+
+      if (!response.success || !response.user) {
+        throw new Error('Authentication failed');
+      }
+
+      console.log('[Auth] User logged in:', response.user.id);
+
+      return response.user;
+    } catch (error) {
+      console.error('[Auth] Login failed:', error);
+      throw error;
+    }
   },
 
-  adminLogin: async (): Promise<User> => {
-     return new Promise((resolve) => {
-      setTimeout(() => {
-        const adminUser: User = {
-          id: 'admin_1',
-          name: 'Admin User',
-          email: 'admin@eyebuckz.com',
-          phone_e164: '+1234567890', // Admin has phone
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
-          role: 'ADMIN',
-        };
-        const newToken = `token_${Date.now()}_admin`;
-        MOCK_SERVER_SESSION_STORE[adminUser.id] = newToken;
-        localStorage.setItem(SESSION_TOKEN_KEY, newToken);
-        
-        resolve(adminUser);
-      }, 500);
-     });
+  /**
+   * Login with mock development credentials
+   * For development only - bypasses Google OAuth
+   */
+  loginDev: async (isAdmin: boolean = false): Promise<User> => {
+    try {
+      const mockCredentials = {
+        email: isAdmin ? 'admin@eyebuckz.com' : 'test@example.com',
+        name: isAdmin ? 'Admin User' : 'Test User',
+        picture: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200',
+        sub: `google_dev_${isAdmin ? 'admin' : 'user'}_${Date.now()}`
+      };
+
+      const response = await apiClient.googleAuth(mockCredentials);
+
+      if (!response.success || !response.user) {
+        throw new Error('Development login failed');
+      }
+
+      console.log('[Auth] Dev login successful:', response.user.id);
+
+      return response.user;
+    } catch (error) {
+      console.error('[Auth] Dev login failed:', error);
+      throw error;
+    }
   },
 
+  /**
+   * Update user phone number (persists to backend)
+   */
   updatePhone: async (userId: string, phone: string): Promise<void> => {
-    // Simulate server-side E.164 validation
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const e164Regex = /^\+[1-9]\d{1,14}$/;
-        if (e164Regex.test(phone)) {
-           resolve();
-        } else {
-           reject(new Error("Invalid E.164 format"));
-        }
-      }, 500);
-    });
+    try {
+      // Validate E.164 format locally first
+      const e164Regex = /^\+[1-9]\d{1,14}$/;
+      if (!e164Regex.test(phone)) {
+        throw new Error('Invalid E.164 format. Phone must start with + and country code.');
+      }
+
+      // Call backend API to persist phone number
+      const response = await apiClient.updatePhone(userId, phone);
+
+      if (!response.success) {
+        throw new Error('Failed to update phone number');
+      }
+
+      console.log('[Auth] Phone updated for user:', userId);
+    } catch (error) {
+      console.error('[Auth] Phone update failed:', error);
+      throw error;
+    }
   },
 
+  /**
+   * Get current user from backend
+   * Validates JWT token and returns user data
+   */
+  getCurrentUser: async (): Promise<User | null> => {
+    try {
+      const response = await apiClient.getCurrentUser();
+      if (response.success && response.user) {
+        return response.user;
+      }
+      return null;
+    } catch (error) {
+      console.error('[Auth] Failed to get current user:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Check if there's a stored user in localStorage
+   * Note: This is just a cache, real auth is JWT-based
+   */
   checkSession: (): User | null => {
     const stored = localStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
   },
 
-  // Simulates the API call middleware that checks if the session is still valid
-  validateSessionToken: async (userId: string): Promise<boolean> => {
-    const currentClientToken = localStorage.getItem(SESSION_TOKEN_KEY);
-    const validServerToken = MOCK_SERVER_SESSION_STORE[userId];
-    
-    // If the server has a different token than the client, the session is invalid (concurrent login)
-    if (validServerToken && currentClientToken !== validServerToken) {
-        return false;
-    }
-    return true;
-  },
-
+  /**
+   * Save user to localStorage (cache only)
+   */
   saveSession: (user: User) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   },
 
-  logout: () => {
+  /**
+   * Logout user and clear session
+   * Invalidates tokens on backend
+   */
+  logout: async () => {
+    try {
+      // Call backend logout endpoint
+      await apiClient.logout();
+    } catch (error) {
+      console.error('[Auth] Logout API call failed:', error);
+    }
+
+    // Clear local storage regardless of API call success
     localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(SESSION_TOKEN_KEY);
+    console.log('[Auth] User logged out');
   }
 };

@@ -59,9 +59,22 @@ export interface Session {
 }
 
 export interface Enrollment {
+  id: string;
   userId: string;
   courseId: string;
   enrolledAt: string;
+  lastAccessedAt: string | null;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+  paymentId?: string;
+  orderId?: string;
+  amount: number;
+  expiresAt?: string | null;
+  progress: {
+    completedModules: string[];
+    currentModule: string | null;
+    overallPercent: number;
+    totalWatchTime: number;
+  };
 }
 
 export interface Progress {

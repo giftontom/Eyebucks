@@ -1,14 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MOCK_COURSES } from '../constants';
 import { PlayCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { enrollmentService } from '../services/enrollmentService';
+import { DashboardSkeleton } from '../components/CourseCardSkeleton';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Simulating user having access to the first course
-  const myCourses = [MOCK_COURSES[0]]; 
+  // Load user's enrolled courses
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Get user's enrollments
+      const enrollments = await enrollmentService.getUserEnrollments(user.id);
+
+      // Map enrollments to full course objects with progress
+      const courses = enrollments
+        .map(enrollment => {
+          const course = MOCK_COURSES.find(c => c.id === enrollment.courseId);
+          if (!course) return null;
+
+          return {
+            ...course,
+            enrollmentId: enrollment.id,
+            progress: enrollment.progress.overallPercent,
+            enrolledAt: enrollment.enrolledAt,
+            lastAccessedAt: enrollment.lastAccessedAt
+          };
+        })
+        .filter(Boolean); // Remove null values
+
+      setEnrolledCourses(courses);
+      setIsLoading(false);
+    };
+
+    loadEnrollments();
+  }, [user]);
+
+  // Show loading state
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  const myCourses = enrolledCourses; 
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -32,10 +74,10 @@ export const Dashboard: React.FC = () => {
                 <div className="p-6">
                    <h3 className="font-bold text-lg mb-3 text-slate-900 leading-tight">{course.title}</h3>
                    <div className="w-full bg-slate-100 h-2 rounded-full mb-4 overflow-hidden">
-                      <div className="bg-brand-600 h-2 rounded-full" style={{ width: '35%' }}></div>
+                      <div className="bg-brand-600 h-2 rounded-full" style={{ width: `${course.progress || 0}%` }}></div>
                    </div>
                    <div className="flex justify-between items-center text-sm text-slate-500 mb-6">
-                      <span>35% Completed</span>
+                      <span>{course.progress || 0}% Completed</span>
                    </div>
                    <Link 
                      to={`/learn/${course.id}`}

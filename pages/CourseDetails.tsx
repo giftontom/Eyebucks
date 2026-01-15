@@ -1,19 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MOCK_COURSES } from '../constants';
-import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User } from 'lucide-react';
+import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useAccessControl } from '../hooks/useAccessControl';
 
 export const CourseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const course = MOCK_COURSES.find(c => c.id === id);
+  const { hasAccess, isLoading: isCheckingAccess, isEnrolled, isAdmin } = useAccessControl(id);
   const [isMuted, setIsMuted] = useState(true);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'REVIEWS'>('OVERVIEW');
   const [showSticky, setShowSticky] = useState(false);
-  
+
   // Ref for the main Call-to-Action button to track visibility
   const mainCtaRef = useRef<HTMLButtonElement>(null);
 
@@ -40,9 +42,38 @@ export const CourseDetails: React.FC = () => {
 
   if (!course) return <div>Course not found</div>;
 
-  const handleBuy = () => {
+  const handleCTA = async () => {
+    // If user has access (enrolled or admin), go to course
+    if (hasAccess) {
+      navigate(`/learn/${course.id}`);
+      return;
+    }
+
+    // If not logged in, trigger login
+    if (!user) {
+      await login();
+      return;
+    }
+
+    // If logged in but not enrolled, go to checkout
     navigate(`/checkout/${course.id}`);
   };
+
+  // Determine CTA button text and styling
+  const getCtaConfig = () => {
+    if (isCheckingAccess) {
+      return { text: 'Loading...', disabled: true };
+    }
+    if (hasAccess) {
+      return { text: 'Continue Learning', icon: <ArrowRight size={20} />, disabled: false };
+    }
+    if (!user) {
+      return { text: 'Login to Enroll', disabled: false };
+    }
+    return { text: 'Enroll Now', icon: <Zap size={20} />, disabled: false };
+  };
+
+  const ctaConfig = getCtaConfig();
 
   return (
     <div className="pb-24 bg-white">
@@ -117,12 +148,14 @@ export const CourseDetails: React.FC = () => {
 
                     {/* Mobile Enroll Button (Main CTA) */}
                     <div className="mt-8 lg:hidden">
-                       <button 
+                       <button
                           ref={mainCtaRef}
-                          onClick={handleBuy}
-                          className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
+                          onClick={handleCTA}
+                          disabled={ctaConfig.disabled}
+                          className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition"
                         >
-                          Enroll for ₹{course.price.toLocaleString()}
+                          {ctaConfig.icon}
+                          {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ₹${course.price.toLocaleString()}`}
                         </button>
                     </div>
                 </div>
@@ -195,14 +228,28 @@ export const CourseDetails: React.FC = () => {
         {/* Desktop Sidebar (Always Visible) */}
         <div className="hidden lg:block">
           <div className="sticky top-24 bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50">
-            <h3 className="text-4xl font-bold text-slate-900 mb-2">₹{course.price.toLocaleString()}</h3>
-            <p className="text-slate-500 text-sm mb-8">One-time payment. Lifetime access.</p>
-            
-            <button 
-              onClick={handleBuy}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 mb-4 flex items-center justify-center gap-2"
+            {!hasAccess && (
+              <>
+                <h3 className="text-4xl font-bold text-slate-900 mb-2">₹{course.price.toLocaleString()}</h3>
+                <p className="text-slate-500 text-sm mb-8">One-time payment. Lifetime access.</p>
+              </>
+            )}
+            {hasAccess && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                <p className="text-green-800 font-bold text-sm flex items-center gap-2">
+                  <Zap size={16} className="text-green-600" />
+                  You're enrolled in this course
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={handleCTA}
+              disabled={ctaConfig.disabled}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Zap size={20} /> Enroll Now
+              {ctaConfig.icon}
+              {ctaConfig.text}
             </button>
             
             <div className="space-y-4 mt-8 border-t border-slate-100 pt-6">
@@ -225,16 +272,30 @@ export const CourseDetails: React.FC = () => {
 
       {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
       <div className={`fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 lg:hidden z-40 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.1)] safe-pb transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
-        <div>
-          <p className="text-xs text-slate-500">Total Price</p>
-          <p className="text-xl font-bold text-slate-900">₹{course.price.toLocaleString()}</p>
-        </div>
-        <button 
-          onClick={handleBuy}
-          className="bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg"
-        >
-          Enroll Now
-        </button>
+        {!hasAccess ? (
+          <>
+            <div>
+              <p className="text-xs text-slate-500">Total Price</p>
+              <p className="text-xl font-bold text-slate-900">₹{course.price.toLocaleString()}</p>
+            </div>
+            <button
+              onClick={handleCTA}
+              disabled={ctaConfig.disabled}
+              className="bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition disabled:opacity-50"
+            >
+              {ctaConfig.text}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleCTA}
+            disabled={ctaConfig.disabled}
+            className="w-full bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition flex items-center justify-center gap-2"
+          >
+            {ctaConfig.icon}
+            {ctaConfig.text}
+          </button>
+        )}
       </div>
     </div>
   );

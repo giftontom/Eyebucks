@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Play, Star, ArrowRight, Youtube, Instagram, MonitorPlay, Film, Camera, Users, CheckCircle2, Download, MessageCircle, Layers, FileText, X, Plus, Award, Zap, TrendingUp, Globe, Smartphone, Clapperboard, Sparkles } from 'lucide-react';
 import { MOCK_COURSES } from '../constants';
 import { CourseType } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 // --- Local Data for Static Sections ---
 
@@ -95,6 +96,7 @@ export const Storefront: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | CourseType>('ALL');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // 3D Tilt Logic for Editor Workspace
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -166,13 +168,19 @@ export const Storefront: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 animate-fade-in-up delay-300">
-                <a 
-                    href="#courses" 
+                <button
+                    onClick={() => {
+                      if (user) {
+                        navigate('/dashboard');
+                      } else {
+                        document.getElementById('courses')?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
                     className="group relative w-full sm:w-auto h-16 px-12 rounded-full bg-brand-600 text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-[0_0_40px_-10px_rgba(220,38,38,0.5)] hover:shadow-[0_0_60px_-10px_rgba(220,38,38,0.7)] hover:scale-105 overflow-hidden"
                 >
                     <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
-                    Start Learning Now <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform"/>
-                </a>
+                    {user ? 'Go to Dashboard' : 'Start Learning Now'} <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform"/>
+                </button>
                 <a 
                     href="https://youtube.com/@eyebuckz" 
                     target="_blank"

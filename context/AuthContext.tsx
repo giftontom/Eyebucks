@@ -4,9 +4,10 @@ import { authService } from '../services/authService';
 
 interface AuthContextType {
   user: User | null;
-  login: () => Promise<void>;
-  adminLogin: () => Promise<void>;
-  logout: () => void;
+  isLoading: boolean;
+  loginWithGoogle: (credential: string) => Promise<void>;
+  loginDev: (isAdmin?: boolean) => Promise<void>;
+  logout: () => Promise<void>;
   updatePhoneNumber: (phone: string) => Promise<void>;
   isGapCheckRequired: boolean;
 }
@@ -15,54 +16,80 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isGapCheckRequired, setIsGapCheckRequired] = useState(false);
 
+  // Load user from backend on mount (validates JWT)
   useEffect(() => {
-    const storedUser = authService.checkSession();
-    if (storedUser) {
-      setUser(storedUser);
-      if (!storedUser.phone_e164) {
-        setIsGapCheckRequired(true);
+    const loadUser = async () => {
+      try {
+        // Try to get user from backend using JWT token
+        const currentUser = await authService.getCurrentUser();
+
+        if (currentUser) {
+          setUser(currentUser);
+          authService.saveSession(currentUser);
+
+          // Gap Check Logic: If no phone number, set flag to true
+          if (!currentUser.phone_e164) {
+            setIsGapCheckRequired(true);
+          }
+        } else {
+          // No valid session, clear local cache
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('[AuthContext] Failed to load user:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    loadUser();
   }, []);
 
-  // Concurrent Session Enforcement (Module 5)
-  // Periodically check if the session token is still valid on the server
-  useEffect(() => {
-    if (!user) return;
+  const loginWithGoogle = async (credential: string) => {
+    try {
+      const loggedInUser = await authService.loginWithGoogle(credential);
+      setUser(loggedInUser);
+      authService.saveSession(loggedInUser);
 
-    const intervalId = setInterval(async () => {
-        const isValid = await authService.validateSessionToken(user.id);
-        if (!isValid) {
-            alert("You have been logged out because your account was accessed from another device.");
-            logout();
-        }
-    }, 10000); // Check every 10 seconds
-
-    return () => clearInterval(intervalId);
-  }, [user]);
-
-  const login = async () => {
-    const loggedInUser = await authService.login();
-    setUser(loggedInUser);
-    authService.saveSession(loggedInUser);
-    
-    // Gap Check Logic: If no phone number, set flag to true
-    if (!loggedInUser.phone_e164) {
-      setIsGapCheckRequired(true);
+      // Gap Check Logic: If no phone number, set flag to true
+      if (!loggedInUser.phone_e164) {
+        setIsGapCheckRequired(true);
+      }
+    } catch (error) {
+      console.error('[AuthContext] Login failed:', error);
+      throw error;
     }
   };
 
-  const adminLogin = async () => {
-     const admin = await authService.adminLogin();
-     setUser(admin);
-     authService.saveSession(admin);
-     setIsGapCheckRequired(false);
-  }
+  const loginDev = async (isAdmin: boolean = false) => {
+    try {
+      const loggedInUser = await authService.loginDev(isAdmin);
+      setUser(loggedInUser);
+      authService.saveSession(loggedInUser);
 
-  const logout = () => {
-    authService.logout();
+      // Admins skip phone verification
+      if (isAdmin) {
+        setIsGapCheckRequired(false);
+      } else if (!loggedInUser.phone_e164) {
+        setIsGapCheckRequired(true);
+      }
+    } catch (error) {
+      console.error('[AuthContext] Dev login failed:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('[AuthContext] Logout error:', error);
+    }
+
     setUser(null);
     setIsGapCheckRequired(false);
   };
@@ -70,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePhoneNumber = async (phone: string) => {
     if (user) {
       await authService.updatePhone(user.id, phone);
-      const updatedUser = { ...user, phone_e164: phone };
+      const updatedUser = { ...user, phone_e164: phone, phoneVerified: true };
       setUser(updatedUser);
       authService.saveSession(updatedUser);
       setIsGapCheckRequired(false);
@@ -78,7 +105,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, adminLogin, logout, updatePhoneNumber, isGapCheckRequired }}>
+    <AuthContext.Provider value={{
+      user,
+      isLoading,
+      loginWithGoogle,
+      loginDev,
+      logout,
+      updatePhoneNumber,
+      isGapCheckRequired
+    }}>
       {children}
     </AuthContext.Provider>
   );
