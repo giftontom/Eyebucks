@@ -28,6 +28,7 @@ export const Learn: React.FC = () => {
   const [showControls, setShowControls] = useState(true);
   const [notes, setNotes] = useState('');
   const [quality, setQuality] = useState('1080p');
+  const notesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCompletionNotification, setShowCompletionNotification] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
@@ -37,22 +38,86 @@ export const Learn: React.FC = () => {
   const activeChapterIndex = course?.chapters.findIndex(c => c.id === activeChapterId) ?? 0;
 
   // Calculate real progress from progressService
-  const progressPercent = user && id ? progressService.getCourseStats(user.id, id).overallPercent : 0;
+  const [progressPercent, setProgressPercent] = useState(0);
+
+  // Load course progress stats
+  useEffect(() => {
+    const loadProgress = async () => {
+      if (!user || !id) {
+        setProgressPercent(0);
+        return;
+      }
+
+      try {
+        const stats = await progressService.getCourseStats(user.id, id);
+        setProgressPercent(stats.overallPercent);
+      } catch (error) {
+        console.error('[Progress] Error loading course stats:', error);
+      }
+    };
+
+    loadProgress();
+  }, [user, id]);
 
   // Load resume position when module changes
   useEffect(() => {
     if (!user || !id || !activeChapterId || !videoRef.current || !hasAccess) return;
 
-    const resumePosition = progressService.getResumePosition(user.id, id, activeChapterId);
+    const loadResumePosition = async () => {
+      try {
+        const resumePosition = await progressService.getResumePosition(user.id, id, activeChapterId);
 
-    if (resumePosition > 0) {
-      videoRef.current.currentTime = resumePosition;
-      console.log(`[Progress] Resumed ${activeChapterId} at ${resumePosition}s`);
+        if (resumePosition > 0 && videoRef.current) {
+          videoRef.current.currentTime = resumePosition;
+          console.log(`[Progress] Resumed ${activeChapterId} at ${resumePosition}s`);
+        }
+
+        // Update current module in enrollment
+        await progressService.updateCurrentModule(user.id, id, activeChapterId);
+      } catch (error) {
+        console.error('[Progress] Error loading resume position:', error);
+      }
+    };
+
+    loadResumePosition();
+  }, [activeChapterId, user, id, hasAccess]);
+
+  // Load notes from localStorage when module changes
+  useEffect(() => {
+    if (!user || !id || !activeChapterId) return;
+
+    const notesKey = `eyebuckz_notes_${id}_${activeChapterId}`;
+    const savedNotes = localStorage.getItem(notesKey);
+
+    if (savedNotes) {
+      setNotes(savedNotes);
+    } else {
+      setNotes('');
+    }
+  }, [user, id, activeChapterId]);
+
+  // Save notes to localStorage (debounced)
+  useEffect(() => {
+    if (!user || !id || !activeChapterId) return;
+
+    // Clear previous timeout
+    if (notesTimeoutRef.current) {
+      clearTimeout(notesTimeoutRef.current);
     }
 
-    // Update current module in enrollment
-    progressService.updateCurrentModule(user.id, id, activeChapterId);
-  }, [activeChapterId, user, id, hasAccess]);
+    // Debounce save by 1 second
+    notesTimeoutRef.current = setTimeout(() => {
+      const notesKey = `eyebuckz_notes_${id}_${activeChapterId}`;
+      localStorage.setItem(notesKey, notes);
+      console.log(`[Notes] Saved for ${activeChapterId}`);
+    }, 1000);
+
+    return () => {
+      if (notesTimeoutRef.current) {
+        clearTimeout(notesTimeoutRef.current);
+      }
+    };
+  }, [notes, user, id, activeChapterId]);
 
   // Module 5: Prevent Right Click
   useEffect(() => {
@@ -96,7 +161,7 @@ export const Learn: React.FC = () => {
     }
   };
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = async () => {
     if (videoRef.current) {
       setCurrentTime(videoRef.current.currentTime);
       setDuration(videoRef.current.duration);
@@ -115,6 +180,10 @@ export const Learn: React.FC = () => {
           // Show completion notification
           setShowCompletionNotification(true);
           setTimeout(() => setShowCompletionNotification(false), 3000);
+
+          // Reload progress stats
+          const stats = await progressService.getCourseStats(user.id, id);
+          setProgressPercent(stats.overallPercent);
         }
       }
     }
