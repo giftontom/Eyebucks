@@ -1,151 +1,94 @@
+/**
+ * Auth Service - Supabase Version
+ * Thin wrapper that delegates to Supabase Auth + user profile queries
+ * Kept for backward compatibility with components that import authService
+ */
+import { supabase } from './supabase';
 import { User } from '../types';
-import { apiClient } from './apiClient';
 
 const USER_KEY = 'eyebuckz_user';
 
 export const authService = {
   /**
-   * Login with Google OAuth credential
-   * Exchanges Google token for JWT and creates session
+   * Login with Google OAuth (delegates to Supabase Auth)
+   * Note: In the Supabase version, Google login is handled by AuthContext.loginWithGoogle()
+   * This method is kept for backward compatibility but shouldn't be called directly
    */
-  loginWithGoogle: async (credential: string): Promise<User> => {
-    try {
-      // In development mode without Google Client ID, use mock credentials
-      const isDevelopmentMode = !import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-      let authData;
-      if (isDevelopmentMode && !credential) {
-        // Development mode: use mock credentials
-        authData = {
-          email: 'test@example.com',
-          name: 'Test User',
-          picture: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200',
-          sub: 'google_dev_' + Date.now()
-        };
-        console.log('[Auth] Development mode: Using mock Google credentials');
-      } else {
-        // Production mode: send Google credential to backend
-        authData = {
-          credential
-        };
-      }
-
-      // Call backend API to create/login user
-      const response = await apiClient.googleAuth(authData as any);
-
-      if (!response.success || !response.user) {
-        throw new Error('Authentication failed');
-      }
-
-      console.log('[Auth] User logged in:', response.user.id);
-
-      return response.user;
-    } catch (error) {
-      console.error('[Auth] Login failed:', error);
-      throw error;
-    }
+  loginWithGoogle: async (_credential: string): Promise<User> => {
+    // Supabase handles Google OAuth redirect flow - this is a no-op
+    throw new Error('Use AuthContext.loginWithGoogle() for Supabase OAuth flow');
   },
 
   /**
-   * Login with mock development credentials
-   * For development only - bypasses Google OAuth
+   * Dev login (delegates to Supabase email/password)
    */
-  loginDev: async (isAdmin: boolean = false): Promise<User> => {
-    try {
-      const mockCredentials = {
-        email: isAdmin ? 'admin@eyebuckz.com' : 'test@example.com',
-        name: isAdmin ? 'Admin User' : 'Test User',
-        picture: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200',
-        sub: `google_dev_${isAdmin ? 'admin' : 'user'}_${Date.now()}`
-      };
-
-      const response = await apiClient.googleAuth(mockCredentials);
-
-      if (!response.success || !response.user) {
-        throw new Error('Development login failed');
-      }
-
-      console.log('[Auth] Dev login successful:', response.user.id);
-
-      return response.user;
-    } catch (error) {
-      console.error('[Auth] Dev login failed:', error);
-      throw error;
-    }
+  loginDev: async (_isAdmin: boolean = false): Promise<User> => {
+    throw new Error('Use AuthContext.loginDev() for Supabase dev login');
   },
 
   /**
-   * Update user phone number (persists to backend)
+   * Update user phone number
    */
   updatePhone: async (userId: string, phone: string): Promise<void> => {
-    try {
-      // Validate E.164 format locally first
-      const e164Regex = /^\+[1-9]\d{1,14}$/;
-      if (!e164Regex.test(phone)) {
-        throw new Error('Invalid E.164 format. Phone must start with + and country code.');
-      }
-
-      // Call backend API to persist phone number
-      const response = await apiClient.updatePhone(userId, phone);
-
-      if (!response.success) {
-        throw new Error('Failed to update phone number');
-      }
-
-      console.log('[Auth] Phone updated for user:', userId);
-    } catch (error) {
-      console.error('[Auth] Phone update failed:', error);
-      throw error;
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(phone)) {
+      throw new Error('Invalid E.164 format. Phone must start with + and country code.');
     }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ phone_e164: phone, phone_verified: true })
+      .eq('id', userId);
+
+    if (error) throw new Error('Failed to update phone number');
   },
 
   /**
-   * Get current user from backend
-   * Validates JWT token and returns user data
+   * Get current user from Supabase Auth + profile
    */
   getCurrentUser: async (): Promise<User | null> => {
     try {
-      const response = await apiClient.getCurrentUser();
-      if (response.success && response.user) {
-        return response.user;
-      }
-      return null;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return null;
+
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error || !profile) return null;
+
+      return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        avatar: profile.avatar || '',
+        phone_e164: profile.phone_e164,
+        role: profile.role,
+        phoneVerified: profile.phone_verified,
+        emailVerified: profile.email_verified,
+        google_id: profile.google_id,
+        created_at: profile.created_at ? new Date(profile.created_at) : undefined,
+        last_login_at: profile.last_login_at ? new Date(profile.last_login_at) : undefined,
+      };
     } catch (error) {
       console.error('[Auth] Failed to get current user:', error);
       return null;
     }
   },
 
-  /**
-   * Check if there's a stored user in localStorage
-   * Note: This is just a cache, real auth is JWT-based
-   */
   checkSession: (): User | null => {
     const stored = localStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
   },
 
-  /**
-   * Save user to localStorage (cache only)
-   */
   saveSession: (user: User) => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   },
 
-  /**
-   * Logout user and clear session
-   * Invalidates tokens on backend
-   */
   logout: async () => {
-    try {
-      // Call backend logout endpoint
-      await apiClient.logout();
-    } catch (error) {
-      console.error('[Auth] Logout API call failed:', error);
-    }
-
-    // Clear local storage regardless of API call success
+    await supabase.auth.signOut();
     localStorage.removeItem(USER_KEY);
-    console.log('[Auth] User logged out');
-  }
+  },
 };

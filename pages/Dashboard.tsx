@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MOCK_COURSES } from '../constants';
 import { PlayCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { enrollmentService } from '../services/enrollmentService';
+import { apiClient } from '../services/apiClient';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<Array<{
+    id: string;
+    title: string;
+    thumbnail: string;
+    progress: number;
+    enrollmentId: string;
+    enrolledAt: Date;
+    lastAccessedAt?: Date | null;
+  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user's enrolled courses
@@ -19,27 +27,34 @@ export const Dashboard: React.FC = () => {
         return;
       }
 
-      // Get user's enrollments
-      const enrollments = await enrollmentService.getUserEnrollments(user.id);
+      try {
+        // Get user's enrollments
+        const enrollments = await enrollmentService.getUserEnrollments(user.id);
 
-      // Map enrollments to full course objects with progress
-      const courses = enrollments
-        .map(enrollment => {
-          const course = MOCK_COURSES.find(c => c.id === enrollment.courseId);
-          if (!course) return null;
+        // Fetch course details for each enrollment
+        const coursesPromises = enrollments.map(async (enrollment) => {
+          try {
+            const courseResponse = await apiClient.getCourse(enrollment.courseId);
+            return {
+              ...courseResponse.course,
+              enrollmentId: enrollment.id,
+              progress: enrollment.progress.overallPercent,
+              enrolledAt: enrollment.enrolledAt,
+              lastAccessedAt: enrollment.lastAccessedAt
+            };
+          } catch (error) {
+            console.error(`Failed to fetch course ${enrollment.courseId}:`, error);
+            return null;
+          }
+        });
 
-          return {
-            ...course,
-            enrollmentId: enrollment.id,
-            progress: enrollment.progress.overallPercent,
-            enrolledAt: enrollment.enrolledAt,
-            lastAccessedAt: enrollment.lastAccessedAt
-          };
-        })
-        .filter(Boolean); // Remove null values
-
-      setEnrolledCourses(courses);
-      setIsLoading(false);
+        const courses = (await Promise.all(coursesPromises)).filter(Boolean);
+        setEnrolledCourses(courses);
+      } catch (error) {
+        console.error('[Dashboard] Error loading enrollments:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadEnrollments();

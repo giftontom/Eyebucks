@@ -1,15 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MOCK_COURSES } from '../constants';
 import { ShieldCheck, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { useScript } from '../hooks/useScript';
+import { logger } from '../utils/logger';
+import type { Course } from '../types';
 
-// Extend Window interface for Razorpay
+// Razorpay SDK types
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => Promise<void>;
+  prefill: { name: string; email: string; contact: string };
+  theme: { color: string };
+  modal: { ondismiss: () => void };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+}
+
 declare global {
   interface Window {
-    Razorpay?: any;
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
 
@@ -17,13 +41,26 @@ export const Checkout: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, login } = useAuth();
-  const course = MOCK_COURSES.find(c => c.id === id);
 
   // Load Razorpay script
   const razorpayLoaded = useScript('https://checkout.razorpay.com/v1/checkout.js');
 
+  const [course, setCourse] = useState<Course | null>(null);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(true);
   const [alreadyOwned, setAlreadyOwned] = useState(false);
   const [isCheckingOwnership, setIsCheckingOwnership] = useState(true);
+
+  // Fetch course from API
+  useEffect(() => {
+    if (!id) {
+      setIsLoadingCourse(false);
+      return;
+    }
+    apiClient.getCourse(id)
+      .then(res => setCourse(res.course))
+      .catch(err => logger.error('[Checkout] Failed to load course:', err))
+      .finally(() => setIsLoadingCourse(false));
+  }, [id]);
   const [status, setStatus] = useState<'IDLE' | 'CREATING_ORDER' | 'PAYING' | 'VERIFYING' | 'SUCCESS'>('IDLE');
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -31,6 +68,7 @@ export const Checkout: React.FC = () => {
     phone: user?.phone_e164 || ''
   });
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [warningMessage, setWarningMessage] = useState<string>('');
 
   // Check if user already owns this course
   useEffect(() => {
@@ -59,6 +97,14 @@ export const Checkout: React.FC = () => {
       });
     }
   }, [user]);
+
+  if (isLoadingCourse) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-brand-600" size={48} />
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -114,6 +160,7 @@ export const Checkout: React.FC = () => {
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setWarningMessage('');
 
     if (!user) {
       await login();
@@ -129,7 +176,12 @@ export const Checkout: React.FC = () => {
         userId: user.id
       });
 
-      console.log('[Checkout] Order created:', orderResponse);
+      logger.debug('[Checkout] Order created:', orderResponse);
+
+      // Show warning if using mock data due to database issues
+      if (orderResponse.warning) {
+        setWarningMessage(orderResponse.warning);
+      }
 
       // Check if Razorpay is available and not in mock mode
       if (!orderResponse.mock && razorpayLoaded && window.Razorpay) {
@@ -143,7 +195,7 @@ export const Checkout: React.FC = () => {
           name: 'Eyebuckz',
           description: orderResponse.courseTitle,
           order_id: orderResponse.orderId,
-          handler: async (response: any) => {
+          handler: async (response: RazorpayResponse) => {
             // Step 3: Verify Payment
             await handlePaymentSuccess(response, orderResponse.orderId);
           },
@@ -167,7 +219,7 @@ export const Checkout: React.FC = () => {
         razorpay.open();
       } else {
         // Mock mode - simulate payment
-        console.log('[Checkout] Using mock payment mode');
+        logger.debug('[Checkout] Using mock payment mode');
         setStatus('PAYING');
 
         // Simulate payment delay
@@ -190,7 +242,7 @@ export const Checkout: React.FC = () => {
     }
   };
 
-  const handlePaymentSuccess = async (response: any, orderId: string) => {
+  const handlePaymentSuccess = async (response: RazorpayResponse, orderId: string) => {
     try {
       setStatus('VERIFYING');
 
@@ -203,7 +255,7 @@ export const Checkout: React.FC = () => {
       });
 
       if (verifyResponse.verified) {
-        console.log('[Checkout] Payment verified, enrollment created:', verifyResponse.enrollmentId);
+        logger.info('[Checkout] Payment verified, enrollment created:', verifyResponse.enrollmentId);
         setStatus('SUCCESS');
 
         // Redirect to success page after 1.5 seconds
@@ -238,7 +290,7 @@ export const Checkout: React.FC = () => {
             <div className="border-t border-slate-200 pt-4 space-y-2">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>
-                <span>₹{course.price.toLocaleString()}</span>
+                <span>₹{(course.price / 100).toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-green-600 text-sm">
                 <span>Discount</span>
@@ -246,7 +298,7 @@ export const Checkout: React.FC = () => {
               </div>
               <div className="flex justify-between text-xl font-bold text-slate-900 pt-2 border-t border-slate-200 mt-2">
                 <span>Total Due</span>
-                <span>₹{course.price.toLocaleString()}</span>
+                <span>₹{(course.price / 100).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -275,7 +327,13 @@ export const Checkout: React.FC = () => {
                 </div>
               )}
 
-              {!razorpayLoaded && (
+              {warningMessage && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                  <strong>⚠️ Development Mode:</strong> {warningMessage}
+                </div>
+              )}
+
+              {!razorpayLoaded && !warningMessage && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
                   Loading payment gateway...
                 </div>
@@ -320,7 +378,7 @@ export const Checkout: React.FC = () => {
                   disabled={status !== 'IDLE' || (!razorpayLoaded && !user)}
                   className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-lg mt-4 transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {status === 'IDLE' && `Pay ₹${course.price.toLocaleString()}`}
+                  {status === 'IDLE' && `Pay ₹${(course.price / 100).toLocaleString()}`}
                   {status === 'CREATING_ORDER' && <><Loader2 className="animate-spin" size={20} /> Creating Order...</>}
                   {status === 'PAYING' && <><Loader2 className="animate-spin" size={20} /> Processing Payment...</>}
                   {status === 'VERIFYING' && <><Loader2 className="animate-spin" size={20} /> Verifying Payment...</>}

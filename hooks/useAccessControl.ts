@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { enrollmentService } from '../services/enrollmentService';
+import { enrollmentsApi } from '../services/api';
 
 interface AccessControlResult {
   hasAccess: boolean;
@@ -12,8 +12,7 @@ interface AccessControlResult {
 
 /**
  * Custom hook to check if a user has access to a course
- * @param courseId - The ID of the course to check access for
- * @returns Object containing access status and loading state
+ * Uses Supabase direct queries (RLS handles auth)
  */
 export const useAccessControl = (courseId: string | undefined): AccessControlResult => {
   const { user } = useAuth();
@@ -29,7 +28,6 @@ export const useAccessControl = (courseId: string | undefined): AccessControlRes
       return;
     }
 
-    // Admins always have access
     if (isAdmin) {
       setIsEnrolled(true);
       setIsLoading(false);
@@ -38,7 +36,7 @@ export const useAccessControl = (courseId: string | undefined): AccessControlRes
 
     setIsLoading(true);
     try {
-      const hasAccess = await enrollmentService.checkAccess(user.id, courseId);
+      const hasAccess = await enrollmentsApi.checkAccess(courseId);
       setIsEnrolled(hasAccess);
     } catch (error) {
       console.error('Failed to check enrollment:', error);
@@ -59,6 +57,6 @@ export const useAccessControl = (courseId: string | undefined): AccessControlRes
     isLoading,
     isEnrolled,
     isAdmin,
-    checkEnrollment
+    checkEnrollment,
   };
 };

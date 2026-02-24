@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types';
-import { authService } from '../services/authService';
+import { supabase } from '../services/supabase';
+import type { User } from '../types';
+import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   isLoading: boolean;
-  loginWithGoogle: (credential: string) => Promise<void>;
+  login: (isAdmin?: boolean) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   loginDev: (isAdmin?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   updatePhoneNumber: (phone: string) => Promise<void>;
@@ -14,105 +17,209 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function mapSupabaseUser(profile: any): User {
+  return {
+    id: profile.id,
+    name: profile.name || '',
+    email: profile.email || '',
+    avatar: profile.avatar || '',
+    phone_e164: profile.phone_e164 || null,
+    role: profile.role || 'USER',
+    phoneVerified: profile.phone_verified || false,
+    emailVerified: profile.email_verified || false,
+    google_id: profile.google_id,
+    created_at: profile.created_at ? new Date(profile.created_at) : undefined,
+    last_login_at: profile.last_login_at ? new Date(profile.last_login_at) : undefined,
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGapCheckRequired, setIsGapCheckRequired] = useState(false);
 
-  // Load user from backend on mount (validates JWT)
+  // Load user profile from Supabase
+  const loadUserProfile = async (userId: string) => {
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !profile) {
+      console.error('[AuthContext] Failed to load user profile:', error);
+      return null;
+    }
+
+    const mappedUser = mapSupabaseUser(profile);
+    setUser(mappedUser);
+
+    // Update last login
+    await supabase
+      .from('users')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    // Gap check: phone number required
+    if (!mappedUser.phone_e164) {
+      setIsGapCheckRequired(true);
+    }
+
+    return mappedUser;
+  };
+
+  // Initialize auth state
   useEffect(() => {
-    const loadUser = async () => {
+    const initAuth = async () => {
       try {
-        // Try to get user from backend using JWT token
-        const currentUser = await authService.getCurrentUser();
+        // Get existing session
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
 
-        if (currentUser) {
-          setUser(currentUser);
-          authService.saveSession(currentUser);
-
-          // Gap Check Logic: If no phone number, set flag to true
-          if (!currentUser.phone_e164) {
-            setIsGapCheckRequired(true);
-          }
-        } else {
-          // No valid session, clear local cache
-          setUser(null);
+        if (existingSession?.user) {
+          setSession(existingSession);
+          await loadUserProfile(existingSession.user.id);
         }
       } catch (error) {
-        console.error('[AuthContext] Failed to load user:', error);
-        setUser(null);
+        console.error('[AuthContext] Init error:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadUser();
+    initAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        setSession(newSession);
+
+        if (event === 'SIGNED_IN' && newSession?.user) {
+          // Small delay to let the auth trigger create the user profile
+          setTimeout(() => loadUserProfile(newSession.user.id), 500);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsGapCheckRequired(false);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const loginWithGoogle = async (credential: string) => {
-    try {
-      const loggedInUser = await authService.loginWithGoogle(credential);
-      setUser(loggedInUser);
-      authService.saveSession(loggedInUser);
+  /**
+   * Login with Google OAuth via Supabase
+   */
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname,
+      },
+    });
 
-      // Gap Check Logic: If no phone number, set flag to true
-      if (!loggedInUser.phone_e164) {
-        setIsGapCheckRequired(true);
-      }
-    } catch (error) {
-      console.error('[AuthContext] Login failed:', error);
+    if (error) {
+      console.error('[AuthContext] Google login failed:', error);
       throw error;
     }
   };
 
+  /**
+   * Development mode login (uses Supabase email/password as fallback)
+   */
   const loginDev = async (isAdmin: boolean = false) => {
-    try {
-      const loggedInUser = await authService.loginDev(isAdmin);
-      setUser(loggedInUser);
-      authService.saveSession(loggedInUser);
+    const email = isAdmin ? 'admin@eyebuckz.com' : 'test@example.com';
+    const password = 'dev-password-123';
 
-      // Admins skip phone verification
-      if (isAdmin) {
-        setIsGapCheckRequired(false);
-      } else if (!loggedInUser.phone_e164) {
-        setIsGapCheckRequired(true);
+    // Try to sign in first
+    let { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    // If user doesn't exist, sign up
+    if (error?.message?.includes('Invalid login credentials')) {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: isAdmin ? 'Admin User' : 'Test User',
+            full_name: isAdmin ? 'Admin User' : 'Test User',
+            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (isAdmin ? 'Admin' : 'Demo'),
+          },
+        },
+      });
+
+      if (signUpError) {
+        console.error('[AuthContext] Dev signup failed:', signUpError);
+        throw signUpError;
       }
-    } catch (error) {
+      data = signUpData;
+    } else if (error) {
       console.error('[AuthContext] Dev login failed:', error);
       throw error;
+    }
+
+    if (data?.session?.user) {
+      setSession(data.session);
+      await loadUserProfile(data.session.user.id);
+
+      // Set admin role if needed (for dev mode)
+      if (isAdmin) {
+        await supabase
+          .from('users')
+          .update({ role: 'ADMIN' })
+          .eq('id', data.session.user.id);
+
+        // Reload profile to reflect admin role
+        await loadUserProfile(data.session.user.id);
+      }
+
+      setIsGapCheckRequired(false);
     }
   };
 
   const logout = async () => {
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.error('[AuthContext] Logout error:', error);
-    }
-
+    await supabase.auth.signOut();
     setUser(null);
+    setSession(null);
     setIsGapCheckRequired(false);
   };
 
   const updatePhoneNumber = async (phone: string) => {
-    if (user) {
-      await authService.updatePhone(user.id, phone);
-      const updatedUser = { ...user, phone_e164: phone, phoneVerified: true };
-      setUser(updatedUser);
-      authService.saveSession(updatedUser);
-      setIsGapCheckRequired(false);
+    if (!user) return;
+
+    // Validate E.164 format
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(phone)) {
+      throw new Error('Invalid E.164 format. Phone must start with + and country code.');
     }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ phone_e164: phone, phone_verified: true })
+      .eq('id', user.id);
+
+    if (error) throw new Error('Failed to update phone number');
+
+    setUser({ ...user, phone_e164: phone, phoneVerified: true });
+    setIsGapCheckRequired(false);
   };
 
   return (
     <AuthContext.Provider value={{
       user,
+      session,
       isLoading,
+      login: loginDev,
       loginWithGoogle,
       loginDev,
       logout,
       updatePhoneNumber,
-      isGapCheckRequired
+      isGapCheckRequired,
     }}>
       {children}
     </AuthContext.Provider>

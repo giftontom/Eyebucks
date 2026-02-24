@@ -1,16 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MOCK_COURSES } from '../constants';
-import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight } from 'lucide-react';
+import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
+import { apiClient } from '../services/apiClient';
+import type { Course } from '../types';
 
 export const CourseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, login } = useAuth();
-  const course = MOCK_COURSES.find(c => c.id === id);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(true);
   const { hasAccess, isLoading: isCheckingAccess, isEnrolled, isAdmin } = useAccessControl(id);
+
+  useEffect(() => {
+    if (!id) { setIsLoadingCourse(false); return; }
+    apiClient.getCourse(id)
+      .then(res => setCourse(res.course))
+      .catch(() => {})
+      .finally(() => setIsLoadingCourse(false));
+  }, [id]);
   const [isMuted, setIsMuted] = useState(true);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'REVIEWS'>('OVERVIEW');
@@ -40,6 +50,7 @@ export const CourseDetails: React.FC = () => {
     };
   }, []);
 
+  if (isLoadingCourse) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand-600" size={48} /></div>;
   if (!course) return <div>Course not found</div>;
 
   const handleCTA = async () => {
@@ -155,7 +166,7 @@ export const CourseDetails: React.FC = () => {
                           className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition"
                         >
                           {ctaConfig.icon}
-                          {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ₹${course.price.toLocaleString()}`}
+                          {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ₹${(course.price / 100).toLocaleString()}`}
                         </button>
                     </div>
                 </div>
@@ -165,9 +176,9 @@ export const CourseDetails: React.FC = () => {
                 <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-2xl font-bold text-slate-900">Course Content</h2>
-                        <span className="text-slate-500 text-sm">{course.chapters.length} Chapters</span>
+                        <span className="text-slate-500 text-sm">{(course.chapters?.length || 0)} Chapters</span>
                     </div>
-                    {course.chapters.map((chapter, index) => (
+                    {(course.chapters || []).map((chapter, index) => (
                         <div key={chapter.id} className="border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
                             <button 
                             onClick={() => setOpenChapter(openChapter === chapter.id ? null : chapter.id)}
@@ -230,7 +241,7 @@ export const CourseDetails: React.FC = () => {
           <div className="sticky top-24 bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50">
             {!hasAccess && (
               <>
-                <h3 className="text-4xl font-bold text-slate-900 mb-2">₹{course.price.toLocaleString()}</h3>
+                <h3 className="text-4xl font-bold text-slate-900 mb-2">₹{(course.price / 100).toLocaleString()}</h3>
                 <p className="text-slate-500 text-sm mb-8">One-time payment. Lifetime access.</p>
               </>
             )}
@@ -276,7 +287,7 @@ export const CourseDetails: React.FC = () => {
           <>
             <div>
               <p className="text-xs text-slate-500">Total Price</p>
-              <p className="text-xl font-bold text-slate-900">₹{course.price.toLocaleString()}</p>
+              <p className="text-xl font-bold text-slate-900">₹{(course.price / 100).toLocaleString()}</p>
             </div>
             <button
               onClick={handleCTA}

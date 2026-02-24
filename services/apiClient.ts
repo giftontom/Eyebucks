@@ -1,159 +1,32 @@
 /**
- * API Client for Eyebuckz LMS Backend
- * Handles all HTTP requests to the backend API
+ * API Client - Supabase Backend Facade
+ * Backward-compatible wrapper that delegates to Supabase API services.
+ * All pages continue to import `apiClient` and call the same methods.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { supabase } from './supabase';
+import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi, notificationsApi } from './api';
+import type { Course, Module, Enrollment, Progress, ProgressStats } from '../types';
 
-interface ApiResponse<T> {
-  success: boolean;
-  [key: string]: any;
-}
-
+/**
+ * Backward-compatible API client that delegates to Supabase services.
+ * Pages import { apiClient } and call the same methods as before.
+ */
 class ApiClient {
-  private baseURL: string;
-
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
-  }
-
-  /**
-   * Get access token from localStorage
-   */
-  private getAccessToken(): string | null {
-    return localStorage.getItem('eyebuckz_access_token');
-  }
-
-  /**
-   * Set access token in localStorage
-   */
-  private setAccessToken(token: string) {
-    localStorage.setItem('eyebuckz_access_token', token);
-  }
-
-  /**
-   * Remove access token from localStorage
-   */
-  private removeAccessToken() {
-    localStorage.removeItem('eyebuckz_access_token');
-  }
-
-  /**
-   * Get authentication headers with JWT token
-   */
-  private getAuthHeaders(): HeadersInit {
-    const token = this.getAccessToken();
-
-    return {
-      'Content-Type': 'application/json',
-      ...(token && {
-        'Authorization': `Bearer ${token}`
-      })
-    };
-  }
-
-  /**
-   * Refresh access token using refresh token
-   */
-  private async refreshAccessToken(): Promise<string | null> {
-    try {
-      const response = await fetch(`${this.baseURL}/api/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include', // Send cookies
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      if (data.accessToken) {
-        this.setAccessToken(data.accessToken);
-        return data.accessToken;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('[API] Token refresh failed:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Generic fetch wrapper with error handling and auto token refresh
-   */
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    retryCount = 0
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        credentials: 'include', // Always send cookies
-        headers: {
-          ...this.getAuthHeaders(),
-          ...options.headers
-        }
-      });
-
-      // Handle 401 Unauthorized - try to refresh token
-      if (response.status === 401 && retryCount === 0) {
-        console.log('[API] Access token expired, attempting refresh...');
-
-        const newToken = await this.refreshAccessToken();
-
-        if (newToken) {
-          // Retry request with new token
-          return this.request<T>(endpoint, options, retryCount + 1);
-        } else {
-          // Refresh failed - user needs to login again
-          console.log('[API] Token refresh failed, clearing auth state');
-          this.removeAccessToken();
-          localStorage.removeItem('eyebuckz_user');
-
-          // Redirect to login if not already there
-          if (!window.location.hash.includes('/login')) {
-            window.location.hash = '/login';
-          }
-
-          throw new Error('Session expired. Please login again.');
-        }
-      }
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error?.message || error.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`[API Error] ${endpoint}:`, error);
-      throw error;
-    }
-  }
-
   // ============================================
   // COURSES API
   // ============================================
 
   async getCourses() {
-    return this.request<{ success: boolean; courses: any[] }>('/api/courses');
+    return coursesApi.getCourses();
   }
 
   async getCourse(id: string) {
-    return this.request<{ success: boolean; course: any }>(`/api/courses/${id}`);
+    return coursesApi.getCourse(id);
   }
 
-  async getCourseModules(id: string) {
-    return this.request<{ success: boolean; modules: any[]; hasAccess: boolean }>(
-      `/api/courses/${id}/modules`
-    );
+  async getCourseModules(courseId: string) {
+    return coursesApi.getCourseModules(courseId);
   }
 
   // ============================================
@@ -167,28 +40,24 @@ class ApiClient {
     orderId?: string;
     amount: number;
   }) {
-    return this.request<{ success: boolean; enrollment: any }>('/api/enrollments', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    const enrollment = await enrollmentsApi.getEnrollment(data.courseId);
+    if (!enrollment) throw new Error('Enrollment not found - should be created by checkout');
+    return { success: true, enrollment };
   }
 
-  async getUserEnrollments(userId: string) {
-    return this.request<{ success: boolean; enrollments: any[] }>(
-      `/api/enrollments/user/${userId}`
-    );
+  async getUserEnrollments(_userId: string) {
+    const enrollments = await enrollmentsApi.getUserEnrollments();
+    return { success: true, enrollments };
   }
 
-  async checkAccess(userId: string, courseId: string) {
-    return this.request<{ success: boolean; hasAccess: boolean; enrollment?: any }>(
-      `/api/enrollments/check/${userId}/${courseId}`
-    );
+  async checkAccess(_userId: string, courseId: string) {
+    const hasAccess = await enrollmentsApi.checkAccess(courseId);
+    return { success: true, hasAccess };
   }
 
   async updateLastAccess(enrollmentId: string) {
-    return this.request<{ success: boolean }>(`/api/enrollments/${enrollmentId}/access`, {
-      method: 'PATCH'
-    });
+    await enrollmentsApi.updateLastAccess(enrollmentId);
+    return { success: true };
   }
 
   async updateEnrollmentProgress(
@@ -200,13 +69,8 @@ class ApiClient {
       totalWatchTime?: number;
     }
   ) {
-    return this.request<{ success: boolean }>(
-      `/api/enrollments/${enrollmentId}/progress`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(progress)
-      }
-    );
+    await enrollmentsApi.updateProgress(enrollmentId, progress);
+    return { success: true };
   }
 
   // ============================================
@@ -219,22 +83,18 @@ class ApiClient {
     moduleId: string;
     timestamp: number;
   }) {
-    return this.request<{ success: boolean; progress: any }>('/api/progress', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    await progressApi.saveProgress(data.courseId, data.moduleId, data.timestamp);
+    return { success: true, progress: {} as Progress };
   }
 
-  async getProgress(userId: string, courseId: string) {
-    return this.request<{ success: boolean; progress: any[] }>(
-      `/api/progress/${userId}/${courseId}`
-    );
+  async getProgress(_userId: string, courseId: string) {
+    const progress = await progressApi.getProgress(courseId);
+    return { success: true, progress };
   }
 
-  async getModuleProgress(userId: string, courseId: string, moduleId: string) {
-    return this.request<{ success: boolean; progress: any | null }>(
-      `/api/progress/${userId}/${courseId}/${moduleId}`
-    );
+  async getModuleProgress(_userId: string, courseId: string, moduleId: string) {
+    const progress = await progressApi.getModuleProgress(courseId, moduleId);
+    return { success: true, progress };
   }
 
   async markModuleComplete(data: {
@@ -244,128 +104,89 @@ class ApiClient {
     currentTime?: number;
     duration?: number;
   }) {
-    return this.request<{ success: boolean; progress: any; stats?: any }>(
-      '/api/progress/complete',
-      {
-        method: 'PATCH',
-        body: JSON.stringify(data)
-      }
-    );
+    await progressApi.markComplete(data.courseId, data.moduleId);
+    return { success: true, progress: {} as Progress };
   }
 
-  async getProgressStats(userId: string, courseId: string) {
-    return this.request<{ success: boolean; stats: any }>(
-      `/api/progress/${userId}/${courseId}/stats`
-    );
+  async getProgressStats(_userId: string, courseId: string) {
+    const stats = await progressApi.getCourseStats(courseId);
+    return { success: true, stats };
   }
 
-  async clearProgress(userId: string, courseId: string) {
-    return this.request<{ success: boolean }>(
-      `/api/progress/${userId}/${courseId}`,
-      {
-        method: 'DELETE'
-      }
-    );
+  async clearProgress(_userId: string, courseId: string) {
+    await progressApi.clearProgress(courseId);
+    return { success: true };
   }
 
   // ============================================
   // AUTH API
   // ============================================
 
-  async googleAuth(data: {
+  async googleAuth(_data: {
     credential?: string;
     email: string;
     name: string;
     picture?: string;
     sub: string;
   }) {
-    const response = await this.request<{
-      success: boolean;
-      user: any;
-      tokens: {
-        accessToken: string;
-        refreshToken: string;
-        expiresIn: number;
-      };
-      isNewUser: boolean;
-    }>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-
-    // Store access token
-    if (response.tokens?.accessToken) {
-      this.setAccessToken(response.tokens.accessToken);
-    }
-
-    return response;
+    throw new Error('Use AuthContext.loginWithGoogle() for Supabase OAuth flow');
   }
 
   async getCurrentUser() {
-    return this.request<{
-      success: boolean;
-      user: any;
-    }>('/api/auth/me');
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, user: null };
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    return { success: true, user: profile };
   }
 
   async updatePhone(userId: string, phone: string) {
-    return this.request<{
-      success: boolean;
-      user: any;
-    }>('/api/auth/phone', {
-      method: 'POST',
-      body: JSON.stringify({ userId, phone })
-    });
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(phone)) {
+      throw new Error('Invalid E.164 format. Phone must start with + and country code.');
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ phone_e164: phone, phone_verified: true })
+      .eq('id', userId);
+
+    if (error) throw new Error('Failed to update phone number');
+    return { success: true, user: null };
   }
 
-  async validateSession(userId: string) {
-    return this.request<{
-      success: boolean;
-      valid: boolean;
-    }>(`/api/auth/validate-session/${userId}`);
+  async validateSession(_userId: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    return { success: true, valid: !!session };
   }
 
   async logout() {
-    const response = await this.request<{
-      success: boolean;
-      message: string;
-    }>('/api/auth/logout', {
-      method: 'POST'
-    });
-
-    // Clear local token
-    this.removeAccessToken();
-
-    return response;
+    await supabase.auth.signOut();
+    localStorage.removeItem('eyebuckz_user');
+    return { success: true, message: 'Logged out successfully' };
   }
 
   async getUser(userId: string) {
-    return this.request<{
-      success: boolean;
-      user: any;
-    }>(`/api/auth/user/${userId}`);
+    const { data: profile } = await supabase
+      .from('users')
+      .select('id, name, email, avatar, role, created_at')
+      .eq('id', userId)
+      .single();
+
+    return { success: true, user: profile };
   }
 
   // ============================================
   // CHECKOUT API
   // ============================================
 
-  async createOrder(data: {
-    courseId: string;
-    userId: string;
-  }) {
-    return this.request<{
-      success: boolean;
-      orderId: string;
-      amount: number;
-      currency: string;
-      key: string;
-      courseTitle: string;
-      mock?: boolean;
-    }>('/api/checkout/create-order', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+  async createOrder(data: { courseId: string; userId: string }) {
+    return checkoutApi.createOrder(data.courseId);
   }
 
   async verifyPayment(data: {
@@ -375,108 +196,57 @@ class ApiClient {
     courseId: string;
     userId: string;
   }) {
-    return this.request<{
-      success: boolean;
-      verified: boolean;
-      enrollmentId: string;
-      mock?: boolean;
-    }>('/api/checkout/verify', {
-      method: 'POST',
-      body: JSON.stringify(data)
+    return checkoutApi.verifyPayment({
+      orderId: data.orderId,
+      paymentId: data.paymentId,
+      signature: data.signature,
+      courseId: data.courseId,
     });
   }
 
   async checkOrderStatus(orderId: string) {
-    return this.request<{
-      success: boolean;
-      status: 'pending' | 'completed';
-      enrollment?: any;
-    }>(`/api/checkout/status/${orderId}`);
+    return checkoutApi.checkOrderStatus(orderId);
   }
 
   // ============================================
   // ADMIN API
   // ============================================
 
-  // Dashboard Analytics
   async getAdminStats() {
-    return this.request<{
-      success: boolean;
-      stats: {
-        totalUsers: number;
-        activeUsers: number;
-        totalRevenue: number;
-        totalCourses: number;
-        draftCourses: number;
-        totalEnrollments: number;
-        totalCertificates: number;
-      };
-    }>('/api/admin/stats');
+    return adminApi.getStats();
   }
 
   async getAdminSales(days: number = 30) {
-    return this.request<{
-      success: boolean;
-      sales: Array<{ date: string; amount: number }>;
-    }>(`/api/admin/sales?days=${days}`);
+    return adminApi.getSales(days);
   }
 
   async getAdminRecentActivity(limit: number = 10) {
-    return this.request<{
-      success: boolean;
-      activity: any;
-    }>(`/api/admin/recent-activity?limit=${limit}`);
+    return adminApi.getRecentActivity(limit);
   }
 
-  // User Management
   async getAdminUsers(params?: {
     page?: number;
     limit?: number;
     search?: string;
     role?: string;
   }) {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request<{
-      success: boolean;
-      users: any[];
-      pagination: any;
-    }>(`/api/admin/users${query ? `?${query}` : ''}`);
+    return adminApi.getUsers(params);
   }
 
   async getAdminUserDetails(userId: string) {
-    return this.request<{
-      success: boolean;
-      user: any;
-    }>(`/api/admin/users/${userId}`);
+    return adminApi.getUserDetails(userId);
   }
 
   async updateAdminUser(userId: string, data: { isActive?: boolean; role?: string }) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      user: any;
-    }>(`/api/admin/users/${userId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    });
+    return adminApi.updateUser(userId, data);
   }
 
   async manualEnrollUser(userId: string, courseId: string) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      enrollment: any;
-    }>(`/api/admin/users/${userId}/enroll/${courseId}`, {
-      method: 'POST'
-    });
+    return adminApi.manualEnrollUser(userId, courseId);
   }
 
-  // Course Management
   async getAdminCourses() {
-    return this.request<{
-      success: boolean;
-      courses: any[];
-    }>('/api/admin/courses');
+    return adminApi.getCourses();
   }
 
   async createAdminCourse(data: {
@@ -488,94 +258,40 @@ class ApiClient {
     type: string;
     features?: string[];
   }) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      course: any;
-    }>('/api/admin/courses', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    return adminApi.createCourse(data);
   }
 
   async updateAdminCourse(courseId: string, data: any) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      course: any;
-    }>(`/api/admin/courses/${courseId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    });
+    return adminApi.updateCourse(courseId, data);
   }
 
   async deleteAdminCourse(courseId: string) {
-    return this.request<{
-      success: boolean;
-      message: string;
-    }>(`/api/admin/courses/${courseId}`, {
-      method: 'DELETE'
-    });
+    return adminApi.deleteCourse(courseId);
   }
 
   async publishAdminCourse(courseId: string, status: 'PUBLISHED' | 'DRAFT') {
-    return this.request<{
-      success: boolean;
-      message: string;
-      course: any;
-    }>(`/api/admin/courses/${courseId}/publish`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status })
-    });
+    return adminApi.publishCourse(courseId, status);
   }
 
-  // Certificate Management
   async getAdminCertificates(params?: { page?: number; limit?: number }) {
-    const query = new URLSearchParams(params as any).toString();
-    return this.request<{
-      success: boolean;
-      certificates: any[];
-      pagination: any;
-    }>(`/api/admin/certificates${query ? `?${query}` : ''}`);
+    return adminApi.getCertificates(params);
   }
 
   async issueAdminCertificate(data: { userId: string; courseId: string }) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      certificate: any;
-    }>('/api/admin/certificates', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    return adminApi.issueCertificate(data.userId, data.courseId);
   }
 
   async revokeAdminCertificate(certificateId: string, reason?: string) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      certificate: any;
-    }>(`/api/admin/certificates/${certificateId}`, {
-      method: 'DELETE',
-      body: JSON.stringify({ reason })
-    });
+    return adminApi.revokeCertificate(certificateId, reason);
   }
 
-  // Module Management
   async createModule(courseId: string, data: {
     title: string;
     duration: string;
     videoUrl: string;
     isFreePreview?: boolean;
   }) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      module: any;
-    }>(`/api/admin/courses/${courseId}/modules`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
+    return adminApi.createModule(courseId, data);
   }
 
   async updateModule(courseId: string, moduleId: string, data: {
@@ -584,62 +300,160 @@ class ApiClient {
     videoUrl?: string;
     isFreePreview?: boolean;
   }) {
-    return this.request<{
-      success: boolean;
-      message: string;
-      module: any;
-    }>(`/api/admin/courses/${courseId}/modules/${moduleId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    });
+    return adminApi.updateModule(courseId, moduleId, data);
   }
 
   async deleteModule(courseId: string, moduleId: string) {
-    return this.request<{
-      success: boolean;
-      message: string;
-    }>(`/api/admin/courses/${courseId}/modules/${moduleId}`, {
-      method: 'DELETE'
-    });
+    return adminApi.deleteModule(courseId, moduleId);
   }
 
   async reorderModules(courseId: string, moduleIds: string[]) {
-    return this.request<{
-      success: boolean;
-      message: string;
-    }>(`/api/admin/courses/${courseId}/modules/reorder`, {
-      method: 'PATCH',
-      body: JSON.stringify({ moduleIds })
-    });
+    return adminApi.reorderModules(courseId, moduleIds);
+  }
+
+  // ============================================
+  // REVIEWS API (Direct Supabase queries)
+  // ============================================
+
+  async get(endpoint: string) {
+    const reviewMatch = endpoint.match(/^\/reviews\/course\/([^?]+)/);
+    if (reviewMatch) {
+      const courseId = reviewMatch[1];
+      const params = new URLSearchParams(endpoint.split('?')[1] || '');
+      const page = parseInt(params.get('page') || '1');
+      const limit = parseInt(params.get('limit') || '10');
+      const offset = (page - 1) * limit;
+
+      const { data: reviews, error, count } = await supabase
+        .from('reviews')
+        .select(`
+          id, rating, comment, helpful_count, created_at, updated_at,
+          users:user_id (name, avatar)
+        `, { count: 'exact' })
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw new Error(error.message);
+
+      const { data: allReviews } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('course_id', courseId);
+
+      const total = allReviews?.length || 0;
+      const avgRating = total > 0
+        ? allReviews!.reduce((sum, r) => sum + r.rating, 0) / total
+        : 0;
+      const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      allReviews?.forEach(r => {
+        if (r.rating >= 1 && r.rating <= 5) {
+          distribution[r.rating as keyof typeof distribution]++;
+        }
+      });
+
+      return {
+        success: true,
+        reviews: (reviews || []).map((r: any) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          helpful: r.helpful_count,
+          user: { name: r.users?.name || 'Anonymous', avatar: r.users?.avatar || '' },
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        })),
+        summary: { total, averageRating: avgRating, distribution },
+        pagination: { hasMore: (count || 0) > offset + limit },
+      };
+    }
+
+    throw new Error(`Unsupported GET endpoint: ${endpoint}`);
+  }
+
+  async post(endpoint: string, body: any) {
+    if (endpoint === '/reviews') {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('reviews')
+        .insert({
+          user_id: user.id,
+          course_id: body.courseId,
+          rating: body.rating,
+          comment: body.comment,
+        })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return { success: true, review: data };
+    }
+
+    throw new Error(`Unsupported POST endpoint: ${endpoint}`);
+  }
+
+  async patch(endpoint: string, body: any) {
+    const reviewPatchMatch = endpoint.match(/^\/reviews\/(.+)$/);
+    if (reviewPatchMatch) {
+      const reviewId = reviewPatchMatch[1];
+      const { data, error } = await supabase
+        .from('reviews')
+        .update({ rating: body.rating, comment: body.comment })
+        .eq('id', reviewId)
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return { success: true, review: data };
+    }
+
+    throw new Error(`Unsupported PATCH endpoint: ${endpoint}`);
+  }
+
+  async delete(endpoint: string) {
+    const reviewDeleteMatch = endpoint.match(/^\/reviews\/(.+)$/);
+    if (reviewDeleteMatch) {
+      const reviewId = reviewDeleteMatch[1];
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId);
+
+      if (error) throw new Error(error.message);
+      return { success: true };
+    }
+
+    throw new Error(`Unsupported DELETE endpoint: ${endpoint}`);
   }
 
   // ============================================
   // UTILITY METHODS
   // ============================================
 
-  /**
-   * Check if API is healthy
-   */
   async healthCheck() {
     try {
-      const response = await fetch(`${this.baseURL}/health`);
-      return response.ok;
-    } catch (error) {
-      console.error('[API] Health check failed:', error);
+      const { error } = await supabase.from('courses').select('id').limit(1);
+      return !error;
+    } catch {
       return false;
     }
   }
 
-  /**
-   * Get API base URL
-   */
   getBaseURL() {
-    return this.baseURL;
+    return import.meta.env.VITE_SUPABASE_URL || '';
   }
 }
 
 // Export singleton instance
-export const apiClient = new ApiClient(API_BASE_URL);
+export const apiClient = new ApiClient();
 
-// Export type
+// Common API response type
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: { message: string; statusCode: number };
+}
+
 export type { ApiResponse };

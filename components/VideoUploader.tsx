@@ -1,5 +1,6 @@
 import React, { useState, useRef, DragEvent } from 'react';
 import { Upload, X, Film, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { supabase } from '../services/supabase';
 
 interface VideoUploaderProps {
   onUploadComplete: (videoData: {publicId: string; secureUrl: string; duration: number; thumbnail: string}) => void;
@@ -68,7 +69,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     const previewUrl = URL.createObjectURL(file);
     setVideoPreview(previewUrl);
 
-    // Upload to Cloudinary via backend
+    // Upload to Bunny Stream via Edge Function
     await uploadVideo(file);
   };
 
@@ -77,54 +78,40 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     setUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append('video', file);
+      // Convert file to base64 for Edge Function
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
 
-      // Upload with progress tracking
-      const xhr = new XMLHttpRequest();
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 500);
 
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          setUploadProgress(progress);
-        }
+      const { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
+        body: {
+          fileName: file.name,
+          fileData: base64,
+          contentType: file.type,
+        },
       });
 
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText);
+      clearInterval(progressInterval);
 
-          if (response.success && response.video) {
-            onUploadComplete({
-              publicId: response.video.publicId,
-              secureUrl: response.video.secureUrl,
-              duration: response.video.duration || 0,
-              thumbnail: response.video.thumbnail || ''
-            });
-            setUploading(false);
-            setUploadProgress(100);
-          } else {
-            throw new Error('Upload failed');
-          }
-        } else {
-          throw new Error(`Upload failed with status ${xhr.status}`);
-        }
+      if (fnError) throw new Error(fnError.message);
+      if (!data?.success) throw new Error(data?.error || 'Upload failed');
+
+      setUploadProgress(100);
+
+      onUploadComplete({
+        publicId: data.video.guid,
+        secureUrl: data.video.url,
+        duration: data.video.duration || 0,
+        thumbnail: data.video.thumbnail || ''
       });
 
-      xhr.addEventListener('error', () => {
-        throw new Error('Network error during upload');
-      });
-
-      xhr.open('POST', '/api/admin/videos/upload');
-
-      // Add auth token from localStorage
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      }
-
-      xhr.send(formData);
-
+      setUploading(false);
     } catch (err: any) {
       console.error('Video upload error:', err);
       setError(err.message || 'Failed to upload video');

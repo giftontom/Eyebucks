@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Star, ArrowRight, Youtube, Instagram, MonitorPlay, Film, Camera, Users, CheckCircle2, Download, MessageCircle, Layers, FileText, X, Plus, Award, Zap, TrendingUp, Globe, Smartphone, Clapperboard, Sparkles } from 'lucide-react';
-import { MOCK_COURSES } from '../constants';
+import { Play, Star, ArrowRight, Youtube, Users, CheckCircle2, Download, MessageCircle, Layers, FileText, X, Plus, Award, TrendingUp, Globe, Clapperboard, Sparkles, Loader2 } from 'lucide-react';
 import { CourseType } from '../types';
+import type { Course } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../services/apiClient';
 
 // --- Local Data for Static Sections ---
 
@@ -95,8 +96,20 @@ const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; className?: 
 export const Storefront: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | CourseType>('ALL');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Fetch courses from API
+  useEffect(() => {
+    apiClient.getCourses()
+      .then(res => {
+        setCourses(res.courses);
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
+  }, []);
   
   // 3D Tilt Logic for Editor Workspace
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -120,9 +133,9 @@ export const Storefront: React.FC = () => {
       setRotate({ x: 0, y: 0 });
   };
 
-  const filteredCourses = filterType === 'ALL' 
-    ? MOCK_COURSES 
-    : MOCK_COURSES.filter(c => c.type === filterType);
+  const filteredCourses = filterType === 'ALL'
+    ? courses
+    : courses.filter(c => c.type === filterType);
 
   return (
     <div className="bg-white font-sans text-neutral-900 overflow-x-hidden">
@@ -131,12 +144,13 @@ export const Storefront: React.FC = () => {
       <section className="relative h-[90vh] min-h-[700px] flex items-center justify-center overflow-hidden bg-black">
         {/* Video Background with Poster Fallback */}
         <div className="absolute inset-0 z-0">
-            <video 
-                src="https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4" 
+            <video
+                src="https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4"
                 poster="https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920"
-                autoPlay 
-                loop 
-                muted 
+                preload="none"
+                autoPlay
+                loop
+                muted
                 playsInline
                 className="w-full h-full object-cover opacity-50 scale-105"
             />
@@ -173,7 +187,7 @@ export const Storefront: React.FC = () => {
                       if (user) {
                         navigate('/dashboard');
                       } else {
-                        document.getElementById('courses')?.scrollIntoView({ behavior: 'smooth' });
+                        navigate('/login');
                       }
                     }}
                     className="group relative w-full sm:w-auto h-16 px-12 rounded-full bg-brand-600 text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-[0_0_40px_-10px_rgba(220,38,38,0.5)] hover:shadow-[0_0_60px_-10px_rgba(220,38,38,0.7)] hover:scale-105 overflow-hidden"
@@ -222,9 +236,7 @@ export const Storefront: React.FC = () => {
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">Made by Students</h2>
                         <p className="text-neutral-400 max-w-xl text-lg">Real results from real people. Our students are winning film festivals, landing commercial clients, and growing their channels.</p>
                     </div>
-                    <button className="hidden md:flex items-center gap-2 text-white font-bold hover:text-brand-500 transition group">
-                        View Gallery <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform"/>
-                    </button>
+                    {/* Gallery link placeholder — add real URL when available */}
                 </div>
             </FadeIn>
             
@@ -455,6 +467,13 @@ export const Storefront: React.FC = () => {
                 </div>
             </FadeIn>
 
+            {isLoading ? (
+              <div className="flex justify-center items-center py-24">
+                <Loader2 className="animate-spin text-brand-600" size={48} />
+              </div>
+            ) : filteredCourses.length === 0 ? (
+              <div className="text-center py-24 text-neutral-500">No courses available yet.</div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredCourses.map((course, index) => {
                      const isBundle = course.type === CourseType.BUNDLE;
@@ -496,8 +515,8 @@ export const Storefront: React.FC = () => {
                                             <Star size={12} fill="currentColor" className="mr-1"/>
                                             <span>{course.rating || '4.8'}</span>
                                         </div>
-                                        <span className="flex items-center gap-1"><Users size={12}/> {(course.totalStudents || 120) * 12} Students</span>
-                                        <span className="flex items-center gap-1"><Clapperboard size={12}/> {course.chapters.length} Lessons</span>
+                                        <span className="flex items-center gap-1"><Users size={12}/> {course.totalStudents || 0} Students</span>
+                                        <span className="flex items-center gap-1"><Clapperboard size={12}/> {(course.chapters?.length || 0)} Lessons</span>
                                     </div>
                                     <Link to={`/course/${course.id}`} className="block">
                                         <h3 className="text-2xl font-bold text-neutral-900 mb-3 group-hover:text-brand-600 transition-colors leading-tight">
@@ -508,8 +527,8 @@ export const Storefront: React.FC = () => {
                                     
                                     <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100">
                                         <div className="flex flex-col">
-                                            <span className="text-xs text-neutral-400 line-through font-medium">₹{(course.price * 1.5).toLocaleString()}</span>
-                                            <div className="text-2xl font-bold text-neutral-900">₹{course.price.toLocaleString()}</div>
+                                            <span className="text-xs text-neutral-400 line-through font-medium">₹{(course.price / 100 * 1.5).toLocaleString()}</span>
+                                            <div className="text-2xl font-bold text-neutral-900">₹{(course.price / 100).toLocaleString()}</div>
                                         </div>
                                         <button 
                                             onClick={(e) => {
@@ -529,6 +548,7 @@ export const Storefront: React.FC = () => {
                      );
                 })}
             </div>
+            )}
         </div>
       </section>
 
@@ -646,9 +666,7 @@ export const Storefront: React.FC = () => {
                     <a href="#courses" className="px-12 py-5 bg-brand-600 text-white rounded-full font-bold text-lg hover:bg-brand-700 transition shadow-2xl shadow-brand-600/30 hover:-translate-y-1 hover:scale-105 active:scale-95">
                         Get Full Access
                     </a>
-                    <button className="px-12 py-5 bg-white border border-neutral-200 text-neutral-900 rounded-full font-bold text-lg hover:bg-neutral-50 transition shadow-sm hover:border-neutral-400">
-                        View Syllabus
-                    </button>
+                    {/* Syllabus link — add real URL when available */}
                 </div>
                 <div className="mt-12 flex items-center justify-center gap-6 text-sm text-neutral-400">
                     <span className="flex items-center gap-2"><CheckCircle2 size={16} /> 30-Day Guarantee</span>

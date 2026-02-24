@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Users, DollarSign, BookOpen, Plus, Search, MoreVertical, Award, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -6,13 +6,14 @@ import { Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import { useToast } from '../components/Toast';
 import { VideoUploader } from '../components/VideoUploader';
+import type { AdminStats, SalesDataPoint, RecentActivity, AdminUser, AdminCourse, AdminCertificate, Module } from '../types';
 
 export const Admin: React.FC = () => {
   const { user } = useAuth();
   const { showToast, ToastContainer } = useToast();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'courses' | 'users' | 'certificates'>('dashboard');
   const [showManualEnrollModal, setShowManualEnrollModal] = useState(false);
-  const [selectedUserForEnroll, setSelectedUserForEnroll] = useState<any>(null);
+  const [selectedUserForEnroll, setSelectedUserForEnroll] = useState<AdminUser | null>(null);
   const [selectedCourseForEnroll, setSelectedCourseForEnroll] = useState<string>('');
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -30,15 +31,15 @@ export const Admin: React.FC = () => {
 
   // Module management state
   const [showModuleModal, setShowModuleModal] = useState(false);
-  const [selectedCourseForModules, setSelectedCourseForModules] = useState<any>(null);
-  const [modules, setModules] = useState<any[]>([]);
+  const [selectedCourseForModules, setSelectedCourseForModules] = useState<AdminCourse | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [videoUploadMode, setVideoUploadMode] = useState<'url' | 'upload'>('url');
   const [moduleFormData, setModuleFormData] = useState({
     title: '',
     duration: '',
     videoUrl: '',
-    cloudinaryPublicId: '',
+    videoId: '',
     isFreePreview: false
   });
 
@@ -56,14 +57,24 @@ export const Admin: React.FC = () => {
   const [operationLoading, setOperationLoading] = useState(false);
 
   // Data state
-  const [stats, setStats] = useState<any>(null);
-  const [salesData, setSalesData] = useState<any[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [certificates, setCertificates] = useState<any[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [salesData, setSalesData] = useState<SalesDataPoint[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [courses, setCourses] = useState<AdminCourse[]>([]);
+  const [certificates, setCertificates] = useState<AdminCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [userSearch, setUserSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Debounce user search to avoid API call on every keystroke
+  useEffect(() => {
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(userSearch);
+    }, 400);
+    return () => clearTimeout(searchTimerRef.current);
+  }, [userSearch]);
 
   // Fetch dashboard stats and sales data
   useEffect(() => {
@@ -99,7 +110,7 @@ export const Admin: React.FC = () => {
       try {
         setLoading(true);
         const response = await apiClient.getAdminUsers({
-          search: userSearch,
+          search: debouncedSearch,
           limit: 50
         });
         setUsers(response.users);
@@ -111,7 +122,7 @@ export const Admin: React.FC = () => {
     };
 
     fetchUsers();
-  }, [activeTab, user, userSearch]);
+  }, [activeTab, user, debouncedSearch]);
 
   // Fetch courses
   useEffect(() => {
@@ -877,7 +888,7 @@ export const Admin: React.FC = () => {
                                         title: courseFormData.title,
                                         slug: courseFormData.slug,
                                         description: courseFormData.description,
-                                        price: Number(courseFormData.price) * 100,
+                                        price: Number(courseFormData.price),
                                         thumbnail: courseFormData.thumbnail || undefined,
                                         type: courseFormData.type,
                                         features: courseFormData.features.filter(f => f.trim())
@@ -979,6 +990,7 @@ export const Admin: React.FC = () => {
                                     title: '',
                                     duration: '',
                                     videoUrl: '',
+                                    videoId: '',
                                     isFreePreview: false
                                 });
                                 setShowModuleModal(true);
@@ -1086,6 +1098,7 @@ export const Admin: React.FC = () => {
                                                 title: module.title,
                                                 duration: module.duration,
                                                 videoUrl: module.videoUrl,
+                                                videoId: '',
                                                 isFreePreview: module.isFreePreview
                                             });
                                             setShowModuleModal(true);
@@ -1199,7 +1212,7 @@ export const Admin: React.FC = () => {
                                     setModuleFormData({
                                         ...moduleFormData,
                                         videoUrl: videoData.secureUrl,
-                                        cloudinaryPublicId: videoData.publicId,
+                                        videoId: videoData.publicId,
                                         duration: durationStr
                                     });
                                 }}

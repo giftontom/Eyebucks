@@ -1,21 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight } from 'lucide-react';
-import { MOCK_COURSES } from '../constants';
+import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2 } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
+import { logger } from '../utils/logger';
+import type { Course } from '../types';
 
 export const PurchaseSuccess: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const courseId = searchParams.get('courseId');
   const [showConfetti, setShowConfetti] = useState(true);
-
-  const course = MOCK_COURSES.find(c => c.id === courseId);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Hide confetti after 3 seconds
     const timer = setTimeout(() => setShowConfetti(false), 3000);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!courseId) { setIsLoading(false); return; }
+    apiClient.getCourse(courseId)
+      .then(res => setCourse(res.course))
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, [courseId]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-brand-600" size={48} />
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -43,7 +61,7 @@ export const PurchaseSuccess: React.FC = () => {
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.log('Error sharing:', err);
+        logger.debug('Error sharing:', err);
       }
     } else {
       // Fallback - copy to clipboard
@@ -115,7 +133,7 @@ export const PurchaseSuccess: React.FC = () => {
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-3 text-sm text-neutral-600">
                   <CheckCircle2 size={18} className="text-green-600" />
-                  <span>{course.chapters.length} comprehensive lessons</span>
+                  <span>{(course.chapters?.length || 0)} comprehensive lessons</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-neutral-600">
                   <CheckCircle2 size={18} className="text-green-600" />

@@ -1,25 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MOCK_COURSES } from '../constants';
-import { CheckCircle, Circle, Play, Pause, Settings, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2 } from 'lucide-react';
+import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { enrollmentService } from '../services/enrollmentService';
 import { progressService, AUTO_SAVE_INTERVAL } from '../services/progressService';
 import { useToast } from '../components/Toast';
 import { EnrollmentGate } from '../components/EnrollmentGate';
-import { CloudinaryVideoPlayer, CloudinaryVideoPlayerHandle } from '../components/CloudinaryVideoPlayer';
+import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
+import { apiClient } from '../services/apiClient';
+import { logger } from '../utils/logger';
+
+/**
+ * Extract Bunny Stream video GUID from a video URL
+ * Bunny URLs follow: https://{cdn}/{guid}/playlist.m3u8
+ */
+function extractVideoId(videoUrl?: string): string | undefined {
+  if (!videoUrl) return undefined;
+  const match = videoUrl.match(/\/([a-f0-9-]{36})\/playlist\.m3u8/i);
+  return match?.[1];
+}
 
 export const Learn: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast, ToastContainer } = useToast();
-  const course = MOCK_COURSES.find(c => c.id === id);
+
+  // Fetch course and modules from API
+  const [course, setCourse] = useState<any>(null);
+  const [modules, setModules] = useState<any[]>([]);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(true);
 
   // Use access control hook
   const { hasAccess, isLoading: isCheckingAccess, isAdmin } = useAccessControl(id);
-  const [activeChapterId, setActiveChapterId] = useState(course?.chapters[0].id);
+  const [activeChapterId, setActiveChapterId] = useState<string | undefined>(undefined);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -27,18 +42,71 @@ export const Learn: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [notes, setNotes] = useState('');
-  const [quality, setQuality] = useState('1080p');
   const notesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCompletionNotification, setShowCompletionNotification] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
-  const videoRef = useRef<CloudinaryVideoPlayerHandle>(null);
+  const videoRef = useRef<VideoPlayerHandle>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeChapterIndex = course?.chapters.findIndex(c => c.id === activeChapterId) ?? 0;
+  const activeChapterIndex = modules.findIndex(m => m.id === activeChapterId) ?? 0;
 
   // Calculate real progress from progressService
   const [progressPercent, setProgressPercent] = useState(0);
+
+  // Pre-loaded module completion status (async data loaded into sync map)
+  const [moduleCompletionMap, setModuleCompletionMap] = useState<Record<string, boolean>>({});
+
+  // Load course and modules from API
+  useEffect(() => {
+    const loadCourse = async () => {
+      if (!id) return;
+
+      try {
+        setIsLoadingCourse(true);
+
+        // Fetch course details
+        const courseResponse = await apiClient.getCourse(id);
+        setCourse(courseResponse.course);
+
+        // Fetch modules
+        const modulesResponse = await apiClient.getCourseModules(id);
+        setModules(modulesResponse.modules || []);
+
+        // Set first module as active by default
+        if (modulesResponse.modules && modulesResponse.modules.length > 0) {
+          setActiveChapterId(modulesResponse.modules[0].id);
+        }
+      } catch (error) {
+        console.error('[Learn] Error loading course:', error);
+        showToast('Failed to load course', 'error');
+      } finally {
+        setIsLoadingCourse(false);
+      }
+    };
+
+    loadCourse();
+  }, [id, showToast]);
+
+  // Pre-load module completion statuses
+  useEffect(() => {
+    const loadModuleCompletions = async () => {
+      if (!user || !id || modules.length === 0) return;
+
+      try {
+        const allProgress = await progressService.getProgress(user.id, id);
+        const completionMap: Record<string, boolean> = {};
+        for (const p of allProgress) {
+          completionMap[p.moduleId] = p.completed;
+        }
+        setModuleCompletionMap(completionMap);
+      } catch (error) {
+        console.error('[Progress] Error loading module completions:', error);
+      }
+    };
+
+    loadModuleCompletions();
+  }, [user, id, modules, progressPercent]);
 
   // Load course progress stats
   useEffect(() => {
@@ -69,7 +137,7 @@ export const Learn: React.FC = () => {
 
         if (resumePosition > 0 && videoRef.current) {
           videoRef.current.currentTime = resumePosition;
-          console.log(`[Progress] Resumed ${activeChapterId} at ${resumePosition}s`);
+          logger.debug(`[Progress] Resumed ${activeChapterId} at ${resumePosition}s`);
         }
 
         // Update current module in enrollment
@@ -109,7 +177,7 @@ export const Learn: React.FC = () => {
     notesTimeoutRef.current = setTimeout(() => {
       const notesKey = `eyebuckz_notes_${id}_${activeChapterId}`;
       localStorage.setItem(notesKey, notes);
-      console.log(`[Notes] Saved for ${activeChapterId}`);
+      logger.debug(`[Notes] Saved for ${activeChapterId}`);
     }, 1000);
 
     return () => {
@@ -119,16 +187,8 @@ export const Learn: React.FC = () => {
     };
   }, [notes, user, id, activeChapterId]);
 
-  // Module 5: Prevent Right Click
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-    document.addEventListener('contextmenu', handleContextMenu);
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-    };
-  }, []);
+  // Right-click prevention removed — it breaks accessibility without providing
+  // meaningful DRM protection (users can still use DevTools, screen capture, etc.)
 
   // Module 3: Progress Save Logic (Auto-save every 30s)
   useEffect(() => {
@@ -212,32 +272,17 @@ export const Learn: React.FC = () => {
       }
   };
 
-  const handleQualityChange = (newQuality: string) => {
-    const currentT = videoRef.current ? videoRef.current.currentTime : 0;
-    const wasPlaying = !videoRef.current?.paused;
-    setQuality(newQuality);
-    
-    // Simulating quality switch by reloading source
-    if (videoRef.current) {
-        videoRef.current.src = `https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4?quality=${newQuality}`;
-        videoRef.current.currentTime = currentT;
-        if(wasPlaying) videoRef.current.play();
-    }
-  };
-
   // Previous / Next Chapter Logic
   const handlePrev = () => {
-      if (!course) return;
       if (activeChapterIndex > 0) {
-          setActiveChapterId(course.chapters[activeChapterIndex - 1].id);
+          setActiveChapterId(modules[activeChapterIndex - 1].id);
           setIsPlaying(false);
       }
   };
 
   const handleNext = () => {
-      if (!course) return;
-      if (activeChapterIndex < course.chapters.length - 1) {
-          setActiveChapterId(course.chapters[activeChapterIndex + 1].id);
+      if (activeChapterIndex < modules.length - 1) {
+          setActiveChapterId(modules[activeChapterIndex + 1].id);
           setIsPlaying(false);
       }
   };
@@ -262,6 +307,20 @@ export const Learn: React.FC = () => {
     }
   }
 
+  // Loading course data
+  if (isLoadingCourse || isCheckingAccess) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-brand-600 mx-auto mb-4" />
+          <p className="text-neutral-600">
+            {isLoadingCourse ? 'Loading course...' : 'Verifying access...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Course not found
   if (!course) {
     return (
@@ -276,18 +335,6 @@ export const Learn: React.FC = () => {
     );
   }
 
-  // Loading access check
-  if (isCheckingAccess) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="text-center">
-          <Loader2 size={40} className="animate-spin text-brand-600 mx-auto mb-4" />
-          <p className="text-neutral-600">Verifying access...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Show enrollment gate if user doesn't have access
   if (!hasAccess) {
     return (
@@ -297,10 +344,27 @@ export const Learn: React.FC = () => {
         coursePrice={course.price}
         courseThumbnail={course.thumbnail}
         courseDescription={course.description}
-        totalModules={course.chapters.length}
+        totalModules={modules.length}
       />
     );
   }
+
+  // No modules available
+  if (modules.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-neutral-900">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">No modules available</h2>
+          <p className="text-neutral-400 mb-4">This course doesn't have any modules yet.</p>
+          <Link to="/" className="text-brand-600 hover:text-brand-700 font-medium">
+            Back to Catalog
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const activeModule = modules[activeChapterIndex];
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden bg-black">
@@ -312,10 +376,10 @@ export const Learn: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseLeave={() => setShowControls(false)}
         >
-            <CloudinaryVideoPlayer
+            <VideoPlayer
                 ref={videoRef}
-                cloudinaryPublicId={course.chapters[activeChapterIndex]?.cloudinaryPublicId}
-                fallbackUrl={course.chapters[activeChapterIndex]?.videoUrl || `https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4?quality=${quality}`}
+                videoId={extractVideoId(activeModule?.videoUrl)}
+                fallbackUrl={activeModule?.videoUrl || 'https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4'}
                 className="w-full h-full"
                 controls={false}
                 onTimeUpdate={handleTimeUpdate}
@@ -353,7 +417,7 @@ export const Learn: React.FC = () => {
                             {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
                         </button>
 
-                         <button onClick={handleNext} className="hover:text-brand-500 transition disabled:opacity-50" disabled={activeChapterIndex === course.chapters.length - 1}>
+                         <button onClick={handleNext} className="hover:text-brand-500 transition disabled:opacity-50" disabled={activeChapterIndex === modules.length - 1}>
                             <SkipForward size={20} fill="currentColor" />
                         </button>
                         
@@ -383,22 +447,6 @@ export const Learn: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center gap-4">
-                        <div className="relative group/quality">
-                            <button className="flex items-center gap-1 hover:bg-white/10 px-2 py-1 rounded text-xs font-bold text-gray-300 border border-gray-700">
-                                {quality} <Settings size={12} />
-                            </button>
-                            <div className="absolute bottom-full right-0 mb-2 bg-neutral-900 border border-neutral-700 rounded-lg p-1 hidden group-hover/quality:block w-24 shadow-xl z-20">
-                                {['1080p', '720p', '480p', '360p'].map(q => (
-                                    <button 
-                                        key={q} 
-                                        onClick={() => handleQualityChange(q)}
-                                        className={`block w-full text-left px-3 py-1.5 text-xs rounded transition ${quality === q ? 'bg-brand-600 text-white' : 'text-gray-400 hover:bg-white/10'}`}
-                                    >
-                                        {q}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                         <button onClick={toggleFullScreen}>
                              <Maximize size={20} />
                         </button>
@@ -474,32 +522,31 @@ export const Learn: React.FC = () => {
       <div className="w-full lg:w-96 bg-neutral-900 border-l border-neutral-800 flex flex-col h-full z-10">
          <div className="p-4 border-b border-neutral-800 bg-neutral-900">
             <h2 className="font-bold text-lg text-white">Course Content</h2>
-            <p className="text-xs text-gray-500 mt-1">{course.chapters.length} Modules • Total Duration: 4h 30m</p>
+            <p className="text-xs text-gray-500 mt-1">{modules.length} Modules</p>
          </div>
-         
+
          <div className="flex-grow overflow-y-auto custom-scrollbar">
-            {course.chapters.map((chapter, idx) => {
-                // Check if chapter is completed from progressService
-                const moduleProgress = user && id ? progressService.getModuleProgress(user.id, id, chapter.id) : null;
-                const isCompleted = moduleProgress?.completed || false;
+            {modules.map((module, idx) => {
+                // Check if module is completed from pre-loaded map
+                const isCompleted = moduleCompletionMap[module.id] || false;
 
                 return (
                 <button
-                    key={chapter.id}
-                    onClick={() => setActiveChapterId(chapter.id)}
+                    key={module.id}
+                    onClick={() => setActiveChapterId(module.id)}
                     className={`w-full text-left p-4 border-b border-neutral-800 hover:bg-white/5 transition flex items-start gap-3 group ${
-                        activeChapterId === chapter.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
+                        activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
                     }`}
                 >
                     <div className="mt-0.5">
                         {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="text-neutral-600 group-hover:text-neutral-500" />}
                     </div>
                     <div>
-                        <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1 block">Module 0{idx + 1}</span>
-                        <h3 className={`text-sm font-medium leading-tight ${activeChapterId === chapter.id ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'}`}>
-                            {chapter.title}
+                        <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
+                        <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'}`}>
+                            {module.title}
                         </h3>
-                        <p className="text-xs text-neutral-600 mt-1.5 font-mono">{chapter.duration}</p>
+                        <p className="text-xs text-neutral-600 mt-1.5 font-mono">{module.duration}</p>
                     </div>
                 </button>
                 );

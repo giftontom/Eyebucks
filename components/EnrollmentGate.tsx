@@ -154,7 +154,7 @@ export const EnrollmentGate: React.FC<EnrollmentGateProps> = ({
 
         {/* Additional Info */}
         <p className="text-center text-sm text-neutral-500 mt-6">
-          Questions? <a href="#" className="text-brand-600 hover:underline">Contact support</a> or{' '}
+          Questions? <a href="mailto:support@eyebuckz.com" className="text-brand-600 hover:underline">Contact support</a> or{' '}
           <a href="/" className="text-brand-600 hover:underline">browse other courses</a>
         </p>
       </div>

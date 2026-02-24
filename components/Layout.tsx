@@ -199,16 +199,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <h4 className="font-bold text-neutral-900 mb-4">Platform</h4>
                     <ul className="space-y-3 text-sm text-neutral-500">
                         <li><Link to="/" className="hover:text-black transition">Browse Courses</Link></li>
-                        <li><a href="#" className="hover:text-black transition">Mentorship</a></li>
-                        <li><a href="#" className="hover:text-black transition">Pricing</a></li>
                     </ul>
                  </div>
                  <div>
                     <h4 className="font-bold text-neutral-900 mb-4">Community</h4>
                     <ul className="space-y-3 text-sm text-neutral-500">
-                        <li><a href="https://youtube.com/@eyebuckz" className="hover:text-[#FF0000] transition">YouTube</a></li>
-                        <li><a href="#" className="hover:text-pink-600 transition">Instagram</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition">Twitter</a></li>
+                        <li><a href="https://youtube.com/@eyebuckz" target="_blank" rel="noreferrer" className="hover:text-[#FF0000] transition">YouTube</a></li>
                     </ul>
                  </div>
             </div>
@@ -216,10 +212,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           
           <div className="mt-16 pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center text-neutral-400 text-sm gap-4">
             <p>© 2024 Eyebuckz. All rights reserved.</p>
-            <div className="flex gap-6">
-              <a href="#" className="hover:text-neutral-900 transition">Privacy</a>
-              <a href="#" className="hover:text-neutral-900 transition">Terms</a>
-            </div>
+            {/* Privacy & Terms links — add real URLs when available */}
           </div>
         </div>
       </footer>

@@ -7,6 +7,8 @@
  * - Migration to database
  */
 
+import { logger } from './logger';
+
 interface ExportData {
   exportedAt: string;
   version: string;
@@ -63,7 +65,7 @@ export const downloadLocalStorageData = (): void => {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 
-  console.log('[DataExport] Downloaded localStorage data');
+  logger.debug('[DataExport] Downloaded localStorage data');
 };
 
 /**
@@ -101,7 +103,7 @@ export const importLocalStorageData = (jsonString: string): boolean => {
       );
     }
 
-    console.log('[DataExport] Imported localStorage data successfully');
+    logger.debug('[DataExport] Imported localStorage data successfully');
     return true;
   } catch (error) {
     console.error('[DataExport] Import failed:', error);
@@ -162,7 +164,7 @@ export const clearAllData = (): void => {
     }
   });
 
-  console.log('[DataExport] Cleared all localStorage data');
+  logger.debug('[DataExport] Cleared all localStorage data');
   window.location.reload();
 };
 
@@ -234,7 +236,7 @@ if (typeof window !== 'undefined') {
     stats: getStorageStats
   };
 
-  console.log(
+  logger.debug(
     '%c📊 Eyebuckz Data Tools',
     'color: #ef4444; font-size: 16px; font-weight: bold;',
     '\n\nAvailable commands:',

@@ -1,12 +1,12 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
-interface Props {
+interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
@@ -17,8 +17,8 @@ interface State {
  * Catches JavaScript errors anywhere in the child component tree
  * and displays a fallback UI instead of crashing the app
  */
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
@@ -27,9 +27,9 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     // Update state so the next render will show the fallback UI
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
@@ -42,8 +42,25 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo
     });
 
-    // TODO: Send error to monitoring service (Sentry, etc.)
-    // logErrorToService(error, errorInfo);
+    // Send error to Sentry if configured
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      try {
+        // Dynamic import to avoid errors if Sentry not configured
+        import('@sentry/react').then((Sentry) => {
+          Sentry.captureException(error, {
+            contexts: {
+              react: {
+                componentStack: errorInfo.componentStack,
+              },
+            },
+          });
+        }).catch((importErr) => {
+          console.error('[ErrorBoundary] Failed to load Sentry module:', importErr);
+        });
+      } catch (err) {
+        console.error('[ErrorBoundary] Failed to send error to Sentry:', err);
+      }
+    }
   }
 
   handleReset = (): void => {
@@ -88,7 +105,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </p>
 
               {/* Error details (development only) */}
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="w-full mb-6 text-left">
                   <summary className="cursor-pointer text-sm font-medium text-slate-700 mb-2">
                     Error Details (Development Only)
@@ -144,3 +161,6 @@ export const withErrorBoundary = (Component: React.ComponentType<any>, fallback?
     </ErrorBoundary>
   );
 };
+
+// Default export for easier imports
+export default ErrorBoundary;

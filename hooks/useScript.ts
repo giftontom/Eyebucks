@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook to load external scripts dynamically
@@ -33,7 +34,7 @@ export const useScript = (src: string): boolean => {
     const handleLoad = () => {
       setLoaded(true);
       setError(false);
-      console.log(`[useScript] Loaded: ${src}`);
+      logger.debug(`[useScript] Loaded: ${src}`);
     };
 
     // Handle script load error
