@@ -78,11 +78,10 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     setUploadProgress(0);
 
     try {
-      // Convert file to base64 for Edge Function
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      // Build FormData — supabase-js auto-detects and sets multipart Content-Type
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', file.name);
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -90,11 +89,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       }, 500);
 
       const { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
-        body: {
-          fileName: file.name,
-          fileData: base64,
-          contentType: file.type,
-        },
+        body: formData,
       });
 
       clearInterval(progressInterval);
@@ -105,7 +100,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       setUploadProgress(100);
 
       onUploadComplete({
-        publicId: data.video.guid,
+        publicId: data.video.publicId,
         secureUrl: data.video.url,
         duration: data.video.duration || 0,
         thumbnail: data.video.thumbnail || ''

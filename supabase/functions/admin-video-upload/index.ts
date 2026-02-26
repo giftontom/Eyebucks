@@ -64,7 +64,7 @@ serve(async (req) => {
     const libraryId = Deno.env.get('BUNNY_STREAM_LIBRARY_ID');
     const cdnHostname = Deno.env.get('BUNNY_STREAM_CDN_HOSTNAME');
 
-    if (!apiKey || !libraryId) {
+    if (!apiKey || !libraryId || !cdnHostname) {
       return new Response(
         JSON.stringify({ success: false, error: 'Video service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
