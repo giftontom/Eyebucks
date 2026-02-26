@@ -29,6 +29,7 @@ export const Admin: React.FC = () => {
     type: 'MODULE' as 'MODULE' | 'BUNDLE',
     features: ['']
   });
+  const [bundledCourseIds, setBundledCourseIds] = useState<string[]>([]);
 
   // Module management state
   const [showModuleModal, setShowModuleModal] = useState(false);
@@ -419,6 +420,7 @@ export const Admin: React.FC = () => {
                         type: 'MODULE',
                         features: ['']
                       });
+                      setBundledCourseIds([]);
                       setShowCourseModal(true);
                     }}
                     className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
@@ -452,10 +454,19 @@ export const Admin: React.FC = () => {
                           .map(course => (
                              <tr key={course.id} className={`hover:bg-slate-50 transition ${(course as any).deleted_at ? 'opacity-60' : ''}`}>
                                 <td className="p-4 pl-6 font-medium text-slate-900">
-                                  {course.title}
-                                  {(course as any).deleted_at && (
-                                    <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Archived</span>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    {course.title}
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
+                                      course.type === 'BUNDLE'
+                                        ? 'bg-purple-100 text-purple-700'
+                                        : 'bg-slate-100 text-slate-500'
+                                    }`}>
+                                      {course.type}
+                                    </span>
+                                    {(course as any).deleted_at && (
+                                      <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Archived</span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${
@@ -498,6 +509,7 @@ export const Admin: React.FC = () => {
                                     >
                                         {operationLoading ? '...' : (course.status === 'PUBLISHED' ? 'Unpublish' : 'Publish')}
                                     </button>
+                                    {course.type === 'MODULE' && (
                                     <button
                                         onClick={async () => {
                                             setSelectedCourseForModules(course);
@@ -514,6 +526,7 @@ export const Admin: React.FC = () => {
                                     >
                                         Modules
                                     </button>
+                                    )}
                                     <button
                                         onClick={async () => {
                                             setAnalyticsCourseTitle(course.title);
@@ -532,7 +545,7 @@ export const Admin: React.FC = () => {
                                         Stats
                                     </button>
                                     <button
-                                        onClick={() => {
+                                        onClick={async () => {
                                             setEditingCourseId(course.id);
                                             setCourseFormData({
                                                 title: course.title,
@@ -543,6 +556,16 @@ export const Admin: React.FC = () => {
                                                 type: course.type,
                                                 features: course.features.length > 0 ? course.features : ['']
                                             });
+                                            if (course.type === 'BUNDLE') {
+                                                try {
+                                                    const res = await apiClient.getBundleCourses(course.id);
+                                                    setBundledCourseIds(res.courseIds);
+                                                } catch {
+                                                    setBundledCourseIds([]);
+                                                }
+                                            } else {
+                                                setBundledCourseIds([]);
+                                            }
                                             setShowCourseModal(true);
                                         }}
                                         className="text-brand-600 hover:text-brand-700 font-medium mr-3"
@@ -944,13 +967,52 @@ export const Admin: React.FC = () => {
                         <label className="block text-sm font-medium text-slate-700 mb-2">Type *</label>
                         <select
                             value={courseFormData.type}
-                            onChange={(e) => setCourseFormData({ ...courseFormData, type: e.target.value as 'MODULE' | 'BUNDLE' })}
+                            onChange={(e) => {
+                                const newType = e.target.value as 'MODULE' | 'BUNDLE';
+                                setCourseFormData({ ...courseFormData, type: newType });
+                                if (newType !== 'BUNDLE') setBundledCourseIds([]);
+                            }}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
                         >
                             <option value="MODULE">Module</option>
                             <option value="BUNDLE">Bundle</option>
                         </select>
                     </div>
+                    {courseFormData.type === 'BUNDLE' && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Bundled Courses</label>
+                        <p className="text-xs text-slate-500 mb-2">Select the module courses included in this bundle.</p>
+                        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg bg-slate-50 p-2">
+                            {courses.filter(c => c.type === 'MODULE' && !(c as any).deleted_at).length === 0 ? (
+                                <p className="text-sm text-slate-400 text-center py-4">No module courses available</p>
+                            ) : (
+                                courses
+                                    .filter(c => c.type === 'MODULE' && !(c as any).deleted_at)
+                                    .map(c => (
+                                        <label key={c.id} className="flex items-center gap-2 p-2 rounded hover:bg-slate-100 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={bundledCourseIds.includes(c.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setBundledCourseIds([...bundledCourseIds, c.id]);
+                                                    } else {
+                                                        setBundledCourseIds(bundledCourseIds.filter(id => id !== c.id));
+                                                    }
+                                                }}
+                                                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                            />
+                                            <span className="text-sm text-slate-800">{c.title}</span>
+                                            <span className="text-xs text-slate-400 ml-auto">{(c as any)._count?.modules || 0} modules</span>
+                                        </label>
+                                    ))
+                            )}
+                        </div>
+                        {bundledCourseIds.length > 0 && (
+                            <p className="text-xs text-slate-500 mt-1">{bundledCourseIds.length} course{bundledCourseIds.length !== 1 ? 's' : ''} selected</p>
+                        )}
+                    </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">Features</label>
                         {courseFormData.features.map((feature, index) => (
@@ -987,6 +1049,29 @@ export const Admin: React.FC = () => {
                         </button>
                     </div>
                 </div>
+                {editingCourseId && courseFormData.type === 'MODULE' && (
+                    <div className="border-t border-slate-200 pt-4 mt-4">
+                        <button
+                            onClick={async () => {
+                                setShowCourseModal(false);
+                                const course = courses.find(c => c.id === editingCourseId);
+                                if (course) {
+                                    setSelectedCourseForModules(course);
+                                    try {
+                                        const response = await apiClient.getCourseModules(course.id);
+                                        setModules(response.modules || []);
+                                    } catch (error) {
+                                        console.error('Failed to fetch modules:', error);
+                                        setModules([]);
+                                    }
+                                }
+                            }}
+                            className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 py-2 rounded-lg font-medium transition"
+                        >
+                            Manage Modules
+                        </button>
+                    </div>
+                )}
                 <div className="flex gap-3 mt-6">
                     <button
                         onClick={() => {
@@ -1003,6 +1088,10 @@ export const Admin: React.FC = () => {
                                 showToast('Please fill in all required fields', 'error');
                                 return;
                             }
+                            if (courseFormData.type === 'BUNDLE' && bundledCourseIds.length === 0) {
+                                showToast('Please select at least one course for this bundle', 'error');
+                                return;
+                            }
                             try {
                                 if (editingCourseId) {
                                     // Update existing course
@@ -1015,6 +1104,9 @@ export const Admin: React.FC = () => {
                                         type: courseFormData.type,
                                         features: courseFormData.features.filter(f => f.trim())
                                     });
+                                    if (courseFormData.type === 'BUNDLE') {
+                                        await apiClient.setBundleCourses(editingCourseId, bundledCourseIds);
+                                    }
                                     showToast(response.message || 'Course updated successfully!', 'success');
                                 } else {
                                     // Create new course
@@ -1027,6 +1119,9 @@ export const Admin: React.FC = () => {
                                         type: courseFormData.type,
                                         features: courseFormData.features.filter(f => f.trim())
                                     });
+                                    if (courseFormData.type === 'BUNDLE' && response.course?.id) {
+                                        await apiClient.setBundleCourses(response.course.id, bundledCourseIds);
+                                    }
                                     showToast(response.message || 'Course created successfully!', 'success');
                                 }
                                 setShowCourseModal(false);

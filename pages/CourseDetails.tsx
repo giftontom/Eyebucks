@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { apiClient } from '../services/apiClient';
 import ReviewList from '../components/ReviewList';
+import { CourseType } from '../types';
 import type { Course } from '../types';
 
 export const CourseDetails: React.FC = () => {
@@ -24,7 +25,7 @@ export const CourseDetails: React.FC = () => {
   }, [id]);
   const [isMuted, setIsMuted] = useState(true);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'REVIEWS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'COURSES' | 'REVIEWS'>('OVERVIEW');
   const [showSticky, setShowSticky] = useState(false);
 
   // Ref for the main Call-to-Action button to track visibility
@@ -125,19 +126,25 @@ export const CourseDetails: React.FC = () => {
             
           {/* Tabs Navigation */}
           <div className="flex border-b border-slate-200 mb-8 overflow-x-auto no-scrollbar">
-              {(['OVERVIEW', 'CURRICULUM', 'REVIEWS'] as const).map((tab) => (
+              {(() => {
+                const isBundle = course.type === CourseType.BUNDLE;
+                const tabs = isBundle
+                  ? (['OVERVIEW', 'COURSES', 'REVIEWS'] as const)
+                  : (['OVERVIEW', 'CURRICULUM', 'REVIEWS'] as const);
+                return tabs.map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`px-6 py-4 font-bold text-sm transition border-b-2 whitespace-nowrap ${
-                        activeTab === tab 
-                        ? 'border-brand-600 text-brand-600' 
+                        activeTab === tab
+                        ? 'border-brand-600 text-brand-600'
                         : 'border-transparent text-slate-500 hover:text-slate-900'
                     }`}
                   >
-                      {tab}
+                      {tab === 'COURSES' ? `INCLUDED COURSES (${course.bundledCourses?.length || 0})` : tab}
                   </button>
-              ))}
+                ));
+              })()}
           </div>
 
           <div className="min-h-[300px]">
@@ -204,6 +211,67 @@ export const CourseDetails: React.FC = () => {
                 </div>
             )}
 
+            {activeTab === 'COURSES' && course.type === CourseType.BUNDLE && (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-2xl font-bold text-slate-900">What's Included</h2>
+                        <span className="text-slate-500 text-sm">{course.bundledCourses?.length || 0} Courses</span>
+                    </div>
+                    <p className="text-slate-500 text-sm mb-6">This bundle includes full access to the following courses:</p>
+                    <div className="space-y-4">
+                        {(course.bundledCourses || []).map((bc, index) => (
+                            <div
+                                key={bc.id}
+                                onClick={() => navigate(`/course/${bc.id}`)}
+                                className="flex gap-4 p-4 border border-slate-200 rounded-xl hover:border-brand-500/30 hover:shadow-md transition cursor-pointer group bg-white"
+                            >
+                                <div className="w-24 h-24 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                                    {bc.thumbnail ? (
+                                        <img src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <BookOpen size={24} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs font-bold text-slate-400">COURSE {index + 1}</span>
+                                        {bc.rating && (
+                                            <div className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
+                                                <Star size={10} fill="currentColor" />
+                                                {bc.rating}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <h4 className="font-bold text-slate-900 group-hover:text-brand-600 transition-colors truncate">{bc.title}</h4>
+                                    <p className="text-sm text-slate-500 line-clamp-1 mt-1">{bc.description}</p>
+                                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                                        <span className="flex items-center gap-1"><Layers size={12} /> {bc.moduleCount} Lessons</span>
+                                        <span className="flex items-center gap-1"><User size={12} /> {bc.totalStudents} Students</span>
+                                        {bc.price > 0 && <span className="line-through">₹{(bc.price / 100).toLocaleString()}</span>}
+                                    </div>
+                                </div>
+                                <div className="hidden md:flex items-center text-slate-400 group-hover:text-brand-600 transition-colors">
+                                    <ArrowRight size={20} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {course.bundledCourses && course.bundledCourses.length > 0 && (() => {
+                        const savings = course.bundledCourses.reduce((sum, c) => sum + c.price, 0) - course.price;
+                        return savings > 0 ? (
+                            <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 mt-6">
+                                <p className="text-sm text-brand-800 font-medium flex items-center gap-2">
+                                    <Zap size={16} className="text-brand-600" />
+                                    Save ₹{(savings / 100).toLocaleString()} compared to buying individually
+                                </p>
+                            </div>
+                        ) : null;
+                    })()}
+                </div>
+            )}
+
             {activeTab === 'REVIEWS' && (
                 <div className="animate-fade-in">
                     <ReviewList
@@ -242,6 +310,22 @@ export const CourseDetails: React.FC = () => {
               {ctaConfig.text}
             </button>
             
+            {course.type === CourseType.BUNDLE && course.bundledCourses && course.bundledCourses.length > 0 && (
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                  <Layers size={16} className="text-brand-600" /> Includes {course.bundledCourses.length} Courses
+                </h4>
+                <div className="space-y-2">
+                  {course.bundledCourses.map((bc) => (
+                    <div key={bc.id} className="flex items-center gap-2 text-sm text-slate-600">
+                      <BookOpen size={14} className="text-brand-500 flex-shrink-0" />
+                      <span className="truncate">{bc.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4 mt-8 border-t border-slate-100 pt-6">
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                     <User size={18} className="text-brand-600" />

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Loader2, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Loader2, CheckCircle2, Layers, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
 import { useScript } from '../hooks/useScript';
 import { logger } from '../utils/logger';
+import { CourseType } from '../types';
 import type { Course } from '../types';
 
 // Razorpay SDK types
@@ -36,6 +37,34 @@ declare global {
     Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
+
+const BundleIncludedCourses: React.FC<{ courses: NonNullable<Course['bundledCourses']> }> = ({ courses }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="mb-4 bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition text-sm"
+      >
+        <span className="flex items-center gap-2 font-medium text-slate-700">
+          <Layers size={14} className="text-brand-600" />
+          Includes {courses.length} course{courses.length !== 1 ? 's' : ''}
+        </span>
+        {expanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+      </button>
+      {expanded && (
+        <div className="border-t border-slate-100 px-3 py-2 space-y-2">
+          {courses.map((c) => (
+            <div key={c.id} className="flex items-center gap-2 text-sm text-slate-600">
+              <BookOpen size={12} className="text-brand-500 flex-shrink-0" />
+              <span className="truncate">{c.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const Checkout: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -284,9 +313,12 @@ export const Checkout: React.FC = () => {
               <img src={course.thumbnail} className="w-24 h-16 object-cover rounded-lg border border-slate-200 shadow-sm" alt="Course" />
               <div>
                 <h3 className="font-bold text-slate-900 leading-tight">{course.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">{course.type}</p>
+                <p className="text-sm text-slate-500 mt-1">{course.type === CourseType.BUNDLE ? `Bundle • ${course.bundledCourses?.length || 0} Courses` : course.type}</p>
               </div>
             </div>
+            {course.type === CourseType.BUNDLE && course.bundledCourses && course.bundledCourses.length > 0 && (
+              <BundleIncludedCourses courses={course.bundledCourses} />
+            )}
             <div className="border-t border-slate-200 pt-4 space-y-2">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>

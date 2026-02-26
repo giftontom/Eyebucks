@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2 } from 'lucide-react';
+import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, BookOpen, Layers, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { enrollmentService } from '../services/enrollmentService';
@@ -10,6 +10,7 @@ import { EnrollmentGate } from '../components/EnrollmentGate';
 import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
 import { apiClient } from '../services/apiClient';
 import { logger } from '../utils/logger';
+import { CourseType } from '../types';
 
 /**
  * Extract Bunny Stream video GUID from a video URL
@@ -349,7 +350,81 @@ export const Learn: React.FC = () => {
     );
   }
 
-  // No modules available
+  // Bundle Hub View — bundles don't have modules, show linked courses instead
+  if (course.type === CourseType.BUNDLE) {
+    const bundledCourses = course.bundledCourses || [];
+    return (
+      <div className="min-h-[calc(100vh-64px)] bg-neutral-950">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="bg-brand-600/20 text-brand-400 text-xs font-bold px-3 py-1 rounded-full border border-brand-500/30">
+                <Layers size={12} className="inline mr-1" /> BUNDLE
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">{course.title}</h1>
+            <p className="text-neutral-400">{course.description}</p>
+          </div>
+
+          {/* Overall progress */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 mb-8">
+            <div className="flex justify-between text-sm text-neutral-400 mb-2">
+              <span>{bundledCourses.length} Courses in this Bundle</span>
+              <span>{Math.round(progressPercent)}% Overall</span>
+            </div>
+            <div className="w-full bg-neutral-800 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-brand-600 to-purple-500 h-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Bundled course cards */}
+          <div className="space-y-4">
+            {bundledCourses.map((bc, index) => (
+              <Link
+                key={bc.id}
+                to={`/learn/${bc.id}`}
+                className="flex gap-4 p-4 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-brand-500/40 hover:bg-neutral-800/50 transition group"
+              >
+                <div className="w-24 h-16 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-800">
+                  {bc.thumbnail ? (
+                    <img src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-neutral-600">
+                      <BookOpen size={24} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Course {index + 1}</span>
+                  <h3 className="font-bold text-white group-hover:text-brand-400 transition truncate">{bc.title}</h3>
+                  <p className="text-sm text-neutral-500 line-clamp-1 mt-1">{bc.description}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-neutral-500">
+                    <span>{bc.moduleCount} Lessons</span>
+                  </div>
+                </div>
+                <div className="hidden md:flex items-center text-neutral-600 group-hover:text-brand-500 transition">
+                  <ArrowRight size={20} />
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {bundledCourses.length === 0 && (
+            <div className="text-center py-16">
+              <p className="text-neutral-500 mb-4">No courses have been added to this bundle yet.</p>
+              <Link to="/" className="text-brand-500 hover:text-brand-400 font-medium">Back to Catalog</Link>
+            </div>
+          )}
+        </div>
+        <ToastContainer />
+      </div>
+    );
+  }
+
+  // No modules available (for MODULE courses only)
   if (modules.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen bg-neutral-900">

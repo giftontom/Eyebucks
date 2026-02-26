@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PlayCircle, UserCircle } from 'lucide-react';
+import { PlayCircle, UserCircle, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { enrollmentService } from '../services/enrollmentService';
 import { apiClient } from '../services/apiClient';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
+import { CourseType } from '../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export const Dashboard: React.FC = () => {
     enrollmentId: string;
     enrolledAt: Date;
     lastAccessedAt?: Date | null;
+    type?: string;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -109,6 +111,13 @@ export const Dashboard: React.FC = () => {
                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
                       <PlayCircle size={56} className="text-white drop-shadow-lg scale-90 group-hover:scale-100 transition" />
                    </div>
+                   {course.type === CourseType.BUNDLE && (
+                     <div className="absolute top-3 left-3">
+                       <span className="bg-purple-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                         <Layers size={10} /> BUNDLE
+                       </span>
+                     </div>
+                   )}
                 </div>
                 <div className="p-6">
                    <h3 className="font-bold text-lg mb-3 text-slate-900 leading-tight">{course.title}</h3>
@@ -118,11 +127,11 @@ export const Dashboard: React.FC = () => {
                    <div className="flex justify-between items-center text-sm text-slate-500 mb-6">
                       <span>{course.progress || 0}% Completed</span>
                    </div>
-                   <Link 
-                     to={`/learn/${course.id}`}
+                   <Link
+                     to={course.type === CourseType.BUNDLE ? `/course/${course.id}` : `/learn/${course.id}`}
                      className="block w-full text-center bg-slate-900 hover:bg-slate-800 py-3 rounded-lg font-medium transition text-white"
                    >
-                     Resume Editing
+                     {course.type === CourseType.BUNDLE ? 'View Bundle' : 'Resume Editing'}
                    </Link>
                 </div>
              </div>
