@@ -7,6 +7,7 @@ import { apiClient } from '../services/apiClient';
 
 interface Review {
   id: string;
+  userId?: string;
   rating: number;
   comment: string;
   user: {
@@ -122,7 +123,7 @@ export default function ReviewList({
   };
 
   const isUserReview = (review: Review) => {
-    return user && review.user.name === user.name;
+    return user && (review.userId === user.id || review.user.name === user.name);
   };
 
   return (

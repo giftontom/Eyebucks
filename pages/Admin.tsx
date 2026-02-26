@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, DollarSign, BookOpen, Plus, Search, MoreVertical, Award, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Users, DollarSign, BookOpen, Plus, Search, MoreVertical, Award, FileText, CheckCircle, XCircle, BarChart3, RotateCcw, Archive, Eye, EyeOff, CreditCard, RefreshCw, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import { useToast } from '../components/Toast';
 import { VideoUploader } from '../components/VideoUploader';
-import type { AdminStats, SalesDataPoint, RecentActivity, AdminUser, AdminCourse, AdminCertificate, Module } from '../types';
+import type { AdminStats, SalesDataPoint, RecentActivity, AdminUser, AdminCourse, AdminCertificate, Module, SiteContentItem, CourseAnalytics } from '../types';
+import type { Payment } from '../services/api/payments.api';
 
 export const Admin: React.FC = () => {
   const { user } = useAuth();
   const { showToast, ToastContainer } = useToast();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'courses' | 'users' | 'certificates'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'courses' | 'users' | 'certificates' | 'content' | 'payments'>('dashboard');
   const [showManualEnrollModal, setShowManualEnrollModal] = useState(false);
   const [selectedUserForEnroll, setSelectedUserForEnroll] = useState<AdminUser | null>(null);
   const [selectedCourseForEnroll, setSelectedCourseForEnroll] = useState<string>('');
@@ -52,6 +53,35 @@ export const Admin: React.FC = () => {
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
   const [certificateToRevoke, setCertificateToRevoke] = useState<{id: string; studentName: string; courseTitle: string} | null>(null);
+
+  // Site content CMS state
+  const [siteContent, setSiteContent] = useState<SiteContentItem[]>([]);
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [editingContentId, setEditingContentId] = useState<string | null>(null);
+  const [contentFormData, setContentFormData] = useState({
+    section: 'faq' as string,
+    title: '',
+    body: '',
+    metadata: '{}',
+    orderIndex: 0,
+    isActive: true
+  });
+
+  // Payments state
+  const [adminPayments, setAdminPayments] = useState<Payment[]>([]);
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentTotal, setPaymentTotal] = useState(0);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundPayment, setRefundPayment] = useState<Payment | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+
+  // Course analytics state
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<CourseAnalytics | null>(null);
+  const [analyticsCourseTitle, setAnalyticsCourseTitle] = useState('');
+
+  // Soft-delete filter state
+  const [showArchived, setShowArchived] = useState(false);
 
   // Loading states
   const [operationLoading, setOperationLoading] = useState(false);
@@ -162,6 +192,41 @@ export const Admin: React.FC = () => {
     fetchCertificates();
   }, [activeTab, user]);
 
+  // Fetch site content
+  useEffect(() => {
+    const fetchSiteContent = async () => {
+      if (activeTab !== 'content' || !user) return;
+      try {
+        setLoading(true);
+        const response = await apiClient.getAdminSiteContent();
+        setSiteContent(response.items);
+      } catch (error) {
+        console.error('Failed to fetch site content:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSiteContent();
+  }, [activeTab, user]);
+
+  // Fetch admin payments
+  useEffect(() => {
+    const fetchPayments = async () => {
+      if (activeTab !== 'payments' || !user) return;
+      try {
+        setLoading(true);
+        const response = await apiClient.getAdminPayments({ search: paymentSearch, limit: 50 });
+        setAdminPayments(response.payments);
+        setPaymentTotal(response.total);
+      } catch (error) {
+        console.error('Failed to fetch payments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPayments();
+  }, [activeTab, user, paymentSearch]);
+
   if (user?.role !== 'ADMIN') {
     return (
         <div className="flex items-center justify-center h-screen bg-white">
@@ -182,7 +247,7 @@ export const Admin: React.FC = () => {
             <p className="text-slate-500 text-sm">Platform Management</p>
         </div>
         <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200 overflow-x-auto">
-            {(['dashboard', 'courses', 'users', 'certificates'] as const).map(tab => (
+            {(['dashboard', 'courses', 'users', 'certificates', 'content', 'payments'] as const).map(tab => (
                 <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -330,7 +395,18 @@ export const Admin: React.FC = () => {
       {activeTab === 'courses' && (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm animate-fade-in overflow-hidden">
                <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-slate-900">Course Manager</h3>
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-xl font-bold text-slate-900">Course Manager</h3>
+                    <button
+                      onClick={() => setShowArchived(!showArchived)}
+                      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition ${
+                        showArchived ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      {showArchived ? <Eye size={14} /> : <EyeOff size={14} />}
+                      {showArchived ? 'Showing Archived' : 'Show Archived'}
+                    </button>
+                  </div>
                   <button
                     onClick={() => {
                       setEditingCourseId(null);
@@ -371,9 +447,16 @@ export const Admin: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-sm">
-                        {courses.map(course => (
-                             <tr key={course.id} className="hover:bg-slate-50 transition">
-                                <td className="p-4 pl-6 font-medium text-slate-900">{course.title}</td>
+                        {courses
+                          .filter(c => showArchived ? !!(c as any).deleted_at : !(c as any).deleted_at)
+                          .map(course => (
+                             <tr key={course.id} className={`hover:bg-slate-50 transition ${(course as any).deleted_at ? 'opacity-60' : ''}`}>
+                                <td className="p-4 pl-6 font-medium text-slate-900">
+                                  {course.title}
+                                  {(course as any).deleted_at && (
+                                    <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Archived</span>
+                                  )}
+                                </td>
                                 <td className="p-4">
                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                                         course.status === 'PUBLISHED'
@@ -432,6 +515,23 @@ export const Admin: React.FC = () => {
                                         Modules
                                     </button>
                                     <button
+                                        onClick={async () => {
+                                            setAnalyticsCourseTitle(course.title);
+                                            setAnalyticsData(null);
+                                            setShowAnalyticsModal(true);
+                                            try {
+                                                const res = await apiClient.getCourseAnalytics(course.id);
+                                                setAnalyticsData(res.analytics);
+                                            } catch (error: any) {
+                                                showToast(error.message || 'Failed to load analytics', 'error');
+                                                setShowAnalyticsModal(false);
+                                            }
+                                        }}
+                                        className="text-blue-600 hover:text-blue-700 font-medium mr-3"
+                                    >
+                                        Stats
+                                    </button>
+                                    <button
                                         onClick={() => {
                                             setEditingCourseId(course.id);
                                             setCourseFormData({
@@ -449,15 +549,37 @@ export const Admin: React.FC = () => {
                                     >
                                         Edit
                                     </button>
-                                    <button
+                                    {(course as any).deleted_at ? (
+                                      <button
+                                        onClick={async () => {
+                                          if (!confirm(`Restore "${course.title}"?`)) return;
+                                          setOperationLoading(true);
+                                          try {
+                                            await apiClient.restoreAdminCourse(course.id);
+                                            showToast('Course restored!', 'success');
+                                            const coursesRes = await apiClient.getAdminCourses();
+                                            setCourses(coursesRes.courses);
+                                          } catch (error: any) {
+                                            showToast(error.message || 'Failed to restore', 'error');
+                                          } finally {
+                                            setOperationLoading(false);
+                                          }
+                                        }}
+                                        className="text-green-600 hover:text-green-700 font-medium"
+                                      >
+                                        Restore
+                                      </button>
+                                    ) : (
+                                      <button
                                         onClick={() => {
                                             setCourseToDelete({ id: course.id, title: course.title });
                                             setShowDeleteConfirm(true);
                                         }}
                                         className="text-red-600 hover:text-red-700"
-                                    >
-                                        Delete
-                                    </button>
+                                      >
+                                        Archive
+                                      </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -931,12 +1053,12 @@ export const Admin: React.FC = () => {
       {showDeleteConfirm && courseToDelete && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl">
-                <h3 className="text-lg font-bold mb-4 text-slate-900">Delete Course</h3>
+                <h3 className="text-lg font-bold mb-4 text-slate-900">Archive Course</h3>
                 <p className="text-slate-600 mb-2">
-                    Are you sure you want to delete <span className="font-bold text-slate-900">"{courseToDelete.title}"</span>?
+                    Are you sure you want to archive <span className="font-bold text-slate-900">"{courseToDelete.title}"</span>?
                 </p>
-                <p className="text-sm text-red-600 mb-6">
-                    ⚠️ This will permanently delete all associated modules, enrollments, and progress data. This action cannot be undone.
+                <p className="text-sm text-yellow-600 mb-6">
+                    The course will be hidden from students but can be restored later from the archived filter.
                 </p>
                 <div className="flex gap-3">
                     <button
@@ -952,7 +1074,7 @@ export const Admin: React.FC = () => {
                         onClick={async () => {
                             try {
                                 const response = await apiClient.deleteAdminCourse(courseToDelete.id);
-                                showToast(response.message || 'Course deleted successfully!', 'success');
+                                showToast(response.message || 'Course archived successfully!', 'success');
                                 setShowDeleteConfirm(false);
                                 setCourseToDelete(null);
                                 // Refresh courses list
@@ -961,12 +1083,12 @@ export const Admin: React.FC = () => {
                                     setCourses(coursesRes.courses);
                                 }
                             } catch (error: any) {
-                                showToast(error.message || 'Failed to delete course', 'error');
+                                showToast(error.message || 'Failed to archive course', 'error');
                             }
                         }}
                         className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-medium transition"
                     >
-                        Delete Course
+                        Archive Course
                     </button>
                 </div>
             </div>
@@ -1439,6 +1561,422 @@ export const Admin: React.FC = () => {
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* ========== CONTENT TAB (CMS) ========== */}
+      {activeTab === 'content' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm animate-fade-in overflow-hidden">
+          <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+            <h3 className="text-xl font-bold text-slate-900">Site Content Manager</h3>
+            <button
+              onClick={() => {
+                setEditingContentId(null);
+                setContentFormData({ section: 'faq', title: '', body: '', metadata: '{}', orderIndex: 0, isActive: true });
+                setShowContentModal(true);
+              }}
+              className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
+            >
+              <Plus size={16} /> New Content
+            </button>
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-20"><div className="text-slate-400">Loading content...</div></div>
+          ) : siteContent.length === 0 ? (
+            <div className="flex items-center justify-center py-20"><div className="text-slate-400">No content found</div></div>
+          ) : (
+            <div className="divide-y divide-slate-200">
+              {['faq', 'testimonial', 'showcase'].map(section => {
+                const items = siteContent.filter(c => c.section === section);
+                if (items.length === 0) return null;
+                return (
+                  <div key={section} className="p-6">
+                    <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <Layers size={14} />
+                      {section}s ({items.length})
+                    </h4>
+                    <div className="space-y-3">
+                      {items.map((item, idx) => (
+                        <div key={item.id} className={`flex items-center justify-between p-4 rounded-lg border ${item.isActive ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200 opacity-60'}`}>
+                          <div className="flex-1 min-w-0 mr-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-400 font-mono">#{item.orderIndex}</span>
+                              <p className="font-medium text-slate-900 truncate">{item.title}</p>
+                              {!item.isActive && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Inactive</span>}
+                            </div>
+                            <p className="text-sm text-slate-500 truncate mt-1">{item.body}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => {
+                                setEditingContentId(item.id);
+                                setContentFormData({
+                                  section: item.section,
+                                  title: item.title,
+                                  body: item.body,
+                                  metadata: JSON.stringify(item.metadata || {}, null, 2),
+                                  orderIndex: item.orderIndex,
+                                  isActive: item.isActive
+                                });
+                                setShowContentModal(true);
+                              }}
+                              className="text-brand-600 hover:text-brand-700 text-sm font-medium"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Delete "${item.title}"?`)) return;
+                                try {
+                                  await apiClient.deleteAdminSiteContent(item.id);
+                                  showToast('Content deleted', 'success');
+                                  const res = await apiClient.getAdminSiteContent();
+                                  setSiteContent(res.items);
+                                } catch (error: any) {
+                                  showToast(error.message || 'Failed to delete', 'error');
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-700 text-sm font-medium"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Content Create/Edit Modal */}
+      {showContentModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg p-6 shadow-2xl my-8">
+            <h3 className="text-lg font-bold mb-4 text-slate-900">
+              {editingContentId ? 'Edit Content' : 'New Content'}
+            </h3>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Section *</label>
+                <select
+                  value={contentFormData.section}
+                  onChange={(e) => setContentFormData({ ...contentFormData, section: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="faq">FAQ</option>
+                  <option value="testimonial">Testimonial</option>
+                  <option value="showcase">Showcase</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Title *</label>
+                <input
+                  type="text"
+                  value={contentFormData.title}
+                  onChange={(e) => setContentFormData({ ...contentFormData, title: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Title / Question"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Body *</label>
+                <textarea
+                  value={contentFormData.body}
+                  onChange={(e) => setContentFormData({ ...contentFormData, body: e.target.value })}
+                  rows={4}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Answer / Description"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Metadata (JSON)</label>
+                <textarea
+                  value={contentFormData.metadata}
+                  onChange={(e) => setContentFormData({ ...contentFormData, metadata: e.target.value })}
+                  rows={3}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-xs"
+                  placeholder='{"role": "Director", "image": "https://..."}'
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Order Index</label>
+                  <input
+                    type="number"
+                    value={contentFormData.orderIndex}
+                    onChange={(e) => setContentFormData({ ...contentFormData, orderIndex: Number(e.target.value) })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div className="flex items-end pb-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={contentFormData.isActive}
+                      onChange={(e) => setContentFormData({ ...contentFormData, isActive: e.target.checked })}
+                      className="w-4 h-4 text-brand-600 border-slate-300 rounded focus:ring-brand-500"
+                    />
+                    <span className="text-sm text-slate-700">Active</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowContentModal(false); setEditingContentId(null); }}
+                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!contentFormData.title || !contentFormData.body) {
+                    showToast('Title and body are required', 'error');
+                    return;
+                  }
+                  let metadata: Record<string, any> = {};
+                  try { metadata = JSON.parse(contentFormData.metadata); } catch { showToast('Invalid JSON in metadata', 'error'); return; }
+
+                  try {
+                    if (editingContentId) {
+                      await apiClient.updateAdminSiteContent(editingContentId, {
+                        title: contentFormData.title,
+                        body: contentFormData.body,
+                        metadata,
+                        orderIndex: contentFormData.orderIndex,
+                        isActive: contentFormData.isActive,
+                      });
+                      showToast('Content updated!', 'success');
+                    } else {
+                      await apiClient.createAdminSiteContent({
+                        section: contentFormData.section,
+                        title: contentFormData.title,
+                        body: contentFormData.body,
+                        metadata,
+                        orderIndex: contentFormData.orderIndex,
+                        isActive: contentFormData.isActive,
+                      });
+                      showToast('Content created!', 'success');
+                    }
+                    setShowContentModal(false);
+                    setEditingContentId(null);
+                    const res = await apiClient.getAdminSiteContent();
+                    setSiteContent(res.items);
+                  } catch (error: any) {
+                    showToast(error.message || 'Failed to save', 'error');
+                  }
+                }}
+                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded-lg font-medium transition"
+              >
+                {editingContentId ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== PAYMENTS TAB ========== */}
+      {activeTab === 'payments' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Revenue summary */}
+          {!loading && adminPayments.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Transactions</p>
+                <p className="text-2xl font-bold text-slate-900">{paymentTotal}</p>
+              </div>
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Captured Revenue</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ₹{(adminPayments.filter(p => p.status === 'captured').reduce((s, p) => s + p.amount, 0) / 100).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Refunded</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  ₹{(adminPayments.filter(p => p.status === 'refunded').reduce((s, p) => s + p.amount, 0) / 100).toLocaleString('en-IN')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <CreditCard size={20} /> Payment Manager
+              </h3>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search receipt # or payment ID..."
+                  value={paymentSearch}
+                  onChange={(e) => setPaymentSearch(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-slate-900 focus:ring-1 focus:ring-brand-500 outline-none text-sm w-72"
+                />
+              </div>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-20"><div className="text-slate-400">Loading payments...</div></div>
+            ) : adminPayments.length === 0 ? (
+              <div className="flex items-center justify-center py-20"><div className="text-slate-400">No payments found</div></div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider font-semibold">
+                    <tr>
+                      <th className="p-4 pl-6">Receipt #</th>
+                      <th className="p-4">Student</th>
+                      <th className="p-4">Course</th>
+                      <th className="p-4">Amount</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Date</th>
+                      <th className="p-4 text-right pr-6">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-sm">
+                    {adminPayments.map(p => (
+                      <tr key={p.id} className="hover:bg-slate-50 transition">
+                        <td className="p-4 pl-6 font-mono text-xs text-slate-500">{p.receiptNumber || '—'}</td>
+                        <td className="p-4">
+                          <div className="font-medium text-slate-900">{p.userName || '—'}</div>
+                          <div className="text-xs text-slate-500">{p.userEmail || ''}</div>
+                        </td>
+                        <td className="p-4 text-slate-700">{p.courseTitle || '—'}</td>
+                        <td className="p-4 font-medium text-slate-900">₹{(p.amount / 100).toLocaleString('en-IN')}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            p.status === 'captured' ? 'bg-green-100 text-green-700' :
+                            p.status === 'refunded' ? 'bg-yellow-100 text-yellow-700' :
+                            p.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-500">{new Date(p.createdAt).toLocaleDateString('en-IN')}</td>
+                        <td className="p-4 text-right pr-6">
+                          {p.status === 'captured' && (
+                            <button
+                              onClick={() => {
+                                setRefundPayment(p);
+                                setRefundReason('');
+                                setShowRefundModal(true);
+                              }}
+                              className="text-yellow-600 hover:text-yellow-700 font-medium text-sm"
+                            >
+                              Refund
+                            </button>
+                          )}
+                          {p.status === 'refunded' && (
+                            <span className="text-xs text-slate-400 italic">Refunded</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Refund Modal */}
+      {showRefundModal && refundPayment && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-lg font-bold mb-4 text-slate-900">Process Refund</h3>
+            <p className="text-slate-600 mb-2">
+              Refunding <span className="font-bold text-slate-900">₹{(refundPayment.amount / 100).toLocaleString('en-IN')}</span> for{' '}
+              <span className="font-medium">{refundPayment.courseTitle || 'Unknown Course'}</span>
+            </p>
+            <p className="text-xs text-slate-500 mb-4">Student: {refundPayment.userName || '—'}</p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Reason for Refund *</label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Explain why this refund is being processed..."
+                rows={3}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowRefundModal(false); setRefundPayment(null); }}
+                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!refundReason.trim()) { showToast('Please provide a reason', 'error'); return; }
+                  try {
+                    await apiClient.processRefund(refundPayment.id, refundReason);
+                    showToast('Refund processed!', 'success');
+                    setShowRefundModal(false);
+                    setRefundPayment(null);
+                    const res = await apiClient.getAdminPayments({ search: paymentSearch, limit: 50 });
+                    setAdminPayments(res.payments);
+                    setPaymentTotal(res.total);
+                  } catch (error: any) {
+                    showToast(error.message || 'Failed to process refund', 'error');
+                  }
+                }}
+                disabled={!refundReason.trim()}
+                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirm Refund
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Analytics Modal */}
+      {showAnalyticsModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <BarChart3 size={20} className="text-blue-600" />
+                Course Analytics
+              </h3>
+              <button onClick={() => setShowAnalyticsModal(false)} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">{analyticsCourseTitle}</p>
+            {!analyticsData ? (
+              <div className="flex items-center justify-center py-12 text-slate-400">Loading analytics...</div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{analyticsData.totalEnrollments}</p>
+                  <p className="text-xs text-blue-600 font-medium mt-1">Total Enrollments</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-green-700">{analyticsData.completionRate.toFixed(1)}%</p>
+                  <p className="text-xs text-green-600 font-medium mt-1">Completion Rate</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-purple-700">{analyticsData.avgWatchTimeMinutes.toFixed(0)} min</p>
+                  <p className="text-xs text-purple-600 font-medium mt-1">Avg Watch Time</p>
+                </div>
+                <div className="bg-yellow-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-yellow-700">₹{(analyticsData.revenueTotal / 100).toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-yellow-600 font-medium mt-1">Total Revenue</p>
+                </div>
+                <div className="col-span-2 bg-slate-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-slate-700">{analyticsData.activeStudents30d}</p>
+                  <p className="text-xs text-slate-600 font-medium mt-1">Active Students (Last 30 Days)</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -1,54 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Star, ArrowRight, Youtube, Users, CheckCircle2, Download, MessageCircle, Layers, FileText, X, Plus, Award, TrendingUp, Globe, Clapperboard, Sparkles, Loader2 } from 'lucide-react';
+import { Play, Star, ArrowRight, Youtube, Users, CheckCircle2, Download, MessageCircle, Layers, FileText, X, Plus, Award, TrendingUp, Globe, Clapperboard, Sparkles, Loader2, Search, SlidersHorizontal } from 'lucide-react';
 import { CourseType } from '../types';
 import type { Course } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/apiClient';
+import { siteContentApi } from '../services/api/siteContent.api';
+import type { SiteContentItem } from '../services/api/siteContent.api';
 
-// --- Local Data for Static Sections ---
+// --- Fallback Data for Static Sections (used if DB is empty) ---
 
-const FAQS = [
-  {
-    q: "Do I need expensive gear to start?",
-    a: "Absolutely not. We have dedicated modules for smartphone filmmaking and budget DSLRs. The principles of lighting and composition apply regardless of the camera."
-  },
-  {
-    q: "Is this suitable for complete beginners?",
-    a: "Yes. Our 'Zero to Hero' bundles start with the absolute basics of ISO, Shutter Speed, and Aperture before moving into advanced color grading."
-  },
-  {
-    q: "Do I get access to the raw footage?",
-    a: "Yes! All editing courses come with 100GB+ of 6K RAW footage so you can practice grading professional clips, not just your own backyard footage."
-  },
-  {
-    q: "How does the community feedback work?",
-    a: "You upload your work to our private Discord. Verified pro instructors review your edits/stills weekly and provide video feedback."
-  }
+const DEFAULT_FAQS = [
+  { q: "Do I need expensive gear to start?", a: "Absolutely not. We have dedicated modules for smartphone filmmaking and budget DSLRs. The principles of lighting and composition apply regardless of the camera." },
+  { q: "Is this suitable for complete beginners?", a: "Yes. Our 'Zero to Hero' bundles start with the absolute basics of ISO, Shutter Speed, and Aperture before moving into advanced color grading." },
+  { q: "Do I get access to the raw footage?", a: "Yes! All editing courses come with 100GB+ of 6K RAW footage so you can practice grading professional clips, not just your own backyard footage." },
+  { q: "How does the community feedback work?", a: "You upload your work to our private Discord. Verified pro instructors review your edits/stills weekly and provide video feedback." },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: "Marcus Chen",
-    role: "Freelance Director",
-    image: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200",
-    text: "I was stuck charging ₹15k per video. After the 'Business of Filmmaking' module, I landed my first ₹1.5L commercial client. The contract templates alone are worth the price."
-  },
-  {
-    name: "Sarah Williams",
-    role: "Content Creator",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200",
-    text: "YouTube tutorials are fragmented. Eyebuckz gave me a roadmap. I stopped guessing if my lighting was right—now I know it is."
-  },
-  {
-    name: "David Okonjo",
-    role: "Colorist",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200",
-    text: "The DaVinci Resolve masterclass is insane. The node structures provided have saved me hours on every project."
-  }
+const DEFAULT_TESTIMONIALS = [
+  { name: "Marcus Chen", role: "Freelance Director", image: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200", text: "I was stuck charging ₹15k per video. After the 'Business of Filmmaking' module, I landed my first ₹1.5L commercial client. The contract templates alone are worth the price." },
+  { name: "Sarah Williams", role: "Content Creator", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200", text: "YouTube tutorials are fragmented. Eyebuckz gave me a roadmap. I stopped guessing if my lighting was right—now I know it is." },
+  { name: "David Okonjo", role: "Colorist", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200", text: "The DaVinci Resolve masterclass is insane. The node structures provided have saved me hours on every project." },
 ];
 
-const STUDENT_SHOWCASE = [
+const DEFAULT_SHOWCASE = [
   { title: "Neon Nights", author: "Alex K.", image: "https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&q=80&w=800", type: "Color Grading" },
   { title: "Urban Explorer", author: "Sarah J.", image: "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&q=80&w=800", type: "Cinematography" },
   { title: "Mountain Peak", author: "Mike R.", image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800", type: "VFX" },
@@ -98,8 +73,14 @@ export const Storefront: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Dynamic content state
+  const [faqs, setFaqs] = useState(DEFAULT_FAQS);
+  const [testimonials, setTestimonials] = useState(DEFAULT_TESTIMONIALS);
+  const [showcase, setShowcase] = useState(DEFAULT_SHOWCASE);
 
   // Fetch courses from API
   useEffect(() => {
@@ -109,6 +90,29 @@ export const Storefront: React.FC = () => {
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
+  }, []);
+
+  // Fetch dynamic content from DB
+  useEffect(() => {
+    siteContentApi.getBySection('faq').then(items => {
+      if (items.length > 0) setFaqs(items.map(i => ({ q: i.title, a: i.body })));
+    }).catch(() => {});
+    siteContentApi.getBySection('testimonial').then(items => {
+      if (items.length > 0) setTestimonials(items.map(i => ({
+        name: i.title,
+        text: i.body,
+        role: (i.metadata as any)?.role || '',
+        image: (i.metadata as any)?.image || '',
+      })));
+    }).catch(() => {});
+    siteContentApi.getBySection('showcase').then(items => {
+      if (items.length > 0) setShowcase(items.map(i => ({
+        title: i.title,
+        author: i.body,
+        image: (i.metadata as any)?.image || '',
+        type: (i.metadata as any)?.type || '',
+      })));
+    }).catch(() => {});
   }, []);
   
   // 3D Tilt Logic for Editor Workspace
@@ -133,9 +137,14 @@ export const Storefront: React.FC = () => {
       setRotate({ x: 0, y: 0 });
   };
 
-  const filteredCourses = filterType === 'ALL'
-    ? courses
-    : courses.filter(c => c.type === filterType);
+  const filteredCourses = courses.filter(c => {
+    if (filterType !== 'ALL' && c.type !== filterType) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return c.title.toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   return (
     <div className="bg-white font-sans text-neutral-900 overflow-x-hidden">
@@ -241,7 +250,7 @@ export const Storefront: React.FC = () => {
             </FadeIn>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {STUDENT_SHOWCASE.map((item, idx) => (
+                {showcase.map((item, idx) => (
                     <FadeIn key={idx} delay={idx * 100}>
                         <div className="group relative aspect-[3/4] rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer border border-white/5 hover:border-brand-500/50 transition-colors duration-300">
                             <img 
@@ -443,7 +452,7 @@ export const Storefront: React.FC = () => {
       <section id="courses" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <FadeIn>
-                <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
+                <div className="flex flex-col md:flex-row items-end justify-between mb-8 gap-6">
                     <div>
                         <h2 className="text-4xl font-bold text-neutral-900 mb-2">Masterclass Catalog</h2>
                         <p className="text-neutral-500 text-lg">Choose your path. From cinematography to color grading.</p>
@@ -451,12 +460,12 @@ export const Storefront: React.FC = () => {
                     {/* Filters */}
                     <div className="flex bg-neutral-100 p-1.5 rounded-xl border border-neutral-200">
                         {['ALL', 'BUNDLE', 'MODULE'].map(type => (
-                            <button 
+                            <button
                                 key={type}
                                 onClick={() => setFilterType(type as any)}
                                 className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 ${
-                                    filterType === type 
-                                    ? 'bg-white text-neutral-900 shadow-md transform scale-105' 
+                                    filterType === type
+                                    ? 'bg-white text-neutral-900 shadow-md transform scale-105'
                                     : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/50'
                                 }`}
                             >
@@ -464,6 +473,22 @@ export const Storefront: React.FC = () => {
                             </button>
                         ))}
                     </div>
+                </div>
+                {/* Search Bar */}
+                <div className="relative mb-10">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={20} />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search courses by title or description..."
+                        className="w-full pl-12 pr-10 py-4 rounded-2xl border border-neutral-200 bg-neutral-50 text-neutral-900 placeholder-neutral-400 outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-lg"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+                            <X size={20} />
+                        </button>
+                    )}
                 </div>
             </FadeIn>
 
@@ -563,7 +588,7 @@ export const Storefront: React.FC = () => {
             </FadeIn>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {TESTIMONIALS.map((t, i) => (
+                {testimonials.map((t, i) => (
                     <FadeIn key={i} delay={i * 100}>
                         <div className="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm hover:bg-white/10 transition duration-300 hover:scale-105 h-full">
                             <div className="flex gap-1 text-yellow-500 mb-6">
@@ -591,7 +616,7 @@ export const Storefront: React.FC = () => {
                 <h2 className="text-3xl font-bold text-neutral-900 mb-12 text-center">Frequently Asked Questions</h2>
             </FadeIn>
             <div className="space-y-4">
-                {FAQS.map((faq, idx) => (
+                {faqs.map((faq, idx) => (
                     <FadeIn key={idx} delay={idx * 50}>
                         <div className="border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-300 hover:border-neutral-300 hover:shadow-md group">
                             <button 

@@ -188,7 +188,7 @@ export const Login: React.FC = () => {
             </button>
 
             {/* Dev mode buttons */}
-            {import.meta.env.DEV && (
+            {import.meta.env.VITE_DEV_LOGIN === 'true' && (
               <>
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
@@ -242,9 +242,9 @@ export const Login: React.FC = () => {
           {/* Terms */}
           <p className="text-center text-xs text-neutral-500 mt-6 max-w-md mx-auto">
             By continuing, you agree to our{' '}
-            <a href="#" className="text-brand-600 hover:underline">Terms of Service</a>
+            <Link to="/terms" className="text-brand-600 hover:underline">Terms of Service</Link>
             {' '}and{' '}
-            <a href="#" className="text-brand-600 hover:underline">Privacy Policy</a>
+            <Link to="/privacy" className="text-brand-600 hover:underline">Privacy Policy</Link>
           </p>
         </div>
       </div>

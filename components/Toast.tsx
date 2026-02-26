@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 
 interface ToastProps {
@@ -44,14 +44,14 @@ export const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose
 export const useToast = () => {
   const [toasts, setToasts] = React.useState<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000) => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success', duration = 3000) => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
 
     setTimeout(() => {
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }, duration);
-  };
+  }, []);
 
   const ToastContainer = () => (
     <>

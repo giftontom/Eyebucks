@@ -4,6 +4,7 @@ import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, 
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { apiClient } from '../services/apiClient';
+import ReviewList from '../components/ReviewList';
 import type { Course } from '../types';
 
 export const CourseDetails: React.FC = () => {
@@ -204,33 +205,11 @@ export const CourseDetails: React.FC = () => {
             )}
 
             {activeTab === 'REVIEWS' && (
-                <div className="space-y-6 animate-fade-in">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-6">Student Reviews</h2>
-                    {(course.reviews && course.reviews.length > 0) ? (
-                        course.reviews.map(review => (
-                            <div key={review.id} className="bg-slate-50 p-6 rounded-xl border border-slate-100">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 font-bold">
-                                            {review.user[0]}
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-slate-900">{review.user}</div>
-                                            <div className="text-xs text-slate-500">{review.date}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex text-yellow-400">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} size={16} fill={i < review.rating ? "currentColor" : "none"} />
-                                        ))}
-                                    </div>
-                                </div>
-                                <p className="text-slate-600">{review.comment}</p>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-slate-400">No reviews yet.</p>
-                    )}
+                <div className="animate-fade-in">
+                    <ReviewList
+                      courseId={course.id}
+                      canReview={!!user && isEnrolled}
+                    />
                 </div>
             )}
           </div>

@@ -2,15 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
+import { paymentsApi } from '../services/api/payments.api';
+import type { Payment } from '../services/api/payments.api';
+import { useAuth } from '../context/AuthContext';
 import { logger } from '../utils/logger';
 import type { Course } from '../types';
 
 export const PurchaseSuccess: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const courseId = searchParams.get('courseId');
+  const orderId = searchParams.get('orderId');
   const [showConfetti, setShowConfetti] = useState(true);
   const [course, setCourse] = useState<Course | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +32,13 @@ export const PurchaseSuccess: React.FC = () => {
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, [courseId]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    paymentsApi.getPaymentByOrder(orderId)
+      .then(p => { if (p) setPayment(p); })
+      .catch(() => {});
+  }, [orderId]);
 
   if (isLoading) {
     return (
@@ -48,6 +61,36 @@ export const PurchaseSuccess: React.FC = () => {
 
   const handleStartLearning = () => {
     navigate(`/learn/${course.id}`);
+  };
+
+  const handleDownloadReceipt = () => {
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html><head><title>Receipt - ${payment?.receiptNumber || 'Eyebuckz'}</title>
+      <style>body{font-family:system-ui;max-width:600px;margin:40px auto;padding:20px}h1{color:#1a1a1a}table{width:100%;border-collapse:collapse;margin:20px 0}td{padding:8px 0;border-bottom:1px solid #eee}.total{font-size:1.2em;font-weight:bold}.brand{color:#dc2626}</style>
+      </head><body>
+      <h1>Payment Receipt</h1>
+      <p class="brand"><strong>Eyebuckz Academy</strong></p>
+      <hr/>
+      <table>
+        <tr><td><strong>Receipt #</strong></td><td>${payment?.receiptNumber || '—'}</td></tr>
+        <tr><td><strong>Date</strong></td><td>${payment ? new Date(payment.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+        <tr><td><strong>Student</strong></td><td>${user?.name || '—'}</td></tr>
+        <tr><td><strong>Email</strong></td><td>${user?.email || '—'}</td></tr>
+        <tr><td><strong>Course</strong></td><td>${course?.title || payment?.courseTitle || '—'}</td></tr>
+        <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${payment?.razorpayPaymentId || '—'}</td></tr>
+        <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${payment?.razorpayOrderId || orderId || '—'}</td></tr>
+        <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">₹${payment ? (payment.amount / 100).toLocaleString('en-IN') : course ? (course.price / 100).toLocaleString('en-IN') : '—'}</td></tr>
+      </table>
+      <p style="color:#666;font-size:0.85em;margin-top:30px">Thank you for your purchase. This receipt is for your records.</p>
+      </body></html>
+    `;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(receiptHtml);
+      win.document.close();
+      win.print();
+    }
   };
 
   const handleShareSuccess = async () => {
@@ -174,7 +217,10 @@ export const PurchaseSuccess: React.FC = () => {
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 gap-6 animate-fade-in-up delay-200">
           {/* Download Receipt */}
-          <div className="bg-white rounded-2xl p-6 border border-neutral-200 hover:shadow-lg transition-all cursor-pointer group">
+          <div
+            onClick={handleDownloadReceipt}
+            className="bg-white rounded-2xl p-6 border border-neutral-200 hover:shadow-lg transition-all cursor-pointer group"
+          >
             <div className="flex items-start gap-4">
               <div className="bg-blue-100 p-3 rounded-xl group-hover:bg-blue-200 transition-colors">
                 <Download size={24} className="text-blue-600" />
@@ -183,7 +229,7 @@ export const PurchaseSuccess: React.FC = () => {
                 <h3 className="font-bold text-neutral-900 mb-1">Receipt & Invoice</h3>
                 <p className="text-sm text-neutral-600 mb-3">Download your purchase confirmation for records</p>
                 <button className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-                  Download PDF
+                  Download Receipt
                   <ArrowRight size={14} />
                 </button>
               </div>

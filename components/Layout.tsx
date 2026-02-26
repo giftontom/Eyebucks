@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User as UserIcon, LogOut, ShieldAlert, ChevronRight, Aperture, Youtube } from 'lucide-react';
+import { Menu, X, User as UserIcon, LogOut, ShieldAlert, ChevronRight, Aperture, Youtube, UserCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { NotificationBell } from './NotificationBell';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -65,16 +66,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             
             {/* Desktop Auth */}
             <div className="hidden md:block">
-              <div className="ml-4 flex items-center md:ml-6 gap-4">
+              <div className="ml-4 flex items-center md:ml-6 gap-3">
                 {user ? (
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <NotificationBell />
                     <div className="text-right hidden lg:block">
                         <p className="text-sm font-bold text-neutral-900">{user.name}</p>
                         <p className="text-xs text-neutral-500">{user.email}</p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center shadow-sm" role="img" aria-label={`${user.name}'s avatar`}>
+                    <Link to="/profile" className="h-10 w-10 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center shadow-sm hover:border-brand-300 transition" role="img" aria-label={`${user.name}'s profile`}>
                         <span className="font-bold text-sm text-neutral-700">{user.name[0]}</span>
-                    </div>
+                    </Link>
                     <button
                       onClick={logout}
                       className="p-2 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-900 transition"
@@ -125,10 +127,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </a>
 
                 {user && (
-                  <Link to="/dashboard" className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition border border-neutral-100" role="menuitem">
-                      <span className="text-lg font-medium">My Learning</span>
-                      <ChevronRight size={20} className="text-neutral-400" aria-hidden="true" />
-                  </Link>
+                  <>
+                    <Link to="/dashboard" className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition border border-neutral-100" role="menuitem">
+                        <span className="text-lg font-medium">My Learning</span>
+                        <ChevronRight size={20} className="text-neutral-400" aria-hidden="true" />
+                    </Link>
+                    <Link to="/profile" className="flex items-center justify-between p-4 rounded-xl bg-neutral-50 hover:bg-neutral-100 transition border border-neutral-100" role="menuitem">
+                        <span className="text-lg font-medium flex items-center gap-2"><UserCircle size={20} aria-hidden="true" /> Profile</span>
+                        <ChevronRight size={20} className="text-neutral-400" aria-hidden="true" />
+                    </Link>
+                  </>
                 )}
 
                 {isAdmin && (
@@ -211,8 +219,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
           
           <div className="mt-16 pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center text-neutral-400 text-sm gap-4">
-            <p>© 2024 Eyebuckz. All rights reserved.</p>
-            {/* Privacy & Terms links — add real URLs when available */}
+            <p>© {new Date().getFullYear()} Eyebuckz. All rights reserved.</p>
+            <div className="flex gap-6">
+              <Link to="/privacy" className="hover:text-neutral-600 transition">Privacy Policy</Link>
+              <Link to="/terms" className="hover:text-neutral-600 transition">Terms of Service</Link>
+            </div>
           </div>
         </div>
       </footer>

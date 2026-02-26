@@ -3,7 +3,9 @@
  * Replaces: apiClient admin methods
  */
 import { supabase } from '../supabase';
-import type { AdminStats, SalesDataPoint, Course, Module } from '../../types';
+import type { AdminStats, SalesDataPoint, Course, Module, CourseAnalytics } from '../../types';
+import type { SiteContentItem } from './siteContent.api';
+import type { Payment } from './payments.api';
 
 export const adminApi = {
   // ============================================
@@ -219,13 +221,24 @@ export const adminApi = {
   },
 
   async deleteCourse(courseId: string): Promise<{ success: boolean; message: string }> {
+    // Soft-delete: set deleted_at instead of actually deleting
     const { error } = await supabase
       .from('courses')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', courseId);
 
     if (error) throw new Error(error.message);
-    return { success: true, message: 'Course deleted' };
+    return { success: true, message: 'Course archived' };
+  },
+
+  async restoreCourse(courseId: string): Promise<{ success: boolean; message: string }> {
+    const { error } = await supabase
+      .from('courses')
+      .update({ deleted_at: null })
+      .eq('id', courseId);
+
+    if (error) throw new Error(error.message);
+    return { success: true, message: 'Course restored' };
   },
 
   async publishCourse(courseId: string, status: 'PUBLISHED' | 'DRAFT'): Promise<{
@@ -467,5 +480,170 @@ export const adminApi = {
 
     if (error) throw new Error(error.message);
     return { success: true, message: 'Enrollment revoked' };
+  },
+
+  // ============================================
+  // SITE CONTENT MANAGEMENT (CMS)
+  // ============================================
+
+  async getSiteContent(): Promise<{ success: boolean; items: SiteContentItem[] }> {
+    const { data, error } = await supabase
+      .from('site_content')
+      .select('*')
+      .order('section')
+      .order('order_index', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return {
+      success: true,
+      items: (data || []).map((r: any) => ({
+        id: r.id,
+        section: r.section,
+        title: r.title,
+        body: r.body,
+        metadata: r.metadata || {},
+        orderIndex: r.order_index,
+        isActive: r.is_active,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      })),
+    };
+  },
+
+  async createSiteContent(item: {
+    section: string;
+    title: string;
+    body: string;
+    metadata?: Record<string, any>;
+    orderIndex?: number;
+    isActive?: boolean;
+  }): Promise<{ success: boolean; message: string }> {
+    const { error } = await supabase
+      .from('site_content')
+      .insert({
+        section: item.section,
+        title: item.title,
+        body: item.body,
+        metadata: item.metadata || {},
+        order_index: item.orderIndex ?? 0,
+        is_active: item.isActive ?? true,
+      });
+
+    if (error) throw new Error(error.message);
+    return { success: true, message: 'Content created' };
+  },
+
+  async updateSiteContent(id: string, updates: {
+    title?: string;
+    body?: string;
+    metadata?: Record<string, any>;
+    orderIndex?: number;
+    isActive?: boolean;
+  }): Promise<{ success: boolean; message: string }> {
+    const update: any = {};
+    if (updates.title !== undefined) update.title = updates.title;
+    if (updates.body !== undefined) update.body = updates.body;
+    if (updates.metadata !== undefined) update.metadata = updates.metadata;
+    if (updates.orderIndex !== undefined) update.order_index = updates.orderIndex;
+    if (updates.isActive !== undefined) update.is_active = updates.isActive;
+
+    const { error } = await supabase
+      .from('site_content')
+      .update(update)
+      .eq('id', id);
+
+    if (error) throw new Error(error.message);
+    return { success: true, message: 'Content updated' };
+  },
+
+  async deleteSiteContent(id: string): Promise<{ success: boolean; message: string }> {
+    const { error } = await supabase
+      .from('site_content')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(error.message);
+    return { success: true, message: 'Content deleted' };
+  },
+
+  // ============================================
+  // PAYMENT MANAGEMENT (Admin)
+  // ============================================
+
+  async getPayments(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{ success: boolean; payments: Payment[]; total: number }> {
+    const page = params?.page || 1;
+    const limit = Math.min(params?.limit || 20, 100);
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('payments')
+      .select('*, users(name, email), courses(title)', { count: 'exact' });
+
+    if (params?.search) {
+      query = query.or(
+        `receipt_number.ilike.%${params.search}%,razorpay_payment_id.ilike.%${params.search}%`
+      );
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(error.message);
+    return {
+      success: true,
+      payments: (data || []).map((r: any) => ({
+        id: r.id,
+        userId: r.user_id,
+        courseId: r.course_id,
+        enrollmentId: r.enrollment_id,
+        razorpayOrderId: r.razorpay_order_id,
+        razorpayPaymentId: r.razorpay_payment_id,
+        amount: r.amount,
+        currency: r.currency,
+        status: r.status,
+        method: r.method,
+        receiptNumber: r.receipt_number,
+        refundId: r.refund_id,
+        refundAmount: r.refund_amount,
+        refundReason: r.refund_reason,
+        refundedAt: r.refunded_at,
+        metadata: r.metadata || {},
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        userName: r.users?.name,
+        userEmail: r.users?.email,
+        courseTitle: r.courses?.title,
+      })),
+      total: count || 0,
+    };
+  },
+
+  async processRefund(paymentId: string, reason: string): Promise<{ success: boolean; message: string }> {
+    const { error } = await supabase
+      .from('payments')
+      .update({
+        status: 'refunded',
+        refund_reason: reason,
+        refunded_at: new Date().toISOString(),
+      })
+      .eq('id', paymentId);
+
+    if (error) throw new Error(error.message);
+    return { success: true, message: 'Refund processed' };
+  },
+
+  // ============================================
+  // COURSE ANALYTICS
+  // ============================================
+
+  async getCourseAnalytics(courseId: string): Promise<{ success: boolean; analytics: CourseAnalytics }> {
+    const { data, error } = await supabase.rpc('get_course_analytics', { p_course_id: courseId });
+    if (error) throw new Error(error.message);
+    return { success: true, analytics: data as unknown as CourseAnalytics };
   },
 };

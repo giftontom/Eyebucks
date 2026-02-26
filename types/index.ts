@@ -347,3 +347,61 @@ export interface UserUpdateData {
   role?: Role;
   isActive?: boolean;
 }
+
+// ============================================
+// SITE CONTENT TYPES (CMS)
+// ============================================
+
+export interface SiteContentItem {
+  id: string;
+  section: 'faq' | 'testimonial' | 'showcase';
+  title: string;
+  body: string;
+  metadata: Record<string, any>;
+  orderIndex: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================
+// PAYMENT RECORD TYPES
+// ============================================
+
+export type PaymentStatus = 'pending' | 'captured' | 'refunded' | 'failed';
+
+export interface PaymentRecord {
+  id: string;
+  userId: string;
+  courseId: string;
+  enrollmentId: string | null;
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  method: string | null;
+  receiptNumber: string | null;
+  refundId: string | null;
+  refundAmount: number | null;
+  refundReason: string | null;
+  refundedAt: string | null;
+  metadata: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+  userName?: string;
+  userEmail?: string;
+  courseTitle?: string;
+}
+
+// ============================================
+// COURSE ANALYTICS TYPES
+// ============================================
+
+export interface CourseAnalytics {
+  totalEnrollments: number;
+  completionRate: number;
+  avgWatchTimeMinutes: number;
+  revenueTotal: number;
+  activeStudents30d: number;
+}

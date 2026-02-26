@@ -5,7 +5,7 @@
  */
 
 import { supabase } from './supabase';
-import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi, notificationsApi } from './api';
+import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi, notificationsApi, siteContentApi, paymentsApi, certificatesApi } from './api';
 import type { Course, Module, Enrollment, Progress, ProgressStats } from '../types';
 
 /**
@@ -327,7 +327,7 @@ class ApiClient {
       const { data: reviews, error, count } = await supabase
         .from('reviews')
         .select(`
-          id, rating, comment, helpful_count, created_at, updated_at,
+          id, user_id, rating, comment, helpful_count, created_at, updated_at,
           users:user_id (name, avatar)
         `, { count: 'exact' })
         .eq('course_id', courseId)
@@ -356,6 +356,7 @@ class ApiClient {
         success: true,
         reviews: (reviews || []).map((r: any) => ({
           id: r.id,
+          userId: r.user_id,
           rating: r.rating,
           comment: r.comment,
           helpful: r.helpful_count,
@@ -426,6 +427,102 @@ class ApiClient {
     }
 
     throw new Error(`Unsupported DELETE endpoint: ${endpoint}`);
+  }
+
+  // ============================================
+  // SITE CONTENT API
+  // ============================================
+
+  async getSiteContentBySection(section: string) {
+    return siteContentApi.getBySection(section);
+  }
+
+  // ============================================
+  // PAYMENTS API
+  // ============================================
+
+  async getUserPayments() {
+    return paymentsApi.getUserPayments();
+  }
+
+  async getPaymentByOrder(orderId: string) {
+    return paymentsApi.getPaymentByOrder(orderId);
+  }
+
+  async getAdminPayments(params?: { page?: number; limit?: number; search?: string }) {
+    return adminApi.getPayments(params);
+  }
+
+  async processRefund(paymentId: string, reason: string) {
+    return adminApi.processRefund(paymentId, reason);
+  }
+
+  // ============================================
+  // CERTIFICATES API (User-facing)
+  // ============================================
+
+  async getUserCertificates() {
+    return certificatesApi.getUserCertificates();
+  }
+
+  // ============================================
+  // ADMIN - SOFT DELETE / RESTORE
+  // ============================================
+
+  async restoreAdminCourse(courseId: string) {
+    return adminApi.restoreCourse(courseId);
+  }
+
+  // ============================================
+  // ADMIN - CMS
+  // ============================================
+
+  async getAdminSiteContent() {
+    return adminApi.getSiteContent();
+  }
+
+  async createAdminSiteContent(item: {
+    section: string;
+    title: string;
+    body: string;
+    metadata?: Record<string, any>;
+    orderIndex?: number;
+    isActive?: boolean;
+  }) {
+    return adminApi.createSiteContent(item);
+  }
+
+  async updateAdminSiteContent(id: string, updates: any) {
+    return adminApi.updateSiteContent(id, updates);
+  }
+
+  async deleteAdminSiteContent(id: string) {
+    return adminApi.deleteSiteContent(id);
+  }
+
+  // ============================================
+  // ADMIN - ANALYTICS
+  // ============================================
+
+  async getCourseAnalytics(courseId: string) {
+    return adminApi.getCourseAnalytics(courseId);
+  }
+
+  // ============================================
+  // USER PROFILE UPDATE
+  // ============================================
+
+  async updateProfile(userId: string, data: { name?: string }) {
+    const update: any = {};
+    if (data.name !== undefined) update.name = data.name;
+
+    const { error } = await supabase
+      .from('users')
+      .update(update)
+      .eq('id', userId);
+
+    if (error) throw new Error('Failed to update profile');
+    return { success: true };
   }
 
   // ============================================

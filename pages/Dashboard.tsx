@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, UserCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { enrollmentService } from '../services/enrollmentService';
 import { apiClient } from '../services/apiClient';
@@ -65,7 +65,7 @@ export const Dashboard: React.FC = () => {
     return <DashboardSkeleton />;
   }
 
-  const myCourses = enrolledCourses; 
+  const myCourses = enrolledCourses;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -73,6 +73,30 @@ export const Dashboard: React.FC = () => {
         <div>
            <h1 className="text-3xl font-bold text-slate-900">My Studio</h1>
            <p className="text-slate-500 mt-1">Welcome back, {user?.name}</p>
+        </div>
+      </div>
+
+      {/* Profile Card */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+        <div className="flex items-center gap-4">
+          {user?.avatar ? (
+            <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center text-xl font-bold">
+              {user?.name?.[0]?.toUpperCase() || 'U'}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-slate-900 truncate">{user?.name}</p>
+            <p className="text-sm text-slate-500 truncate">{user?.email}</p>
+          </div>
+          <Link
+            to="/profile"
+            className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 font-medium bg-brand-50 px-4 py-2 rounded-lg transition hover:bg-brand-100"
+          >
+            <UserCircle size={16} />
+            View Profile
+          </Link>
         </div>
       </div>
 

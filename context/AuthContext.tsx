@@ -12,7 +12,7 @@ interface AuthContextType {
   loginDev: (isAdmin?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   updatePhoneNumber: (phone: string) => Promise<void>;
-  isGapCheckRequired: boolean;
+  updateProfile: (data: { name?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +37,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGapCheckRequired, setIsGapCheckRequired] = useState(false);
 
   // Load user profile from Supabase
   const loadUserProfile = async (userId: string) => {
@@ -60,11 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .from('users')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', userId);
-
-    // Gap check: phone number required
-    if (!mappedUser.phone_e164) {
-      setIsGapCheckRequired(true);
-    }
 
     return mappedUser;
   };
@@ -99,7 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => loadUserProfile(newSession.user.id), 500);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          setIsGapCheckRequired(false);
         }
       }
     );
@@ -116,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + window.location.pathname,
+        redirectTo: window.location.origin,
       },
     });
 
@@ -178,7 +171,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await loadUserProfile(data.session.user.id);
       }
 
-      setIsGapCheckRequired(false);
     }
   };
 
@@ -186,7 +178,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setIsGapCheckRequired(false);
   };
 
   const updatePhoneNumber = async (phone: string) => {
@@ -206,7 +197,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw new Error('Failed to update phone number');
 
     setUser({ ...user, phone_e164: phone, phoneVerified: true });
-    setIsGapCheckRequired(false);
+  };
+
+  const updateProfile = async (data: { name?: string }) => {
+    if (!user) return;
+
+    const update: any = {};
+    if (data.name !== undefined) update.name = data.name;
+
+    const { error } = await supabase
+      .from('users')
+      .update(update)
+      .eq('id', user.id);
+
+    if (error) throw new Error('Failed to update profile');
+
+    setUser({ ...user, ...data });
   };
 
   return (
@@ -219,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loginDev,
       logout,
       updatePhoneNumber,
-      isGapCheckRequired,
+      updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

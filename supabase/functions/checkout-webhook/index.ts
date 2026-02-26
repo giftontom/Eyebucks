@@ -71,7 +71,7 @@ serve(async (req) => {
 
         if (!existing) {
           // Create enrollment
-          await supabaseAdmin.from('enrollments').insert({
+          const { data: newEnrollment } = await supabaseAdmin.from('enrollments').insert({
             user_id: userId,
             course_id: courseId,
             status: 'ACTIVE',
@@ -79,6 +79,23 @@ serve(async (req) => {
             order_id: payment.order_id,
             amount: payment.amount,
             enrolled_at: new Date().toISOString(),
+          }).select('id').single();
+
+          // Insert payment record
+          const receiptNumber = `EYB-${Date.now().toString(36).toUpperCase()}`;
+          await supabaseAdmin.from('payments').insert({
+            user_id: userId,
+            course_id: courseId,
+            enrollment_id: newEnrollment?.id,
+            razorpay_order_id: payment.order_id,
+            razorpay_payment_id: payment.id,
+            amount: payment.amount,
+            currency: payment.currency?.toUpperCase() || 'INR',
+            status: 'captured',
+            method: payment.method || null,
+            receipt_number: receiptNumber,
+          }).then(({ error: payError }) => {
+            if (payError) console.error('[Webhook] Payment record error:', payError);
           });
 
           // Create notification
@@ -103,9 +120,23 @@ serve(async (req) => {
       }
     } else if (eventType === 'payment.failed') {
       const payment = event.payload.payment.entity;
-      const { userId } = payment.notes || {};
+      const { userId, courseId } = payment.notes || {};
 
       if (userId) {
+        // Insert failed payment record
+        await supabaseAdmin.from('payments').insert({
+          user_id: userId,
+          course_id: courseId || null,
+          razorpay_order_id: payment.order_id,
+          razorpay_payment_id: payment.id,
+          amount: payment.amount,
+          currency: payment.currency?.toUpperCase() || 'INR',
+          status: 'failed',
+          method: payment.method || null,
+        }).then(({ error: payError }) => {
+          if (payError) console.error('[Webhook] Failed payment record error:', payError);
+        });
+
         // Send failure notification
         await supabaseAdmin.from('notifications').insert({
           user_id: userId,

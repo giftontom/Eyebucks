@@ -12,7 +12,9 @@ import { Learn } from './pages/Learn';
 import { Admin } from './pages/Admin';
 import { Login } from './pages/Login';
 import { PurchaseSuccess } from './pages/PurchaseSuccess';
-import { GapCheckModal } from './components/GapCheckModal';
+import { Profile } from './pages/Profile';
+import { Privacy } from './pages/Privacy';
+import { Terms } from './pages/Terms';
 
 const App: React.FC = () => {
   return (
@@ -25,6 +27,8 @@ const App: React.FC = () => {
               <Route path="/" element={<Storefront />} />
               <Route path="/login" element={<Login />} />
               <Route path="/course/:id" element={<CourseDetails />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
 
               {/* Protected Routes - Require Authentication */}
               <Route
@@ -60,6 +64,14 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/success"
                 element={
                   <ProtectedRoute>
@@ -71,7 +83,6 @@ const App: React.FC = () => {
               {/* Catch All */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-            <GapCheckModal />
           </Layout>
         </HashRouter>
       </AuthProvider>

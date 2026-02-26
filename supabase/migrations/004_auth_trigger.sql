@@ -3,23 +3,8 @@
 
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
-DECLARE
-  v_admin_emails TEXT[];
-  v_role user_role;
 BEGIN
-  -- Check if user email is in admin list
-  -- Set admin emails via: ALTER DATABASE postgres SET app.admin_emails = 'admin@eyebuckz.com';
-  v_admin_emails := string_to_array(
-    COALESCE(current_setting('app.admin_emails', true), ''), ','
-  );
-
-  IF NEW.email = ANY(v_admin_emails) THEN
-    v_role := 'ADMIN';
-  ELSE
-    v_role := 'USER';
-  END IF;
-
-  INSERT INTO users (id, name, email, avatar, google_id, role, email_verified, last_login_at)
+  INSERT INTO public.users (id, name, email, avatar, google_id, role, email_verified, last_login_at)
   VALUES (
     NEW.id,
     COALESCE(
@@ -33,13 +18,13 @@ BEGIN
       NEW.raw_user_meta_data->>'picture'
     ),
     NEW.raw_user_meta_data->>'sub',
-    v_role,
-    NEW.email_confirmed_at IS NOT NULL,
+    'USER',
+    COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
     now()
   )
   ON CONFLICT (id) DO UPDATE SET
     last_login_at = now(),
-    email_verified = NEW.email_confirmed_at IS NOT NULL;
+    email_verified = COALESCE(NEW.email_confirmed_at IS NOT NULL, false);
 
   RETURN NEW;
 END;

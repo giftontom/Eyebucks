@@ -137,6 +137,22 @@ serve(async (req) => {
       );
     }
 
+    // Insert payment record
+    const receiptNumber = `EYB-${Date.now().toString(36).toUpperCase()}`;
+    await supabaseAdmin.from('payments').insert({
+      user_id: user.id,
+      course_id: courseId,
+      enrollment_id: enrollment.id,
+      razorpay_order_id: orderId,
+      razorpay_payment_id: paymentId,
+      amount: course.price,
+      currency: 'INR',
+      status: 'captured',
+      receipt_number: receiptNumber,
+    }).then(({ error: payError }) => {
+      if (payError) console.error('[Checkout] Payment record error:', payError);
+    });
+
     // Get user profile for email
     const { data: userProfile } = await supabaseAdmin
       .from('users')
