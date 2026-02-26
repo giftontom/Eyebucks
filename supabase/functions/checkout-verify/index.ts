@@ -93,10 +93,10 @@ serve(async (req) => {
       }
     }
 
-    // Fetch course for amount
+    // Fetch course for amount and type
     const { data: course } = await supabaseAdmin
       .from('courses')
-      .select('price, title')
+      .select('price, title, type')
       .eq('id', courseId)
       .single();
 
@@ -135,6 +135,35 @@ serve(async (req) => {
         JSON.stringify({ success: false, error: 'Failed to create enrollment' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // If this is a BUNDLE, also enroll in all bundled courses
+    if (course.type === 'BUNDLE') {
+      const { data: bundledCourses } = await supabaseAdmin
+        .from('bundle_courses')
+        .select('course_id')
+        .eq('bundle_id', courseId);
+
+      if (bundledCourses && bundledCourses.length > 0) {
+        const bundleEnrollments = bundledCourses.map((bc: any) => ({
+          user_id: user.id,
+          course_id: bc.course_id,
+          status: 'ACTIVE',
+          payment_id: paymentId,
+          order_id: orderId,
+          amount: 0, // Included via bundle
+          enrolled_at: new Date().toISOString(),
+        }));
+
+        // Use upsert to skip courses the user is already enrolled in
+        const { error: bundleEnrollError } = await supabaseAdmin
+          .from('enrollments')
+          .upsert(bundleEnrollments, { onConflict: 'user_id,course_id', ignoreDuplicates: true });
+
+        if (bundleEnrollError) {
+          console.error('[Checkout] Bundle enrollment error:', bundleEnrollError);
+        }
+      }
     }
 
     // Insert payment record

@@ -31,6 +31,9 @@ export const Admin: React.FC = () => {
   });
   const [bundledCourseIds, setBundledCourseIds] = useState<string[]>([]);
 
+  // Bundle courses management state
+  const [selectedCourseForBundleCourses, setSelectedCourseForBundleCourses] = useState<AdminCourse | null>(null);
+
   // Module management state
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [selectedCourseForModules, setSelectedCourseForModules] = useState<AdminCourse | null>(null);
@@ -525,6 +528,22 @@ export const Admin: React.FC = () => {
                                         className="text-purple-600 hover:text-purple-700 font-medium mr-3"
                                     >
                                         Modules
+                                    </button>
+                                    )}
+                                    {course.type === 'BUNDLE' && (
+                                    <button
+                                        onClick={async () => {
+                                            setSelectedCourseForBundleCourses(course);
+                                            try {
+                                                const res = await apiClient.getBundleCourses(course.id);
+                                                setBundledCourseIds(res.courseIds);
+                                            } catch {
+                                                setBundledCourseIds([]);
+                                            }
+                                        }}
+                                        className="text-orange-600 hover:text-orange-700 font-medium mr-3"
+                                    >
+                                        Courses
                                     </button>
                                     )}
                                     <button
@@ -1072,6 +1091,28 @@ export const Admin: React.FC = () => {
                         </button>
                     </div>
                 )}
+                {editingCourseId && courseFormData.type === 'BUNDLE' && (
+                    <div className="border-t border-slate-200 pt-4 mt-4">
+                        <button
+                            onClick={async () => {
+                                setShowCourseModal(false);
+                                const course = courses.find(c => c.id === editingCourseId);
+                                if (course) {
+                                    setSelectedCourseForBundleCourses(course);
+                                    try {
+                                        const res = await apiClient.getBundleCourses(course.id);
+                                        setBundledCourseIds(res.courseIds);
+                                    } catch {
+                                        setBundledCourseIds([]);
+                                    }
+                                }
+                            }}
+                            className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-2 rounded-lg font-medium transition"
+                        >
+                            Manage Bundled Courses
+                        </button>
+                    </div>
+                )}
                 <div className="flex gap-3 mt-6">
                     <button
                         onClick={() => {
@@ -1498,6 +1539,80 @@ export const Admin: React.FC = () => {
                     >
                         {editingModuleId ? 'Update Module' : 'Create Module'}
                     </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Bundle Courses Manager Modal */}
+      {selectedCourseForBundleCourses && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
+                {/* Header */}
+                <div className="p-6 border-b border-slate-200 flex justify-between items-start">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900">Bundle Course Manager</h3>
+                        <p className="text-sm text-slate-500 mt-1">{selectedCourseForBundleCourses.title}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => {
+                                try {
+                                    await apiClient.setBundleCourses(selectedCourseForBundleCourses.id, bundledCourseIds);
+                                    showToast('Bundle courses saved!', 'success');
+                                    const coursesRes = await apiClient.getAdminCourses();
+                                    setCourses(coursesRes.courses);
+                                    setSelectedCourseForBundleCourses(null);
+                                } catch (error: any) {
+                                    showToast(error.message || 'Failed to save bundle courses', 'error');
+                                }
+                            }}
+                            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+                        >
+                            Save
+                        </button>
+                        <button
+                            onClick={() => setSelectedCourseForBundleCourses(null)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-900 px-4 py-2 rounded-lg font-medium text-sm"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+
+                {/* Course list with checkboxes */}
+                <div className="p-6 overflow-y-auto flex-1">
+                    {courses.filter(c => c.type === 'MODULE' && !(c as any).deleted_at).length === 0 ? (
+                        <div className="flex items-center justify-center py-12 text-slate-400">
+                            No module courses available to add.
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {courses.filter(c => c.type === 'MODULE' && !(c as any).deleted_at).map(c => (
+                                <label key={c.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 cursor-pointer transition">
+                                    <input
+                                        type="checkbox"
+                                        checked={bundledCourseIds.includes(c.id)}
+                                        onChange={() => {
+                                            setBundledCourseIds(prev =>
+                                                prev.includes(c.id)
+                                                    ? prev.filter(id => id !== c.id)
+                                                    : [...prev, c.id]
+                                            );
+                                        }}
+                                        className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                    />
+                                    <span className="text-sm font-medium text-slate-900">{c.title}</span>
+                                    <span className="ml-auto text-xs text-slate-400">{(c as any)._count?.modules || 0} modules</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer with count */}
+                <div className="p-4 border-t border-slate-200 text-sm text-slate-500 text-center">
+                    {bundledCourseIds.length} course(s) selected
                 </div>
             </div>
         </div>

@@ -67,7 +67,45 @@ export const coursesApi = {
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return { success: true, courses: (data || []).map(mapCourse) };
+
+    const courses = (data || []).map(mapCourse);
+
+    // For BUNDLE courses, fetch bundled course counts
+    const bundleIds = (data || []).filter(c => c.type === 'BUNDLE').map(c => c.id);
+    if (bundleIds.length > 0) {
+      const { data: bundleRows } = await supabase
+        .from('bundle_courses')
+        .select('bundle_id, course_id, courses!bundle_courses_course_id_fkey(id, title, slug, thumbnail, modules(id))')
+        .in('bundle_id', bundleIds)
+        .order('order_index', { ascending: true });
+
+      if (bundleRows) {
+        const bundleMap = new Map<string, any[]>();
+        for (const row of bundleRows) {
+          const list = bundleMap.get(row.bundle_id) || [];
+          list.push(row);
+          bundleMap.set(row.bundle_id, list);
+        }
+        for (const course of courses) {
+          if (course.type === 'BUNDLE') {
+            const rows = bundleMap.get(course.id) || [];
+            course.bundledCourses = rows.map((r: any) => ({
+              id: r.courses.id,
+              title: r.courses.title,
+              slug: r.courses.slug,
+              description: '',
+              thumbnail: r.courses.thumbnail || '',
+              price: 0,
+              rating: null,
+              totalStudents: 0,
+              moduleCount: r.courses.modules?.length || 0,
+            }));
+          }
+        }
+      }
+    }
+
+    return { success: true, courses };
   },
 
   /**
@@ -100,7 +138,32 @@ export const coursesApi = {
       data.modules.sort((a: any, b: any) => a.order_index - b.order_index);
     }
 
-    return { success: true, course: mapCourse(data) };
+    const course = mapCourse(data);
+
+    // For BUNDLE courses, fetch bundled course details
+    if (data.type === 'BUNDLE') {
+      const { data: bundleRows } = await supabase
+        .from('bundle_courses')
+        .select('course_id, courses!bundle_courses_course_id_fkey(id, title, slug, description, thumbnail, price, rating, total_students, modules(id))')
+        .eq('bundle_id', data.id)
+        .order('order_index', { ascending: true });
+
+      if (bundleRows) {
+        course.bundledCourses = bundleRows.map((r: any) => ({
+          id: r.courses.id,
+          title: r.courses.title,
+          slug: r.courses.slug,
+          description: r.courses.description || '',
+          thumbnail: r.courses.thumbnail || '',
+          price: r.courses.price || 0,
+          rating: r.courses.rating,
+          totalStudents: r.courses.total_students || 0,
+          moduleCount: r.courses.modules?.length || 0,
+        }));
+      }
+    }
+
+    return { success: true, course };
   },
 
   /**

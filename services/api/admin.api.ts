@@ -391,6 +391,48 @@ export const adminApi = {
   },
 
   // ============================================
+  // BUNDLE COURSE MANAGEMENT
+  // ============================================
+
+  async getBundleCourses(bundleId: string): Promise<{ success: boolean; courseIds: string[] }> {
+    const { data, error } = await supabase
+      .from('bundle_courses')
+      .select('course_id')
+      .eq('bundle_id', bundleId)
+      .order('order_index', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return { success: true, courseIds: (data || []).map(r => r.course_id) };
+  },
+
+  async setBundleCourses(bundleId: string, courseIds: string[]): Promise<{ success: boolean; message: string }> {
+    // Delete existing associations
+    const { error: deleteError } = await supabase
+      .from('bundle_courses')
+      .delete()
+      .eq('bundle_id', bundleId);
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    // Insert new associations
+    if (courseIds.length > 0) {
+      const rows = courseIds.map((courseId, index) => ({
+        bundle_id: bundleId,
+        course_id: courseId,
+        order_index: index,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('bundle_courses')
+        .insert(rows);
+
+      if (insertError) throw new Error(insertError.message);
+    }
+
+    return { success: true, message: 'Bundle courses updated' };
+  },
+
+  // ============================================
   // CERTIFICATE MANAGEMENT
   // ============================================
 

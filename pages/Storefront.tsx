@@ -541,7 +541,11 @@ export const Storefront: React.FC = () => {
                                             <span>{course.rating || '4.8'}</span>
                                         </div>
                                         <span className="flex items-center gap-1"><Users size={12}/> {course.totalStudents || 0} Students</span>
-                                        <span className="flex items-center gap-1"><Clapperboard size={12}/> {(course.chapters?.length || 0)} Lessons</span>
+                                        {isBundle && course.bundledCourses ? (
+                                            <span className="flex items-center gap-1"><Layers size={12}/> {course.bundledCourses.length} Courses</span>
+                                        ) : (
+                                            <span className="flex items-center gap-1"><Clapperboard size={12}/> {(course.chapters?.length || 0)} Lessons</span>
+                                        )}
                                     </div>
                                     <Link to={`/course/${course.id}`} className="block">
                                         <h3 className="text-2xl font-bold text-neutral-900 mb-3 group-hover:text-brand-600 transition-colors leading-tight">

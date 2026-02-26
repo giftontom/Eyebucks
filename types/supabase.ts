@@ -78,6 +78,7 @@ export interface Database {
           total_students: number;
           features: string[];
           published_at: string | null;
+          deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -95,6 +96,7 @@ export interface Database {
           total_students?: number;
           features?: string[];
           published_at?: string | null;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -112,6 +114,7 @@ export interface Database {
           total_students?: number;
           features?: string[];
           published_at?: string | null;
+          deleted_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -574,6 +577,163 @@ export interface Database {
           }
         ];
       };
+      bundle_courses: {
+        Row: {
+          bundle_id: string;
+          course_id: string;
+          order_index: number;
+          created_at: string;
+        };
+        Insert: {
+          bundle_id: string;
+          course_id: string;
+          order_index?: number;
+          created_at?: string;
+        };
+        Update: {
+          bundle_id?: string;
+          course_id?: string;
+          order_index?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'bundle_courses_bundle_id_fkey';
+            columns: ['bundle_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'bundle_courses_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      site_content: {
+        Row: {
+          id: string;
+          section: string;
+          title: string;
+          body: string;
+          metadata: Json;
+          order_index: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          section: string;
+          title: string;
+          body?: string;
+          metadata?: Json;
+          order_index?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          section?: string;
+          title?: string;
+          body?: string;
+          metadata?: Json;
+          order_index?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      payments: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string;
+          enrollment_id: string | null;
+          razorpay_order_id: string | null;
+          razorpay_payment_id: string | null;
+          amount: number;
+          currency: string;
+          status: string;
+          method: string | null;
+          receipt_number: string | null;
+          refund_id: string | null;
+          refund_amount: number | null;
+          refund_reason: string | null;
+          refunded_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id: string;
+          enrollment_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_payment_id?: string | null;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          method?: string | null;
+          receipt_number?: string | null;
+          refund_id?: string | null;
+          refund_amount?: number | null;
+          refund_reason?: string | null;
+          refunded_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string;
+          enrollment_id?: string | null;
+          razorpay_order_id?: string | null;
+          razorpay_payment_id?: string | null;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          method?: string | null;
+          receipt_number?: string | null;
+          refund_id?: string | null;
+          refund_amount?: number | null;
+          refund_reason?: string | null;
+          refunded_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'payments_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'payments_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'payments_enrollment_id_fkey';
+            columns: ['enrollment_id'];
+            isOneToOne: false;
+            referencedRelation: 'enrollments';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: {};
     Functions: {
@@ -600,6 +760,10 @@ export interface Database {
       is_admin: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      get_course_analytics: {
+        Args: { p_course_id: string };
+        Returns: Json;
       };
     };
     Enums: {

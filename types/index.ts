@@ -62,6 +62,17 @@ export interface Course {
     comment: string;
     date: string;
   }>;
+  bundledCourses?: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    description: string;
+    thumbnail: string;
+    price: number;
+    rating: number | null;
+    totalStudents: number;
+    moduleCount: number;
+  }>;
 }
 
 export interface CourseWithModules extends Course {

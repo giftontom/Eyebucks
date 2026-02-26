@@ -273,6 +273,14 @@ class ApiClient {
     return adminApi.publishCourse(courseId, status);
   }
 
+  async getBundleCourses(bundleId: string) {
+    return adminApi.getBundleCourses(bundleId);
+  }
+
+  async setBundleCourses(bundleId: string, courseIds: string[]) {
+    return adminApi.setBundleCourses(bundleId, courseIds);
+  }
+
   async getAdminCertificates(params?: { page?: number; limit?: number }) {
     return adminApi.getCertificates(params);
   }
