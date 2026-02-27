@@ -556,7 +556,7 @@ export const Storefront: React.FC = () => {
                                     
                                     <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100">
                                         <div className="flex flex-col">
-                                            <span className="text-xs text-neutral-400 line-through font-medium">₹{(course.price / 100 * 1.5).toLocaleString()}</span>
+                                            <span className="text-xs text-neutral-400 line-through font-medium">₹{Math.round(course.price * 1.5 / 100).toLocaleString()}</span>
                                             <div className="text-2xl font-bold text-neutral-900">₹{(course.price / 100).toLocaleString()}</div>
                                         </div>
                                         <button 

@@ -280,7 +280,7 @@ export const Admin: React.FC = () => {
                         <div className="p-2 bg-green-50 text-green-600 rounded-lg"><DollarSign size={18} /></div>
                     </div>
                     <p className="text-3xl font-bold text-slate-900">
-                        ₹{stats ? (stats.totalRevenue / 1000).toFixed(1) : '0'}k
+                        ₹{stats ? (stats.totalRevenue / 100000).toFixed(1) : '0'}k
                     </p>
                     <p className="text-xs text-green-600 mt-2">{stats?.totalEnrollments || 0} enrollments</p>
                 </div>
@@ -325,11 +325,11 @@ export const Admin: React.FC = () => {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                         <XAxis dataKey="date" stroke="#94a3b8" axisLine={false} tickLine={false} dy={10} />
-                        <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `₹${val/1000}k`} />
+                        <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `₹${(val/100000).toFixed(1)}k`} />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#0f172a', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             itemStyle={{ color: '#0f172a' }}
-                            formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
+                            formatter={(value: number) => [`₹${(value / 100).toLocaleString()}`, 'Revenue']}
                         />
                         <Area type="monotone" dataKey="amount" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorAmount)" />
                     </AreaChart>
@@ -963,9 +963,10 @@ export const Admin: React.FC = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Price (₹) *</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Price (₹ in rupees) *</label>
                         <input
                             type="number"
+                            step="0.01"
                             value={courseFormData.price}
                             onChange={(e) => setCourseFormData({ ...courseFormData, price: e.target.value })}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
@@ -1135,12 +1136,12 @@ export const Admin: React.FC = () => {
                             }
                             try {
                                 if (editingCourseId) {
-                                    // Update existing course
+                                    // Update existing course (price stored in paise)
                                     const response = await apiClient.updateAdminCourse(editingCourseId, {
                                         title: courseFormData.title,
                                         slug: courseFormData.slug,
                                         description: courseFormData.description,
-                                        price: Number(courseFormData.price),
+                                        price: Math.round(Number(courseFormData.price) * 100),
                                         thumbnail: courseFormData.thumbnail || undefined,
                                         type: courseFormData.type,
                                         features: courseFormData.features.filter(f => f.trim())
@@ -1150,12 +1151,12 @@ export const Admin: React.FC = () => {
                                     }
                                     showToast(response.message || 'Course updated successfully!', 'success');
                                 } else {
-                                    // Create new course
+                                    // Create new course (price stored in paise)
                                     const response = await apiClient.createAdminCourse({
                                         title: courseFormData.title,
                                         slug: courseFormData.slug,
                                         description: courseFormData.description,
-                                        price: Number(courseFormData.price),
+                                        price: Math.round(Number(courseFormData.price) * 100),
                                         thumbnail: courseFormData.thumbnail || undefined,
                                         type: courseFormData.type,
                                         features: courseFormData.features.filter(f => f.trim())

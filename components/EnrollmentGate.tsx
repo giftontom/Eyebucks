@@ -107,11 +107,11 @@ export const EnrollmentGate: React.FC<EnrollmentGateProps> = ({
                 <div>
                   <p className="text-sm text-neutral-500 mb-1">One-time payment</p>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-black text-neutral-900">₹{coursePrice.toLocaleString()}</span>
-                    <span className="text-lg text-neutral-400 line-through">₹{(coursePrice * 1.5).toLocaleString()}</span>
+                    <span className="text-4xl font-black text-neutral-900">₹{(coursePrice / 100).toLocaleString()}</span>
+                    <span className="text-lg text-neutral-400 line-through">₹{Math.round(coursePrice * 1.5 / 100).toLocaleString()}</span>
                   </div>
                   <p className="text-sm text-green-600 font-medium mt-1">
-                    Save ₹{((coursePrice * 1.5) - coursePrice).toLocaleString()}
+                    Save ₹{Math.round((coursePrice * 0.5) / 100).toLocaleString()}
                   </p>
                 </div>
 

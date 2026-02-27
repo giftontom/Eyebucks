@@ -131,7 +131,7 @@ export const Dashboard: React.FC = () => {
                      to={course.type === CourseType.BUNDLE ? `/course/${course.id}` : `/learn/${course.id}`}
                      className="block w-full text-center bg-slate-900 hover:bg-slate-800 py-3 rounded-lg font-medium transition text-white"
                    >
-                     {course.type === CourseType.BUNDLE ? 'View Bundle' : 'Resume Editing'}
+                     {course.type === CourseType.BUNDLE ? 'View Bundle' : 'Continue Learning'}
                    </Link>
                 </div>
              </div>
