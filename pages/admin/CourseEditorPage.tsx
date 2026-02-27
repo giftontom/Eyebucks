@@ -1,0 +1,211 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { adminApi } from '../../services/api/admin.api';
+import { useAdmin } from './AdminContext';
+import { CourseForm } from './components/CourseForm';
+import { ModuleManager } from './components/ModuleManager';
+import { BundleCoursePicker } from './components/BundleCoursePicker';
+
+export const CourseEditorPage: React.FC = () => {
+  const { courseId } = useParams<{ courseId: string }>();
+  const navigate = useNavigate();
+  const { showToast, courses, refreshCourses } = useAdmin();
+  const isEditing = !!courseId;
+
+  const [loading, setLoading] = useState(isEditing);
+  const [saving, setSaving] = useState(false);
+  const [courseType, setCourseType] = useState<'MODULE' | 'BUNDLE'>('MODULE');
+
+  const [formData, setFormData] = useState({
+    title: '',
+    slug: '',
+    description: '',
+    price: '',
+    thumbnail: '',
+    type: 'MODULE' as 'MODULE' | 'BUNDLE',
+    features: [''],
+  });
+
+  const [bundledCourseIds, setBundledCourseIds] = useState<string[]>([]);
+
+  // Load existing course data
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const loadCourse = async () => {
+      try {
+        setLoading(true);
+        // Find in cached courses or fetch
+        const allCourses = courses.length > 0 ? courses : (await adminApi.getCourses()).courses;
+        const course = allCourses.find(c => c.id === courseId);
+
+        if (!course) {
+          showToast('Course not found', 'error');
+          navigate('/admin/courses');
+          return;
+        }
+
+        setFormData({
+          title: course.title,
+          slug: course.slug,
+          description: course.description,
+          price: String(course.price / 100),
+          thumbnail: course.thumbnail || '',
+          type: course.type as 'MODULE' | 'BUNDLE',
+          features: course.features.length > 0 ? course.features : [''],
+        });
+        setCourseType(course.type as 'MODULE' | 'BUNDLE');
+
+        if (course.type === 'BUNDLE') {
+          try {
+            const res = await adminApi.getBundleCourses(course.id);
+            setBundledCourseIds(res.courseIds);
+          } catch {
+            setBundledCourseIds([]);
+          }
+        }
+      } catch (err: any) {
+        showToast(err.message || 'Failed to load course', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCourse();
+  }, [courseId, isEditing]);
+
+  const handleFormChange = (data: typeof formData) => {
+    setFormData(data);
+    setCourseType(data.type);
+  };
+
+  const handleSave = async () => {
+    if (!formData.title || !formData.slug || !formData.description || !formData.price || !formData.type) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
+    if (formData.type === 'BUNDLE' && bundledCourseIds.length === 0) {
+      showToast('Please select at least one course for this bundle', 'error');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const courseData = {
+        title: formData.title,
+        slug: formData.slug,
+        description: formData.description,
+        price: Math.round(Number(formData.price) * 100),
+        thumbnail: formData.thumbnail || undefined,
+        type: formData.type,
+        features: formData.features.filter(f => f.trim()),
+      };
+
+      if (isEditing && courseId) {
+        await adminApi.updateCourse(courseId, courseData);
+        if (formData.type === 'BUNDLE') {
+          await adminApi.setBundleCourses(courseId, bundledCourseIds);
+        }
+        showToast('Course updated!', 'success');
+      } else {
+        const res = await adminApi.createCourse(courseData);
+        if (formData.type === 'BUNDLE' && res.course?.id) {
+          await adminApi.setBundleCourses(res.course.id, bundledCourseIds);
+        }
+        showToast('Course created!', 'success');
+        // Navigate to edit page for the new course (to manage modules)
+        if (res.course?.id) {
+          navigate(`/admin/courses/${res.course.id}`, { replace: true });
+          return;
+        }
+      }
+      refreshCourses();
+    } catch (err: any) {
+      showToast(err.message || `Failed to ${isEditing ? 'update' : 'create'} course`, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-slate-400">Loading course...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fade-in space-y-6 max-w-4xl">
+      {/* Back link */}
+      <Link to="/admin/courses" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
+        <ArrowLeft size={16} /> Back to Courses
+      </Link>
+
+      <h2 className="text-2xl font-bold text-slate-900">
+        {isEditing ? 'Edit Course' : 'Create New Course'}
+      </h2>
+
+      {/* Course form */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <CourseForm
+          formData={formData}
+          onChange={handleFormChange}
+          bundledCourseIds={bundledCourseIds}
+          onBundledCourseIdsChange={setBundledCourseIds}
+          courses={courses}
+        />
+
+        <div className="flex gap-3 mt-8 pt-6 border-t border-slate-200">
+          <button
+            onClick={() => navigate('/admin/courses')}
+            className="px-6 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2.5 rounded-lg font-medium transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : (isEditing ? 'Update Course' : 'Create Course')}
+          </button>
+        </div>
+      </div>
+
+      {/* Inline Module Manager (for MODULE type courses being edited) */}
+      {isEditing && courseId && courseType === 'MODULE' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <ModuleManager courseId={courseId} showToast={showToast} />
+        </div>
+      )}
+
+      {/* Inline Bundle Course Manager (for BUNDLE type courses being edited) */}
+      {isEditing && courseId && courseType === 'BUNDLE' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">Bundle Courses</h3>
+          <BundleCoursePicker
+            courses={courses}
+            selectedIds={bundledCourseIds}
+            onChange={setBundledCourseIds}
+          />
+          <button
+            onClick={async () => {
+              try {
+                await adminApi.setBundleCourses(courseId, bundledCourseIds);
+                showToast('Bundle courses saved!', 'success');
+                refreshCourses();
+              } catch (err: any) {
+                showToast(err.message || 'Failed to save bundle courses', 'error');
+              }
+            }}
+            className="mt-4 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+          >
+            Save Bundle Courses
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};

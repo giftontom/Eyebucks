@@ -9,7 +9,7 @@ import { CourseDetails } from './pages/CourseDetails';
 import { Checkout } from './pages/Checkout';
 import { Dashboard } from './pages/Dashboard';
 import { Learn } from './pages/Learn';
-import { Admin } from './pages/Admin';
+import { AdminRoutes } from './pages/admin';
 import { Login } from './pages/Login';
 import { PurchaseSuccess } from './pages/PurchaseSuccess';
 import { Profile } from './pages/Profile';
@@ -56,10 +56,10 @@ const App: React.FC = () => {
                 }
               />
               <Route
-                path="/admin"
+                path="/admin/*"
                 element={
                   <ProtectedRoute>
-                    <Admin />
+                    <AdminRoutes />
                   </ProtectedRoute>
                 }
               />
