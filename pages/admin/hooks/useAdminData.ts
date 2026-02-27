@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { logger } from '../../../utils/logger';
 
 interface UseAdminDataOptions<T> {
   fetchFn: () => Promise<T>;
@@ -32,7 +33,7 @@ export function useAdminData<T>({
       setData(result);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
-      console.error('useAdminData error:', err);
+      logger.error('useAdminData error:', err);
     } finally {
       setLoading(false);
     }

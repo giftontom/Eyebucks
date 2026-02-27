@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
+import type { CourseType } from '../../types';
 import { useAdmin } from './AdminContext';
 import { CourseForm } from './components/CourseForm';
 import { ModuleManager } from './components/ModuleManager';
@@ -15,7 +16,7 @@ export const CourseEditorPage: React.FC = () => {
 
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
-  const [courseType, setCourseType] = useState<'MODULE' | 'BUNDLE'>('MODULE');
+  const [courseType, setCourseType] = useState<CourseType>('MODULE');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -23,7 +24,7 @@ export const CourseEditorPage: React.FC = () => {
     description: '',
     price: '',
     thumbnail: '',
-    type: 'MODULE' as 'MODULE' | 'BUNDLE',
+    type: 'MODULE' as CourseType,
     features: [''],
   });
 
@@ -52,10 +53,10 @@ export const CourseEditorPage: React.FC = () => {
           description: course.description,
           price: String(course.price / 100),
           thumbnail: course.thumbnail || '',
-          type: course.type as 'MODULE' | 'BUNDLE',
+          type: course.type as CourseType,
           features: course.features.length > 0 ? course.features : [''],
         });
-        setCourseType(course.type as 'MODULE' | 'BUNDLE');
+        setCourseType(course.type as CourseType);
 
         if (course.type === 'BUNDLE') {
           try {

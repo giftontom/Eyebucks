@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import { useAdmin } from './AdminContext';
 import { useDebounce } from './hooks/useDebounce';
 import { usePagination } from './hooks/usePagination';
@@ -38,7 +39,7 @@ export const UsersPage: React.FC = () => {
       setUsers(res.users);
       setTotal(res.pagination.total);
     } catch (err: any) {
-      console.error('Failed to fetch users:', err);
+      logger.error('Failed to fetch users:', err);
     } finally {
       setLoading(false);
     }

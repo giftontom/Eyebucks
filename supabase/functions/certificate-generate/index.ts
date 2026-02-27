@@ -1,76 +1,37 @@
 // Eyebuckz LMS: Certificate Generation
 // Replaces: server/src/services/certificateService.ts + certificates route
-// Generates PDF, uploads to Supabase Storage, sends email
+// Generates certificate record, sends email notification
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-function generateCertificateNumber(): string {
-  const randomBytes = new Uint8Array(6);
-  crypto.getRandomValues(randomBytes);
-  const randomPart = Array.from(randomBytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
-    .toUpperCase();
-  const timestamp = Date.now().toString(36).toUpperCase();
-  return `EYEBUCKZ-${timestamp}-${randomPart}`;
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+import { verifyAuth, verifyAdmin } from '../_shared/auth.ts';
+import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { generateCertificateNumber } from '../_shared/certificates.ts';
+import { sendEmail } from '../_shared/email.ts';
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Verify authenticated user
+    const auth = await verifyAuth(req, corsHeaders);
+    if ('errorResponse' in auth) return auth.errorResponse;
+    const { user } = auth;
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabaseAdmin = createAdminClient();
 
     const { userId, courseId } = await req.json();
     const targetUserId = userId || user.id;
 
     // Verify caller is admin or the target user
-    const { data: callerProfile } = await supabaseAdmin
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    const isAdmin = callerProfile?.role === 'ADMIN';
+    const isAdmin = await verifyAdmin(user.id, supabaseAdmin);
     if (!isAdmin && targetUserId !== user.id) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Forbidden' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Forbidden', corsHeaders, 403);
     }
 
     // Check if certificate already exists
@@ -82,9 +43,10 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingCert) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Certificate already exists', certificate: existingCert }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        { success: false, error: 'Certificate already exists', certificate: existingCert },
+        corsHeaders,
+        409
       );
     }
 
@@ -102,10 +64,7 @@ serve(async (req) => {
       .single();
 
     if (!targetUser || !course) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'User or course not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('User or course not found', corsHeaders, 404);
     }
 
     // Verify enrollment and completion
@@ -118,10 +77,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!enrollment) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'No active enrollment found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('No active enrollment found', corsHeaders, 400);
     }
 
     // Generate certificate number
@@ -147,10 +103,7 @@ serve(async (req) => {
 
     if (certError) {
       console.error('[Certificate] Error creating certificate:', certError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create certificate' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Failed to create certificate', corsHeaders, 500);
     }
 
     // Create notification
@@ -163,51 +116,35 @@ serve(async (req) => {
     });
 
     // Send email notification (non-blocking)
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    if (resendApiKey && targetUser.email) {
+    if (targetUser.email) {
       const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
-      const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'noreply@eyebuckz.com';
-
-      fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: targetUser.email,
-          subject: `Your Certificate for ${course.title}`,
-          html: `
-            <h2>Congratulations, ${targetUser.name}!</h2>
-            <p>You've earned a certificate for completing <strong>${course.title}</strong>.</p>
-            <p>Certificate Number: ${certificateNumber}</p>
-            <p><a href="${appUrl}/#/dashboard">Download Your Certificate</a></p>
-          `,
-        }),
-      }).catch(err => console.error('[Email] Certificate email error:', err));
+      sendEmail(
+        targetUser.email,
+        `Your Certificate for ${course.title}`,
+        `
+          <h2>Congratulations, ${targetUser.name}!</h2>
+          <p>You've earned a certificate for completing <strong>${course.title}</strong>.</p>
+          <p>Certificate Number: ${certificateNumber}</p>
+          <p><a href="${appUrl}/#/dashboard">Download Your Certificate</a></p>
+        `
+      );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        certificate: {
-          id: certificate.id,
-          certificateNumber: certificate.certificate_number,
-          studentName: certificate.student_name,
-          courseTitle: certificate.course_title,
-          issueDate: certificate.issue_date,
-          completionDate: certificate.completion_date,
-          status: certificate.status,
-        },
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      certificate: {
+        id: certificate.id,
+        certificateNumber: certificate.certificate_number,
+        studentName: certificate.student_name,
+        courseTitle: certificate.course_title,
+        issueDate: certificate.issue_date,
+        completionDate: certificate.completion_date,
+        status: certificate.status,
+      },
+    }, corsHeaders);
   } catch (error) {
     console.error('[Certificate] Error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const corsHeaders = getCorsHeaders(req);
+    return errorResponse('Internal server error', corsHeaders, 500);
   }
 });

@@ -2,18 +2,7 @@
  * Site Content API - CRUD for dynamic CMS content (FAQs, testimonials, showcase)
  */
 import { supabase } from '../supabase';
-
-export interface SiteContentItem {
-  id: string;
-  section: 'faq' | 'testimonial' | 'showcase';
-  title: string;
-  body: string;
-  metadata: Record<string, any>;
-  orderIndex: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { SiteContentItem } from '../../types';
 
 function mapRow(row: any): SiteContentItem {
   return {
@@ -42,15 +31,23 @@ export const siteContentApi = {
     return (data || []).map(mapRow);
   },
 
-  async getAll(): Promise<SiteContentItem[]> {
-    const { data, error } = await supabase
+  async getAll(params?: { page?: number; limit?: number }): Promise<{ items: SiteContentItem[]; total: number }> {
+    const page = params?.page || 1;
+    const limit = Math.min(params?.limit || 100, 500);
+    const offset = (page - 1) * limit;
+
+    const { data, error, count } = await supabase
       .from('site_content')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('section')
-      .order('order_index', { ascending: true });
+      .order('order_index', { ascending: true })
+      .range(offset, offset + limit - 1);
 
     if (error) throw new Error(error.message);
-    return (data || []).map(mapRow);
+    return {
+      items: (data || []).map(mapRow),
+      total: count || 0,
+    };
   },
 
   async create(item: {

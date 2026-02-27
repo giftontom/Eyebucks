@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Layers } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import { useAdmin } from './AdminContext';
 import { AdminModal } from './components/AdminModal';
 import type { SiteContentItem } from '../../types';
@@ -28,7 +29,7 @@ export const ContentPage: React.FC = () => {
       const res = await adminApi.getSiteContent();
       setSiteContent(res.items);
     } catch (err: any) {
-      console.error('Failed to fetch site content:', err);
+      logger.error('Failed to fetch site content:', err);
     } finally {
       setLoading(false);
     }

@@ -1,180 +1,262 @@
-# 🔧 Supabase + Cloudinary Integration Setup
+# Supabase Setup Guide - Eyebuckz LMS
 
-## ⚠️ SECURITY WARNING
-The credentials you shared are now **COMPROMISED**. Follow these steps to secure your account:
+## Overview
 
-### Step 1: Rotate Credentials (CRITICAL - Do This First!)
-
-#### Supabase:
-1. Go to https://supabase.com/dashboard/project/rlvceclvzzvuaxjpotlg
-2. Navigate to **Settings** → **API**
-3. Click **Reset** next to "anon/public" key
-4. Generate new service_role key
-5. Copy the new keys
-
-#### Cloudinary:
-1. Go to https://console.cloudinary.com/settings/security
-2. Click **Generate New API Secret**
-3. Copy the new secret
+Eyebuckz uses Supabase as its complete backend: PostgreSQL database, Auth (Google OAuth), Row Level Security, Edge Functions, Realtime, and Storage.
 
 ---
 
-## Step 2: Get Supabase Database Password
+## 1. Create Supabase Project
 
-1. Go to https://supabase.com/dashboard/project/rlvceclvzzvuaxjpotlg
-2. Navigate to **Settings** → **Database**
-3. Scroll to **Connection String**
-4. Click **URI** tab
-5. Copy the password from the connection string
-
-**Or generate a new password:**
-- Click **Reset Database Password**
-- Copy the new password
-- Update your `.env` file
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Choose a region close to your users (e.g., `ap-south-1` for India)
+3. Note your project credentials from **Settings > API**:
+   - Project URL (`VITE_SUPABASE_URL`)
+   - Anon/public key (`VITE_SUPABASE_ANON_KEY`)
+   - Service role key (for Edge Functions only)
 
 ---
 
-## Step 3: Update Environment Variables
-
-### Backend (`/server/.env`):
+## 2. Install Supabase CLI
 
 ```bash
-# Replace YOUR_DATABASE_PASSWORD with actual password from Supabase
-DATABASE_URL="postgresql://postgres.rlvceclvzzvuaxjpotlg:YOUR_DATABASE_PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
+# macOS
+brew install supabase/tap/supabase
 
-# After rotating Cloudinary credentials, update these:
-CLOUDINARY_CLOUD_NAME="dgpbpirmf"
-CLOUDINARY_API_KEY="NEW_API_KEY_HERE"
-CLOUDINARY_API_SECRET="NEW_API_SECRET_HERE"
+# npm (cross-platform)
+npm install -g supabase
+
+# Verify
+supabase --version
 ```
 
 ---
 
-## Step 4: Migrate Database to Supabase
-
-Once you have the correct `DATABASE_URL`, run:
+## 3. Link to Your Project
 
 ```bash
-cd server
+cd eyebuckz
 
-# Generate Prisma client with new connection
-npm run prisma:generate
+# Login to Supabase
+supabase login
 
-# Run migrations to create tables in Supabase
-npm run prisma:migrate
-
-# Seed the database with test data
-npm run prisma:seed
+# Link to your project
+supabase link --project-ref <your-project-ref>
 ```
 
 ---
 
-## Step 5: Test Cloudinary Integration
+## 4. Run Migrations
+
+The project has 7 sequential migrations in `supabase/migrations/`:
+
+| Migration | Purpose |
+|-----------|---------|
+| `001_initial_schema.sql` | Core tables: users, courses, modules, enrollments, progress, certificates |
+| `002_functions.sql` | SQL functions: is_admin(), complete_module(), get_admin_stats(), etc. |
+| `003_rls_policies.sql` | Row Level Security policies for all tables |
+| `004_auth_trigger.sql` | Auto-create user profile on signup |
+| `005_storage.sql` | Storage bucket configuration |
+| `006_production_gaps.sql` | Reviews, notifications, payments, site_content, analytics |
+| `007_bundle_courses.sql` | Bundle course support (bundle_courses table) |
 
 ```bash
-# Start the backend
-cd server
-npm run dev
+# Push migrations to remote Supabase
+supabase db push
 
-# In another terminal, test video upload
-curl -X POST http://localhost:4000/api/admin/videos/upload \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -F "video=@/path/to/test-video.mp4"
+# Or reset and reseed (local dev only)
+supabase db reset
 ```
 
 ---
 
-## Step 6: Verify Everything Works
+## 5. Configure Google OAuth
 
-### Check Supabase Connection:
-```bash
-# In server directory
-npx prisma studio
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create OAuth 2.0 credentials (Web application)
+3. Add authorized redirect URIs:
+   - `https://<project-ref>.supabase.co/auth/v1/callback`
+   - `http://localhost:54321/auth/v1/callback` (local dev)
+4. In Supabase Dashboard: **Authentication > Providers > Google**
+   - Enable Google provider
+   - Enter Client ID and Client Secret
+
+For local dev, set in `supabase/config.toml`:
+
+```toml
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
 ```
 
-This should open Prisma Studio connected to Supabase.
+---
 
-### Check Cloudinary:
-1. Upload a test video through Admin Portal
-2. Check Cloudinary Dashboard: https://console.cloudinary.com/console/media_library
-3. Video should appear in `eyebuckz/videos` folder
+## 6. Deploy Edge Functions
+
+```bash
+# Deploy all functions
+supabase functions deploy
+
+# Or deploy individually
+supabase functions deploy checkout-create-order
+supabase functions deploy checkout-verify
+supabase functions deploy checkout-webhook
+supabase functions deploy video-signed-url
+supabase functions deploy admin-video-upload
+supabase functions deploy certificate-generate
+supabase functions deploy progress-complete
+```
+
+### Set Edge Function Secrets
+
+```bash
+# Razorpay (payments)
+supabase secrets set RAZORPAY_KEY_ID=rzp_live_xxxxx
+supabase secrets set RAZORPAY_KEY_SECRET=xxxxx
+supabase secrets set RAZORPAY_WEBHOOK_SECRET=xxxxx
+
+# Bunny.net (video streaming)
+supabase secrets set BUNNY_STREAM_API_KEY=xxxxx
+supabase secrets set BUNNY_STREAM_LIBRARY_ID=xxxxx
+supabase secrets set BUNNY_STREAM_CDN_HOSTNAME=xxxxx.b-cdn.net
+supabase secrets set BUNNY_STREAM_TOKEN_KEY=xxxxx
+
+# Resend (email)
+supabase secrets set RESEND_API_KEY=re_xxxxx
+supabase secrets set RESEND_FROM_EMAIL=noreply@eyebuckz.com
+
+# App config
+supabase secrets set APP_URL=https://eyebuckz.com
+supabase secrets set ADMIN_EMAILS=admin@eyebuckz.com
+```
+
+### Edge Function JWT Verification
+
+| Function | `verify_jwt` | Reason |
+|----------|-------------|--------|
+| checkout-create-order | `true` | Requires authenticated user |
+| checkout-verify | `true` | Requires authenticated user |
+| checkout-webhook | `false` | Called by Razorpay (no user JWT) |
+| video-signed-url | `true` | Requires authenticated user |
+| admin-video-upload | `true` | Requires admin auth |
+| certificate-generate | `true` | Requires authenticated user |
+| progress-complete | `true` | Requires authenticated user |
+
+---
+
+## 7. Frontend Environment
+
+Create `.env` in the project root:
+
+```env
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
+VITE_RAZORPAY_KEY_ID=rzp_test_xxxxx
+
+# Optional
+VITE_SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+VITE_MOCK_PAYMENT=true
+VITE_DEBUG_MODE=true
+```
+
+---
+
+## 8. Regenerate TypeScript Types
+
+After schema changes, regenerate the auto-generated types:
+
+```bash
+supabase gen types typescript --project-id <project-ref> > types/supabase.ts
+```
+
+---
+
+## 9. Local Development
+
+### Start Local Supabase
+
+```bash
+supabase start
+```
+
+This starts local instances of:
+- PostgreSQL (port 54322)
+- Auth (port 54321)
+- Studio GUI (port 54323)
+- Edge Functions runtime
+
+### Serve Edge Functions Locally
+
+```bash
+supabase functions serve
+```
+
+### Seed Data
+
+The `supabase/seed.sql` file provides test data. It runs automatically with `supabase db reset`.
+
+### Admin Access
+
+In development mode, use the dev login to access admin features:
+- Email: `admin@eyebuckz.com` (created by seed data with ADMIN role)
+- The dev login bypasses Google OAuth for local testing
+
+---
+
+## 10. Razorpay Webhook Setup
+
+1. In [Razorpay Dashboard](https://dashboard.razorpay.com/), go to **Settings > Webhooks**
+2. Add webhook URL: `https://<project-ref>.supabase.co/functions/v1/checkout-webhook`
+3. Select events: `payment.captured`, `payment.failed`
+4. Copy the webhook secret and set it:
+   ```bash
+   supabase secrets set RAZORPAY_WEBHOOK_SECRET=xxxxx
+   ```
+
+---
+
+## 11. Bunny.net Video Setup
+
+1. Create a [Bunny.net](https://bunny.net/) account
+2. Create a **Stream** library
+3. Enable **Token Authentication** in library settings
+4. Note:
+   - API Key (from account settings)
+   - Library ID (from library settings)
+   - CDN Hostname (from library settings)
+   - Token Authentication Key (from library security settings)
+5. Set all values as Edge Function secrets (see step 6)
 
 ---
 
 ## Troubleshooting
 
-### Database Connection Fails:
-```
-Error: P1001: Can't reach database server
-```
+### "Permission denied" on queries
 
-**Fix:**
-1. Check if DATABASE_URL has correct password
-2. Verify Supabase project is not paused
-3. Check your IP is whitelisted (Supabase allows all by default)
+RLS is blocking the request. Check:
+- Is the user authenticated? (`supabase.auth.getUser()`)
+- Does the RLS policy allow this operation for this user?
+- Check policies in `supabase/migrations/003_rls_policies.sql`
 
-### Cloudinary Upload Fails:
-```
-Error: Invalid API credentials
-```
+### Edge Function returns 401
 
-**Fix:**
-1. Verify CLOUDINARY_API_SECRET is correct
-2. Make sure API key matches cloud name
-3. Check Cloudinary account is active
+- Verify the `Authorization` header is being sent
+- Check if the function has `verify_jwt = true` in config.toml
+- For webhooks, ensure `verify_jwt = false`
 
----
+### Migrations fail
 
-## Production Checklist
+- Check if tables already exist (use `IF NOT EXISTS`)
+- Verify migration order (numbered sequentially)
+- Check for type mismatches (e.g., UUID vs TEXT for IDs)
 
-Before deploying:
+### Auth callback fails
 
-- [ ] Rotate all credentials shown in this conversation
-- [ ] Use environment variables (never commit credentials)
-- [ ] Enable Supabase connection pooling
-- [ ] Set up Cloudinary signed URLs for videos
-- [ ] Add rate limiting for upload endpoints
-- [ ] Configure Cloudinary auto-backup
+- Verify redirect URLs in Google Cloud Console
+- Check `additional_redirect_urls` in config.toml
+- Ensure the OAuth callback is handled before React renders (see `index.tsx`)
 
 ---
 
-## Next Steps
-
-After setup is complete:
-
-1. **Test Full Flow:**
-   - Admin login → Create course → Upload video → Publish
-   - User login → Purchase course → Watch video
-
-2. **Monitor Usage:**
-   - Supabase: https://supabase.com/dashboard/project/rlvceclvzzvuaxjpotlg/database/usage
-   - Cloudinary: https://console.cloudinary.com/console/usage
-
-3. **Set Up Alerts:**
-   - Supabase: Database size > 80% (free tier: 500MB)
-   - Cloudinary: Bandwidth > 80% (free tier: 25GB/month)
-
----
-
-## Cost Estimates
-
-### Free Tier Limits:
-- **Supabase:** 500MB database, 2GB bandwidth
-- **Cloudinary:** 25GB bandwidth, 25GB storage
-
-### When to Upgrade:
-- Supabase: ~1,000 users or 500MB data
-- Cloudinary: ~100 video courses (avg 5 videos each, 100MB/video)
-
-**Estimated Monthly Cost at 500 users:**
-- Supabase Pro: $25/month
-- Cloudinary: $99/month (or use HLS with CDN like Bunny.net for $10/month)
-
----
-
-## Support
-
-If you encounter issues:
-1. Check Supabase logs: Project → Logs → Database
-2. Check Cloudinary activity log: Settings → Activity
-3. Check backend logs: `npm run dev` output
+**Last Updated:** February 27, 2026

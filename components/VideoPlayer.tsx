@@ -1,10 +1,11 @@
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import Hls from 'hls.js';
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { logger } from '../utils/logger';
 
 interface VideoPlayerProps {
   videoId?: string;
+  moduleId?: string;
   fallbackUrl: string;
   className?: string;
   controls?: boolean;
@@ -13,6 +14,7 @@ interface VideoPlayerProps {
   onEnded?: () => void;
   onError?: (error: string) => void;
   onLoadedMetadata?: () => void;
+  onQualityChange?: (quality: string) => void;
 }
 
 export interface VideoPlayerHandle {
@@ -26,21 +28,15 @@ export interface VideoPlayerHandle {
   muted: boolean;
   src: string;
   parentElement: HTMLElement | null;
+  playbackRate: number;
+  buffered: number;
 }
 
-/**
- * Enhanced video player with Bunny.net CDN and HLS streaming support
- *
- * Features:
- * - Automatic signed URL fetching for Bunny Stream videos
- * - HLS adaptive bitrate streaming
- * - Fallback to standard video for non-HLS browsers
- * - Seamless integration with existing video controls
- */
 export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
   (
     {
       videoId,
+      moduleId,
       fallbackUrl,
       className,
       controls = false,
@@ -48,16 +44,24 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       onClick,
       onEnded,
       onError,
-      onLoadedMetadata
+      onLoadedMetadata,
+      onQualityChange
     },
     ref
   ) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
+    const onErrorRef = useRef(onError);
+    const onQualityChangeRef = useRef(onQualityChange);
+
+    // Keep refs in sync without triggering effects
+    onErrorRef.current = onError;
+    onQualityChangeRef.current = onQualityChange;
 
     // Fetch signed URL for the video
     const { videoUrl, hlsUrl, isLoading, error: fetchError } = useVideoUrl(
       videoId,
+      moduleId,
       fallbackUrl
     );
 
@@ -119,14 +123,30 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       },
       get parentElement() {
         return videoRef.current?.parentElement || null;
+      },
+      get playbackRate() {
+        return videoRef.current?.playbackRate || 1;
+      },
+      set playbackRate(value: number) {
+        if (videoRef.current) {
+          videoRef.current.playbackRate = value;
+        }
+      },
+      get buffered() {
+        const video = videoRef.current;
+        if (!video || video.buffered.length === 0) return 0;
+        return video.buffered.end(video.buffered.length - 1);
       }
     }));
 
     // Setup HLS streaming
     useEffect(() => {
       if (!videoRef.current) return;
+      let destroyed = false;
 
       const video = videoRef.current;
+      let networkRetryCount = 0;
+      const MAX_NETWORK_RETRIES = 3;
 
       // If HLS URL is available and browser supports it
       if (hlsUrl && Hls.isSupported()) {
@@ -136,20 +156,42 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           backBufferLength: 90
         });
 
+        // Assign ref immediately so cleanup always references the correct instance
+        hlsRef.current = hls;
+
         hls.loadSource(hlsUrl);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (destroyed) return;
           logger.debug('[HLS] Manifest parsed, ready to play');
         });
 
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error('[HLS] Error:', data);
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+          if (destroyed) return;
+          const level = hls.levels[data.level];
+          if (level && onQualityChangeRef.current) {
+            onQualityChangeRef.current(`${level.height}p`);
+          }
+        });
+
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (destroyed) return;
+          logger.error('[HLS] Error:', data);
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                logger.debug('[HLS] Network error, trying to recover');
-                hls.startLoad();
+                networkRetryCount++;
+                if (networkRetryCount <= MAX_NETWORK_RETRIES) {
+                  logger.debug(`[HLS] Network error, retry ${networkRetryCount}/${MAX_NETWORK_RETRIES}`);
+                  hls.startLoad();
+                } else {
+                  logger.debug('[HLS] Network error, max retries reached');
+                  hls.destroy();
+                  if (!destroyed && onErrorRef.current) {
+                    onErrorRef.current('Network error: unable to load video. Please check your connection.');
+                  }
+                }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 logger.debug('[HLS] Media error, trying to recover');
@@ -158,17 +200,16 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
               default:
                 logger.debug('[HLS] Fatal error, destroying HLS');
                 hls.destroy();
-                if (onError) {
-                  onError('Failed to load video stream');
+                if (!destroyed && onErrorRef.current) {
+                  onErrorRef.current('Failed to load video stream. The video format may not be supported.');
                 }
                 break;
             }
           }
         });
 
-        hlsRef.current = hls;
-
         return () => {
+          destroyed = true;
           if (hlsRef.current) {
             hlsRef.current.destroy();
             hlsRef.current = null;
@@ -178,19 +219,35 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       // If browser has native HLS support (Safari)
       else if (hlsUrl && video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = hlsUrl;
+
+        return () => {
+          destroyed = true;
+          video.src = '';
+          video.load();
+        };
       }
       // Fallback to standard video URL
       else if (videoUrl) {
         video.src = videoUrl;
+
+        return () => {
+          destroyed = true;
+          video.src = '';
+          video.load();
+        };
       }
-    }, [hlsUrl, videoUrl, onError]);
+
+      return () => {
+        destroyed = true;
+      };
+    }, [hlsUrl, videoUrl]);
 
     // Handle fetch errors
     useEffect(() => {
-      if (fetchError && onError) {
-        onError(fetchError);
+      if (fetchError && onErrorRef.current) {
+        onErrorRef.current(fetchError);
       }
-    }, [fetchError, onError]);
+    }, [fetchError]);
 
     // Loading state
     if (isLoading) {
@@ -215,6 +272,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onLoadedMetadata={onLoadedMetadata}
         playsInline
         crossOrigin="anonymous"
+        preload="metadata"
       />
     );
   }

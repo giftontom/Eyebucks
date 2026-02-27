@@ -3,8 +3,7 @@
  * Replaces: apiClient admin methods
  */
 import { supabase } from '../supabase';
-import type { AdminStats, SalesDataPoint, Course, Module, CourseAnalytics } from '../../types';
-import type { SiteContentItem } from './siteContent.api';
+import type { AdminStats, SalesDataPoint, Course, Module, CourseAnalytics, SiteContentItem } from '../../types';
 import type { Payment } from './payments.api';
 
 export const adminApi = {

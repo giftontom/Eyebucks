@@ -55,14 +55,22 @@ function mapRow(row: any): Payment {
 }
 
 export const paymentsApi = {
-  async getUserPayments(): Promise<Payment[]> {
-    const { data, error } = await supabase
+  async getUserPayments(params?: { page?: number; limit?: number }): Promise<{ payments: Payment[]; total: number }> {
+    const page = params?.page || 1;
+    const limit = Math.min(params?.limit || 20, 100);
+    const offset = (page - 1) * limit;
+
+    const { data, error, count } = await supabase
       .from('payments')
-      .select('*, courses(title)')
-      .order('created_at', { ascending: false });
+      .select('*, courses(title)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw new Error(error.message);
-    return (data || []).map(mapRow);
+    return {
+      payments: (data || []).map(mapRow),
+      total: count || 0,
+    };
   },
 
   async getPaymentByOrder(orderId: string): Promise<Payment | null> {

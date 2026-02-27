@@ -39,7 +39,7 @@ export const notificationsApi = {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) return [];
+    if (error) throw new Error(error.message);
     return (data || []).map(mapNotification);
   },
 
@@ -52,7 +52,7 @@ export const notificationsApi = {
       .select('*', { count: 'exact', head: true })
       .eq('read', false);
 
-    if (error) return 0;
+    if (error) throw new Error(error.message);
     return count || 0;
   },
 

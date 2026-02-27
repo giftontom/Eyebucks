@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import type { User } from '../types';
 import type { Session } from '@supabase/supabase-js';
+import { logger } from '../utils/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -47,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .single();
 
     if (error || !profile) {
-      console.error('[AuthContext] Failed to load user profile:', error);
+      logger.error('[AuthContext] Failed to load user profile:', error);
       return null;
     }
 
@@ -75,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await loadUserProfile(existingSession.user.id);
         }
       } catch (error) {
-        console.error('[AuthContext] Init error:', error);
+        logger.error('[AuthContext] Init error:', error);
       } finally {
         setIsLoading(false);
       }
@@ -89,8 +90,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(newSession);
 
         if (event === 'SIGNED_IN' && newSession?.user) {
-          // Small delay to let the auth trigger create the user profile
-          setTimeout(() => loadUserProfile(newSession.user.id), 500);
+          // Retry with exponential backoff to wait for auth trigger to create profile
+          const retryLoadProfile = async (userId: string, attempt = 0) => {
+            const delays = [200, 400, 800, 1600, 3000];
+            const result = await loadUserProfile(userId);
+            if (!result && attempt < delays.length) {
+              setTimeout(() => retryLoadProfile(userId, attempt + 1), delays[attempt]);
+            }
+          };
+          retryLoadProfile(newSession.user.id);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -114,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (error) {
-      console.error('[AuthContext] Google login failed:', error);
+      logger.error('[AuthContext] Google login failed:', error);
       throw error;
     }
   };
@@ -147,12 +155,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (signUpError) {
-        console.error('[AuthContext] Dev signup failed:', signUpError);
+        logger.error('[AuthContext] Dev signup failed:', signUpError);
         throw signUpError;
       }
       data = signUpData;
     } else if (error) {
-      console.error('[AuthContext] Dev login failed:', error);
+      logger.error('[AuthContext] Dev login failed:', error);
       throw error;
     }
 

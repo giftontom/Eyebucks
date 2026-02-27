@@ -3,70 +3,46 @@
 // Uses atomic complete_module() database function
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+import { verifyAuth } from '../_shared/auth.ts';
+import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { generateCertificateNumber } from '../_shared/certificates.ts';
 
 const COMPLETION_THRESHOLD = 0.90; // 90% watch threshold
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Verify authenticated user
+    const auth = await verifyAuth(req, corsHeaders);
+    if ('errorResponse' in auth) return auth.errorResponse;
+    const { user } = auth;
 
     const { moduleId, courseId, currentTime, duration } = await req.json();
 
     if (!moduleId || !courseId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'moduleId and courseId are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('moduleId and courseId are required', corsHeaders, 400);
     }
 
     // Optional: validate watch threshold
     if (duration && currentTime) {
       const watchPercent = currentTime / duration;
       if (watchPercent < COMPLETION_THRESHOLD) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Must watch at least ${COMPLETION_THRESHOLD * 100}% of the video`,
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        return errorResponse(
+          `Must watch at least ${COMPLETION_THRESHOLD * 100}% of the video`,
+          corsHeaders,
+          400
         );
       }
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabaseAdmin = createAdminClient();
 
     // Call atomic database function
     const { data: result, error: rpcError } = await supabaseAdmin.rpc('complete_module', {
@@ -77,10 +53,7 @@ serve(async (req) => {
 
     if (rpcError) {
       console.error('[Progress] RPC error:', rpcError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to complete module' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Failed to complete module', corsHeaders, 500);
     }
 
     // Check if course is now fully completed -> trigger certificate
@@ -109,14 +82,7 @@ serve(async (req) => {
           .single();
 
         if (userProfile && course) {
-          const randomBytes = new Uint8Array(6);
-          crypto.getRandomValues(randomBytes);
-          const randomPart = Array.from(randomBytes)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('')
-            .toUpperCase();
-          const timestamp = Date.now().toString(36).toUpperCase();
-          const certNumber = `EYEBUCKZ-${timestamp}-${randomPart}`;
+          const certNumber = generateCertificateNumber();
 
           await supabaseAdmin.from('certificates').insert({
             user_id: user.id,
@@ -168,23 +134,18 @@ serve(async (req) => {
       .eq('module_id', moduleId)
       .single();
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        progress,
-        stats: result ? {
-          completedModules: result.completed_count,
-          totalModules: result.total_modules,
-          overallPercent: result.percent,
-        } : undefined,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      progress,
+      stats: result ? {
+        completedModules: result.completed_count,
+        totalModules: result.total_modules,
+        overallPercent: result.percent,
+      } : undefined,
+    }, corsHeaders);
   } catch (error) {
     console.error('[Progress Complete] Error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const corsHeaders = getCorsHeaders(req);
+    return errorResponse('Internal server error', corsHeaders, 500);
   }
 });

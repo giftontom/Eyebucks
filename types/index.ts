@@ -185,33 +185,6 @@ export interface CertificateWithRelations extends Certificate {
 }
 
 // ============================================
-// SESSION TYPES
-// ============================================
-
-export interface Session {
-  id: string;
-  userId: string;
-  accessToken: string;
-  ipAddress: string | null;
-  userAgent: string | null;
-  deviceInfo: string | null;
-  expiresAt: Date;
-  isActive: boolean;
-  lastActivity: Date;
-  createdAt: Date;
-}
-
-export interface RefreshToken {
-  id: string;
-  userId: string;
-  token: string;
-  expiresAt: Date;
-  isRevoked: boolean;
-  createdAt: Date;
-  revokedAt: Date | null;
-}
-
-// ============================================
 // ADMIN TYPES
 // ============================================
 

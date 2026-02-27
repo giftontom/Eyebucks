@@ -1205,11 +1205,9 @@ VIDEO_SECRET=...
 npm run build
 ```
 
-2. **Deploy to Vercel/Netlify:**
+2. **Deploy to Cloudflare Pages:**
 ```bash
-vercel --prod
-# or
-netlify deploy --prod
+npx wrangler pages deploy dist --project-name eyebucks
 ```
 
 3. **Deploy backend:**
@@ -1260,8 +1258,7 @@ npm run test:e2e             # Run E2E tests
 npm run test:coverage        # Test coverage
 
 # Deployment
-vercel --prod                # Deploy to Vercel
-git push heroku main         # Deploy to Heroku
+npx wrangler pages deploy dist --project-name eyebucks  # Deploy to Cloudflare Pages
 ```
 
 ### File Structure

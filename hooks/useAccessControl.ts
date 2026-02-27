@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { enrollmentsApi } from '../services/api';
+import { logger } from '../utils/logger';
 
 interface AccessControlResult {
   hasAccess: boolean;
@@ -39,7 +40,7 @@ export const useAccessControl = (courseId: string | undefined): AccessControlRes
       const hasAccess = await enrollmentsApi.checkAccess(courseId);
       setIsEnrolled(hasAccess);
     } catch (error) {
-      console.error('Failed to check enrollment:', error);
+      logger.error('Failed to check enrollment:', error);
       setIsEnrolled(false);
     } finally {
       setIsLoading(false);

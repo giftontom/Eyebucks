@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { adminApi } from '../../../services/api/admin.api';
+import { logger } from '../../../utils/logger';
 import { AdminModal } from './AdminModal';
 import { VideoUploader } from '../../../components/VideoUploader';
 import type { Module } from '../../../types';
@@ -32,7 +33,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
       const res = await adminApi.getModules(courseId);
       setModules(res.modules || []);
     } catch (err) {
-      console.error('Failed to fetch modules:', err);
+      logger.error('Failed to fetch modules:', err);
       setModules([]);
     } finally {
       setLoading(false);

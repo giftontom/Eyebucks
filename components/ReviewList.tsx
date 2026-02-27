@@ -3,33 +3,9 @@ import { MessageSquare, ThumbsUp, Edit2, Trash2, Loader2, Star } from 'lucide-re
 import StarRating from './StarRating';
 import ReviewForm from './ReviewForm';
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/apiClient';
-
-interface Review {
-  id: string;
-  userId?: string;
-  rating: number;
-  comment: string;
-  user: {
-    name: string;
-    avatar: string;
-  };
-  helpful: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ReviewSummary {
-  total: number;
-  averageRating: number;
-  distribution: {
-    5: number;
-    4: number;
-    3: number;
-    2: number;
-    1: number;
-  };
-}
+import { reviewsApi } from '../services/api';
+import { logger } from '../utils/logger';
+import type { Review, ReviewSummary } from '../services/api/reviews.api';
 
 interface ReviewListProps {
   courseId: string;
@@ -61,7 +37,7 @@ export default function ReviewList({
   const fetchReviews = async () => {
     try {
       setIsLoading(true);
-      const response = await apiClient.get(`/reviews/course/${courseId}?page=${page}&limit=10`);
+      const response = await reviewsApi.getCourseReviews(courseId, page, 10);
 
       if (response.success) {
         setReviews(page === 1 ? response.reviews : [...reviews, ...response.reviews]);
@@ -69,7 +45,7 @@ export default function ReviewList({
         setHasMore(response.pagination.hasMore);
       }
     } catch (error) {
-      console.error('Failed to fetch reviews:', error);
+      logger.error('Failed to fetch reviews:', error);
     } finally {
       setIsLoading(false);
     }
@@ -77,11 +53,7 @@ export default function ReviewList({
 
   const handleSubmitReview = async (rating: number, comment: string) => {
     try {
-      const response = await apiClient.post('/reviews', {
-        courseId,
-        rating,
-        comment
-      });
+      const response = await reviewsApi.createReview(courseId, rating, comment);
 
       if (response.success) {
         setShowReviewForm(false);
@@ -95,10 +67,7 @@ export default function ReviewList({
 
   const handleUpdateReview = async (reviewId: string, rating: number, comment: string) => {
     try {
-      const response = await apiClient.patch(`/reviews/${reviewId}`, {
-        rating,
-        comment
-      });
+      const response = await reviewsApi.updateReview(reviewId, rating, comment);
 
       if (response.success) {
         setEditingReviewId(null);
@@ -115,7 +84,7 @@ export default function ReviewList({
     }
 
     try {
-      await apiClient.delete(`/reviews/${reviewId}`);
+      await reviewsApi.deleteReview(reviewId);
       fetchReviews(); // Refresh reviews
     } catch (error) {
       alert('Failed to delete review');

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
-import { apiClient } from '../services/apiClient';
+import { coursesApi } from '../services/api';
 import ReviewList from '../components/ReviewList';
 import { CourseType } from '../types';
 import type { Course } from '../types';
@@ -18,7 +18,7 @@ export const CourseDetails: React.FC = () => {
 
   useEffect(() => {
     if (!id) { setIsLoadingCourse(false); return; }
-    apiClient.getCourse(id)
+    coursesApi.getCourse(id)
       .then(res => setCourse(res.course))
       .catch(() => {})
       .finally(() => setIsLoadingCourse(false));

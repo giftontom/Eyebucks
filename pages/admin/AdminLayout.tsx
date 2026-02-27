@@ -4,9 +4,21 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { AdminProvider } from './AdminContext';
 import { AdminSidebar } from './components/AdminSidebar';
+import { Loader2 } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-brand-600 mx-auto mb-4" />
+          <p className="text-slate-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (user?.role !== 'ADMIN') {
     return (

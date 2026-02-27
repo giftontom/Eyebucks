@@ -106,7 +106,7 @@ export const importLocalStorageData = (jsonString: string): boolean => {
     logger.debug('[DataExport] Imported localStorage data successfully');
     return true;
   } catch (error) {
-    console.error('[DataExport] Import failed:', error);
+    logger.error('[DataExport] Import failed:', error);
     return false;
   }
 };

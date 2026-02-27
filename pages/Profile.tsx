@@ -32,7 +32,7 @@ export const Profile: React.FC = () => {
       .finally(() => setIsLoadingCerts(false));
 
     paymentsApi.getUserPayments()
-      .then(setPayments)
+      .then(res => setPayments(res.payments))
       .catch(() => {})
       .finally(() => setIsLoadingPayments(false));
   }, []);

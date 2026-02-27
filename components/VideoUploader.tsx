@@ -1,11 +1,23 @@
-import React, { useState, useRef, DragEvent } from 'react';
+import React, { useState, useRef, useEffect, DragEvent } from 'react';
 import { Upload, X, Film, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import * as tus from 'tus-js-client';
 import { supabase } from '../services/supabase';
+import { logger } from '../utils/logger';
 
 interface VideoUploaderProps {
   onUploadComplete: (videoData: {publicId: string; secureUrl: string; duration: number; thumbnail: string}) => void;
   initialVideoUrl?: string;
   disabled?: boolean;
+}
+
+interface TusCredentials {
+  videoId: string;
+  libraryId: string;
+  tusEndpoint: string;
+  authSignature: string;
+  authExpire: number;
+  hlsUrl: string;
+  thumbnailUrl: string;
 }
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
@@ -18,10 +30,23 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoPreview, setVideoPreview] = useState<string | null>(initialVideoUrl || null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tusUploadRef = useRef<tus.Upload | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
   const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
   const ALLOWED_FORMATS = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const handleDrag = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -65,11 +90,17 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       return;
     }
 
+    // Revoke previous object URL if any
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+
     // Create preview
     const previewUrl = URL.createObjectURL(file);
+    objectUrlRef.current = previewUrl;
     setVideoPreview(previewUrl);
 
-    // Upload to Bunny Stream via Edge Function
+    // Upload to Bunny Stream via TUS
     await uploadVideo(file);
   };
 
@@ -78,47 +109,93 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     setUploadProgress(0);
 
     try {
-      // Build FormData — supabase-js auto-detects and sets multipart Content-Type
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('title', file.name);
-
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 500);
-
+      // Phase 1: Get TUS credentials from Edge Function
       const { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
-        body: formData,
+        body: { title: file.name },
       });
 
-      clearInterval(progressInterval);
+      if (fnError) {
+        const ctx = (fnError as any).context;
+        const msg = (typeof ctx === 'object' && ctx?.error) ? ctx.error : fnError.message;
+        throw new Error(msg);
+      }
 
-      if (fnError) throw new Error(fnError.message);
-      if (!data?.success) throw new Error(data?.error || 'Upload failed');
+      if (!data?.success) {
+        throw new Error(data?.error || 'Upload failed');
+      }
+
+      const creds: TusCredentials = data.video;
+
+      // Phase 2: Upload file directly to Bunny via TUS protocol
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+          endpoint: creds.tusEndpoint,
+          retryDelays: [0, 1000, 3000, 5000],
+          headers: {
+            AuthorizationSignature: creds.authSignature,
+            AuthorizationExpire: String(creds.authExpire),
+            VideoId: creds.videoId,
+            LibraryId: creds.libraryId,
+          },
+          metadata: {
+            filetype: file.type,
+            title: file.name,
+          },
+          onError(err) {
+            logger.error('TUS upload error:', err);
+            reject(new Error(err.message || 'Video upload failed'));
+          },
+          onProgress(bytesUploaded, bytesTotal) {
+            const pct = Math.round((bytesUploaded / bytesTotal) * 100);
+            setUploadProgress(pct);
+          },
+          onSuccess() {
+            resolve();
+          },
+        });
+
+        tusUploadRef.current = upload;
+        upload.start();
+      });
 
       setUploadProgress(100);
+      setUploadSuccess(true);
 
       onUploadComplete({
-        publicId: data.video.publicId,
-        secureUrl: data.video.url,
-        duration: data.video.duration || 0,
-        thumbnail: data.video.thumbnail || ''
+        publicId: creds.videoId,
+        secureUrl: creds.hlsUrl,
+        duration: 0,
+        thumbnail: creds.thumbnailUrl,
       });
 
       setUploading(false);
     } catch (err: any) {
-      console.error('Video upload error:', err);
+      logger.error('Video upload error:', err);
       setError(err.message || 'Failed to upload video');
+      setUploadSuccess(false);
       setUploading(false);
       setUploadProgress(0);
+    } finally {
+      tusUploadRef.current = null;
     }
   };
 
   const removeVideo = () => {
+    // Abort in-progress TUS upload if any
+    if (tusUploadRef.current) {
+      tusUploadRef.current.abort();
+      tusUploadRef.current = null;
+    }
+    // Revoke object URL to prevent memory leak
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
     setVideoPreview(null);
     setError(null);
+    setUploadSuccess(false);
     setUploadProgress(0);
+    setUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -177,11 +254,22 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       {/* Upload Progress */}
       {uploading && (
         <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
-            <span className="text-sm font-medium text-gray-900">
-              Uploading video... {uploadProgress}%
-            </span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+              <span className="text-sm font-medium text-gray-900">
+                Uploading video... {uploadProgress}%
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={removeVideo}
+              className="text-gray-400 hover:text-red-600 transition-colors"
+              title="Cancel upload"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -203,10 +291,18 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2">
               <Film className="w-5 h-5 text-brand-600" />
-              <span className="text-sm font-medium text-gray-900">
-                Video uploaded successfully
-              </span>
-              <CheckCircle className="w-4 h-4 text-green-500" />
+              {uploadSuccess ? (
+                <>
+                  <span className="text-sm font-medium text-gray-900">
+                    Video uploaded successfully
+                  </span>
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                </>
+              ) : (
+                <span className="text-sm font-medium text-gray-900">
+                  Selected video
+                </span>
+              )}
             </div>
 
             <button

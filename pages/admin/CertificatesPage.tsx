@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import { useAdmin } from './AdminContext';
 import { usePagination } from './hooks/usePagination';
 import { DataTable } from './components/DataTable';
@@ -31,7 +32,7 @@ export const CertificatesPage: React.FC = () => {
       setCertificates(res.certificates);
       setTotal(res.pagination.total);
     } catch (err: any) {
-      console.error('Failed to fetch certificates:', err);
+      logger.error('Failed to fetch certificates:', err);
     } finally {
       setLoading(false);
     }

@@ -3,29 +3,8 @@
 // Note: verify_jwt is disabled for this function (webhooks from Razorpay)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts';
-
-async function verifyWebhookSignature(
-  body: string,
-  signature: string,
-  secret: string
-): Promise<boolean> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signatureBytes = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
-  const expectedSignature = Array.from(new Uint8Array(signatureBytes))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-
-  return expectedSignature === signature;
-}
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
 
 serve(async (req) => {
   if (req.method !== 'POST') {
@@ -34,25 +13,33 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
-    const signature = req.headers.get('x-razorpay-signature');
-    const webhookSecret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
 
-    // Verify webhook signature
-    if (webhookSecret && signature) {
-      const isValid = await verifyWebhookSignature(body, signature, webhookSecret);
-      if (!isValid) {
-        console.error('[Webhook] Invalid signature');
-        return new Response('Invalid signature', { status: 400 });
-      }
+    // Verify webhook secret is configured (mandatory)
+    const webhookSecret = Deno.env.get('RAZORPAY_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      console.error('[Webhook] RAZORPAY_WEBHOOK_SECRET not configured');
+      return new Response('Webhook verification not configured', { status: 500 });
+    }
+
+    // Verify signature header is present (mandatory)
+    const signature = req.headers.get('x-razorpay-signature');
+    if (!signature) {
+      console.error('[Webhook] Missing x-razorpay-signature header');
+      return new Response('Missing signature', { status: 401 });
+    }
+
+    // Verify signature is valid
+    const expectedSignature = await hmacSha256(body, webhookSecret);
+    const isValid = timingSafeEqual(expectedSignature, signature);
+    if (!isValid) {
+      console.error('[Webhook] Invalid signature');
+      return new Response('Invalid signature', { status: 400 });
     }
 
     const event = JSON.parse(body);
     const eventType = event.event;
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabaseAdmin = createAdminClient();
 
     console.log('[Webhook] Received event:', eventType);
 

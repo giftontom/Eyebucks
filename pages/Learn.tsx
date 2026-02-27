@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, BookOpen, Layers, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
-import { enrollmentService } from '../services/enrollmentService';
-import { progressService, AUTO_SAVE_INTERVAL } from '../services/progressService';
+import { coursesApi, progressApi, AUTO_SAVE_INTERVAL } from '../services/api';
 import { useToast } from '../components/Toast';
 import { EnrollmentGate } from '../components/EnrollmentGate';
 import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
-import { apiClient } from '../services/apiClient';
 import { logger } from '../utils/logger';
 import { CourseType } from '../types';
+import type { Course, Module } from '../types';
 
 /**
  * Extract Bunny Stream video GUID from a video URL
@@ -22,6 +21,8 @@ function extractVideoId(videoUrl?: string): string | undefined {
   return match?.[1];
 }
 
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 export const Learn: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -29,8 +30,8 @@ export const Learn: React.FC = () => {
   const { showToast, ToastContainer } = useToast();
 
   // Fetch course and modules from API
-  const [course, setCourse] = useState<any>(null);
-  const [modules, setModules] = useState<any[]>([]);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
 
   // Use access control hook
@@ -47,8 +48,18 @@ export const Learn: React.FC = () => {
   const [showCompletionNotification, setShowCompletionNotification] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
+  // Playback speed
+  const [playbackRate, setPlaybackRate] = useState(1);
+
+  // HLS quality
+  const [hlsQuality, setHlsQuality] = useState<string | null>(null);
+
+  // Buffered amount
+  const [bufferedEnd, setBufferedEnd] = useState(0);
+
   const videoRef = useRef<VideoPlayerHandle>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completionCheckingRef = useRef(false);
 
   const activeChapterIndex = modules.findIndex(m => m.id === activeChapterId) ?? 0;
 
@@ -58,7 +69,7 @@ export const Learn: React.FC = () => {
   // Pre-loaded module completion status (async data loaded into sync map)
   const [moduleCompletionMap, setModuleCompletionMap] = useState<Record<string, boolean>>({});
 
-  // Load course and modules from API
+  // Load course and modules from API (parallelized)
   useEffect(() => {
     const loadCourse = async () => {
       if (!id) return;
@@ -66,12 +77,12 @@ export const Learn: React.FC = () => {
       try {
         setIsLoadingCourse(true);
 
-        // Fetch course details
-        const courseResponse = await apiClient.getCourse(id);
-        setCourse(courseResponse.course);
+        const [courseResponse, modulesResponse] = await Promise.all([
+          coursesApi.getCourse(id),
+          coursesApi.getCourseModules(id),
+        ]);
 
-        // Fetch modules
-        const modulesResponse = await apiClient.getCourseModules(id);
+        setCourse(courseResponse.course);
         setModules(modulesResponse.modules || []);
 
         // Set first module as active by default
@@ -79,7 +90,7 @@ export const Learn: React.FC = () => {
           setActiveChapterId(modulesResponse.modules[0].id);
         }
       } catch (error) {
-        console.error('[Learn] Error loading course:', error);
+        logger.error('[Learn] Error loading course:', error);
         showToast('Failed to load course', 'error');
       } finally {
         setIsLoadingCourse(false);
@@ -95,19 +106,19 @@ export const Learn: React.FC = () => {
       if (!user || !id || modules.length === 0) return;
 
       try {
-        const allProgress = await progressService.getProgress(user.id, id);
+        const allProgress = await progressApi.getProgress(id);
         const completionMap: Record<string, boolean> = {};
         for (const p of allProgress) {
           completionMap[p.moduleId] = p.completed;
         }
         setModuleCompletionMap(completionMap);
       } catch (error) {
-        console.error('[Progress] Error loading module completions:', error);
+        logger.error('[Progress] Error loading module completions:', error);
       }
     };
 
     loadModuleCompletions();
-  }, [user, id, modules, progressPercent]);
+  }, [user, id, modules.length]);
 
   // Load course progress stats
   useEffect(() => {
@@ -118,10 +129,10 @@ export const Learn: React.FC = () => {
       }
 
       try {
-        const stats = await progressService.getCourseStats(user.id, id);
+        const stats = await progressApi.getCourseStats(id);
         setProgressPercent(stats.overallPercent);
       } catch (error) {
-        console.error('[Progress] Error loading course stats:', error);
+        logger.error('[Progress] Error loading course stats:', error);
       }
     };
 
@@ -134,7 +145,7 @@ export const Learn: React.FC = () => {
 
     const loadResumePosition = async () => {
       try {
-        const resumePosition = await progressService.getResumePosition(user.id, id, activeChapterId);
+        const resumePosition = await progressApi.getResumePosition(id, activeChapterId);
 
         if (resumePosition > 0 && videoRef.current) {
           videoRef.current.currentTime = resumePosition;
@@ -142,14 +153,21 @@ export const Learn: React.FC = () => {
         }
 
         // Update current module in enrollment
-        await progressService.updateCurrentModule(user.id, id, activeChapterId);
+        await progressApi.updateCurrentModule(id, activeChapterId);
       } catch (error) {
-        console.error('[Progress] Error loading resume position:', error);
+        logger.error('[Progress] Error loading resume position:', error);
       }
     };
 
     loadResumePosition();
   }, [activeChapterId, user, id, hasAccess]);
+
+  // Sync playback rate when switching modules
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackRate;
+    }
+  }, [activeChapterId, playbackRate]);
 
   // Load notes from localStorage when module changes
   useEffect(() => {
@@ -188,16 +206,13 @@ export const Learn: React.FC = () => {
     };
   }, [notes, user, id, activeChapterId]);
 
-  // Right-click prevention removed — it breaks accessibility without providing
-  // meaningful DRM protection (users can still use DevTools, screen capture, etc.)
-
   // Module 3: Progress Save Logic (Auto-save every 30s)
   useEffect(() => {
     const saveProgress = () => {
       if (!videoRef.current || !user || !id || !activeChapterId) return;
 
       const timestamp = Math.floor(videoRef.current.currentTime);
-      progressService.saveProgress(user.id, id, activeChapterId, timestamp);
+      progressApi.saveProgress(id, activeChapterId, timestamp);
 
       // Show subtle toast notification
       showToast('Progress saved ✓', 'success', 2000);
@@ -222,31 +237,51 @@ export const Learn: React.FC = () => {
     }
   };
 
-  const handleTimeUpdate = async () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-      setDuration(videoRef.current.duration);
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
 
-      // Check for module completion (95% threshold)
-      if (user && id && activeChapterId) {
-        const wasCompleted = progressService.checkCompletion(
-          user.id,
-          id,
-          activeChapterId,
-          videoRef.current.currentTime,
-          videoRef.current.duration
-        );
+    setCurrentTime(videoRef.current.currentTime);
+    setDuration(videoRef.current.duration);
 
-        if (wasCompleted) {
-          // Show completion notification
-          setShowCompletionNotification(true);
-          setTimeout(() => setShowCompletionNotification(false), 3000);
+    // Update buffered amount
+    setBufferedEnd(videoRef.current.buffered);
 
-          // Reload progress stats
-          const stats = await progressService.getCourseStats(user.id, id);
-          setProgressPercent(stats.overallPercent);
-        }
-      }
+    // Check for module completion (95% threshold)
+    if (user && id && activeChapterId) {
+      const ct = videoRef.current.currentTime;
+      const dur = videoRef.current.duration;
+
+      // Pre-check: skip if already completed or not past 95%
+      if (moduleCompletionMap[activeChapterId]) return;
+      if (!dur || dur <= 0 || ct / dur < 0.95) return;
+
+      // Guard against concurrent async calls
+      if (completionCheckingRef.current) return;
+      completionCheckingRef.current = true;
+
+      progressApi.checkCompletion(id, activeChapterId, ct, dur)
+        .then((wasCompleted) => {
+          if (wasCompleted) {
+            // Immediately mark in map to prevent re-triggering
+            setModuleCompletionMap(prev => ({ ...prev, [activeChapterId]: true }));
+
+            // Show completion notification
+            setShowCompletionNotification(true);
+            if (completionNotifRef.current) clearTimeout(completionNotifRef.current);
+            completionNotifRef.current = setTimeout(() => setShowCompletionNotification(false), 3000);
+
+            // Reload progress stats
+            progressApi.getCourseStats(id).then(stats => {
+              setProgressPercent(stats.overallPercent);
+            });
+          }
+        })
+        .catch(err => {
+          logger.error('[Progress] Completion check failed:', err);
+        })
+        .finally(() => {
+          completionCheckingRef.current = false;
+        });
     }
   };
 
@@ -273,6 +308,30 @@ export const Learn: React.FC = () => {
       }
   };
 
+  const cycleSpeed = useCallback(() => {
+    setPlaybackRate(prev => {
+      const idx = SPEED_OPTIONS.indexOf(prev);
+      const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
+      if (videoRef.current) videoRef.current.playbackRate = next;
+      return next;
+    });
+  }, []);
+
+  const adjustSpeed = useCallback((direction: 'up' | 'down') => {
+    setPlaybackRate(prev => {
+      const idx = SPEED_OPTIONS.indexOf(prev);
+      let nextIdx: number;
+      if (direction === 'up') {
+        nextIdx = Math.min(idx + 1, SPEED_OPTIONS.length - 1);
+      } else {
+        nextIdx = Math.max(idx - 1, 0);
+      }
+      const next = SPEED_OPTIONS[nextIdx];
+      if (videoRef.current) videoRef.current.playbackRate = next;
+      return next;
+    });
+  }, []);
+
   // Previous / Next Chapter Logic
   const handlePrev = () => {
       if (activeChapterIndex > 0) {
@@ -288,11 +347,76 @@ export const Learn: React.FC = () => {
       }
   };
 
+  // Clean up controlsTimeoutRef on unmount
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    };
+  }, []);
+
+  const completionNotifRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up completion notification timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (completionNotifRef.current) clearTimeout(completionNotifRef.current);
+    };
+  }, []);
+
   const handleMouseMove = () => {
       setShowControls(true);
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
       controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
   }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!videoRef.current) return;
+    switch (e.key) {
+      case ' ':
+      case 'k':
+        e.preventDefault();
+        handlePlayPause();
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        videoRef.current.currentTime = Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + 10);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        { const newVol = Math.min(1, (videoRef.current.volume || 0) + 0.1);
+          videoRef.current.volume = newVol;
+          setVolume(newVol);
+          setIsMuted(newVol === 0); }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        { const newVol = Math.max(0, (videoRef.current.volume || 0) - 0.1);
+          videoRef.current.volume = newVol;
+          setVolume(newVol);
+          setIsMuted(newVol === 0); }
+        break;
+      case 'f':
+        e.preventDefault();
+        toggleFullScreen();
+        break;
+      case 'm':
+        e.preventDefault();
+        toggleMute();
+        break;
+      case '<':
+        e.preventDefault();
+        adjustSpeed('down');
+        break;
+      case '>':
+        e.preventDefault();
+        adjustSpeed('up');
+        break;
+    }
+  };
 
   const handleVideoError = () => {
     const errorMessage = 'Unable to load video. Please check your connection and try again.';
@@ -307,6 +431,10 @@ export const Learn: React.FC = () => {
       videoRef.current.load();
     }
   }
+
+  const handleQualityChange = useCallback((quality: string) => {
+    setHlsQuality(quality);
+  }, []);
 
   // Loading course data
   if (isLoadingCourse || isCheckingAccess) {
@@ -443,17 +571,20 @@ export const Learn: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden bg-black">
-      
+
       {/* Main Video Player Area */}
       <div className="flex-grow flex flex-col h-full overflow-y-auto relative">
-        <div 
-            className="relative w-full aspect-video bg-black group flex-shrink-0"
+        <div
+            className="relative w-full aspect-video bg-black group flex-shrink-0 outline-none"
             onMouseMove={handleMouseMove}
             onMouseLeave={() => setShowControls(false)}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
         >
             <VideoPlayer
                 ref={videoRef}
                 videoId={extractVideoId(activeModule?.videoUrl)}
+                moduleId={activeModule?.id}
                 fallbackUrl={activeModule?.videoUrl || 'https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4'}
                 className="w-full h-full"
                 controls={false}
@@ -461,22 +592,26 @@ export const Learn: React.FC = () => {
                 onClick={handlePlayPause}
                 onEnded={() => setIsPlaying(false)}
                 onError={handleVideoError}
+                onQualityChange={handleQualityChange}
             />
-            
+
             {/* Custom Controls Overlay */}
-            <div 
+            <div
                 className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0'}`}
             >
-                {/* Seek Bar */}
+                {/* Seek Bar with Buffered Indicator */}
                 <div className="mb-4 relative group/seek">
                     <div className="h-1 w-full bg-gray-600 rounded-lg overflow-hidden">
-                        <div className="h-full bg-brand-500" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}></div>
+                        {/* Buffered bar (gray) */}
+                        <div className="absolute h-1 bg-gray-400/40 rounded-lg" style={{ width: `${(bufferedEnd / (duration || 1)) * 100}%` }}></div>
+                        {/* Playback bar (brand color) */}
+                        <div className="relative h-full bg-brand-500" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}></div>
                     </div>
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max={duration || 100} 
-                        value={currentTime} 
+                    <input
+                        type="range"
+                        min="0"
+                        max={duration || 100}
+                        value={currentTime}
                         onChange={handleSeek}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
@@ -487,7 +622,7 @@ export const Learn: React.FC = () => {
                         <button onClick={handlePrev} className="hover:text-brand-500 transition disabled:opacity-50" disabled={activeChapterIndex === 0}>
                             <SkipBack size={20} fill="currentColor" />
                         </button>
-                        
+
                         <button onClick={handlePlayPause} className="hover:text-brand-500 transition">
                             {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
                         </button>
@@ -495,14 +630,14 @@ export const Learn: React.FC = () => {
                          <button onClick={handleNext} className="hover:text-brand-500 transition disabled:opacity-50" disabled={activeChapterIndex === modules.length - 1}>
                             <SkipForward size={20} fill="currentColor" />
                         </button>
-                        
+
                         <div className="flex items-center gap-2 group/vol pl-4 border-l border-gray-700 ml-4">
                             <button onClick={toggleMute}>
                                 {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                             </button>
                             <div className="w-0 overflow-hidden group-hover/vol:w-20 transition-all duration-300">
-                                <input 
-                                    type="range" min="0" max="1" step="0.1" 
+                                <input
+                                    type="range" min="0" max="1" step="0.1"
                                     value={isMuted ? 0 : volume}
                                     onChange={(e) => {
                                         const v = Number(e.target.value);
@@ -516,12 +651,28 @@ export const Learn: React.FC = () => {
                         </div>
 
                         <span className="text-xs font-mono text-gray-300">
-                            {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} / 
+                            {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} /
                             {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
                         </span>
                     </div>
-                    
+
                     <div className="flex items-center gap-4">
+                        {/* Speed Control */}
+                        <button
+                          onClick={cycleSpeed}
+                          className="text-xs font-bold px-2 py-1 rounded hover:bg-white/20 transition min-w-[3rem]"
+                          title="Playback speed (< / > keys)"
+                        >
+                          {playbackRate}x
+                        </button>
+
+                        {/* Quality Indicator */}
+                        {hlsQuality && (
+                          <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded">
+                            {hlsQuality}
+                          </span>
+                        )}
+
                         <button onClick={toggleFullScreen}>
                              <Maximize size={20} />
                         </button>
@@ -574,7 +725,7 @@ export const Learn: React.FC = () => {
                  <span>{Math.round(progressPercent)}% Completed</span>
              </div>
              <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
-                 <div 
+                 <div
                     className="bg-gradient-to-r from-brand-600 to-purple-500 h-full transition-all duration-500"
                     style={{ width: `${progressPercent}%` }}
                  />
@@ -584,7 +735,7 @@ export const Learn: React.FC = () => {
         {/* Mobile Notes Area */}
         <div className="lg:hidden p-4 bg-neutral-950 flex-grow">
             <h3 className="font-bold mb-2 flex items-center gap-2 text-white text-sm"><Edit3 size={16}/> Personal Notes</h3>
-            <textarea 
+            <textarea
                 className="w-full h-full bg-neutral-900 border border-neutral-800 rounded-lg p-3 text-sm text-white resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
                 placeholder="Type your notes for this chapter here..."
                 value={notes}
@@ -631,7 +782,7 @@ export const Learn: React.FC = () => {
          {/* Desktop Notes Area */}
          <div className="hidden lg:flex flex-col p-4 border-t border-neutral-800 bg-neutral-900 h-1/3">
             <h3 className="font-bold text-sm mb-2 text-neutral-400 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</h3>
-            <textarea 
+            <textarea
                 className="flex-grow w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 text-xs text-gray-300 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
                 placeholder="Take notes for this module..."
                 value={notes}

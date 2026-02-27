@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../components/Toast';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import type { AdminCourse, AdminUser } from '../../types';
 
 interface AdminContextValue {
@@ -34,9 +35,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCourses(res.courses);
       setCoursesLoaded(true);
     } catch (err: any) {
-      console.error('Failed to fetch courses:', err);
+      logger.error('Failed to fetch courses:', err);
+      showToast(err?.message || 'Failed to fetch courses', 'error');
     }
-  }, []);
+  }, [showToast]);
 
   const refreshUsers = useCallback(async (params?: { search?: string; role?: string }) => {
     try {
@@ -44,9 +46,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers(res.users);
       setUsersLoaded(true);
     } catch (err: any) {
-      console.error('Failed to fetch users:', err);
+      logger.error('Failed to fetch users:', err);
+      showToast(err?.message || 'Failed to fetch users', 'error');
     }
-  }, []);
+  }, [showToast]);
 
   // Load courses on mount (needed by multiple pages: certificates issue, manual enroll)
   useEffect(() => {

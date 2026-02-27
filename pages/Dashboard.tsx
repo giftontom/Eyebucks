@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PlayCircle, UserCircle, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { enrollmentService } from '../services/enrollmentService';
-import { apiClient } from '../services/apiClient';
+import { enrollmentsApi } from '../services/api';
+import { supabase } from '../services/supabase';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
+import { logger } from '../utils/logger';
 import { CourseType } from '../types';
 
 export const Dashboard: React.FC = () => {
@@ -31,29 +32,36 @@ export const Dashboard: React.FC = () => {
 
       try {
         // Get user's enrollments
-        const enrollments = await enrollmentService.getUserEnrollments(user.id);
+        const enrollments = await enrollmentsApi.getUserEnrollments();
 
-        // Fetch course details for each enrollment
-        const coursesPromises = enrollments.map(async (enrollment) => {
-          try {
-            const courseResponse = await apiClient.getCourse(enrollment.courseId);
+        // Batch-fetch all course details in a single query (replaces N+1 per-enrollment calls)
+        const courseIds = enrollments.map(e => e.courseId);
+        const { data: coursesData } = await supabase
+          .from('courses')
+          .select('id, title, thumbnail, type, description')
+          .in('id', courseIds);
+
+        const courseMap = new Map((coursesData || []).map(c => [c.id, c]));
+
+        const courses = enrollments
+          .map(enrollment => {
+            const course = courseMap.get(enrollment.courseId);
+            if (!course) return null;
             return {
-              ...courseResponse.course,
+              id: course.id,
+              title: course.title,
+              thumbnail: course.thumbnail,
+              type: course.type,
               enrollmentId: enrollment.id,
               progress: enrollment.progress.overallPercent,
               enrolledAt: enrollment.enrolledAt,
-              lastAccessedAt: enrollment.lastAccessedAt
+              lastAccessedAt: enrollment.lastAccessedAt,
             };
-          } catch (error) {
-            console.error(`Failed to fetch course ${enrollment.courseId}:`, error);
-            return null;
-          }
-        });
-
-        const courses = (await Promise.all(coursesPromises)).filter(Boolean);
+          })
+          .filter(Boolean);
         setEnrolledCourses(courses);
       } catch (error) {
-        console.error('[Dashboard] Error loading enrollments:', error);
+        logger.error('[Dashboard] Error loading enrollments:', error);
       } finally {
         setIsLoading(false);
       }
@@ -128,7 +136,7 @@ export const Dashboard: React.FC = () => {
                       <span>{course.progress || 0}% Completed</span>
                    </div>
                    <Link
-                     to={course.type === CourseType.BUNDLE ? `/course/${course.id}` : `/learn/${course.id}`}
+                     to={`/learn/${course.id}`}
                      className="block w-full text-center bg-slate-900 hover:bg-slate-800 py-3 rounded-lg font-medium transition text-white"
                    >
                      {course.type === CourseType.BUNDLE ? 'View Bundle' : 'Continue Learning'}

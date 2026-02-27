@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
+import { logger } from '../utils/logger';
 
 interface UseVideoUrlResult {
   videoUrl: string | null;
@@ -9,33 +10,36 @@ interface UseVideoUrlResult {
   refreshUrl: () => Promise<void>;
 }
 
-/**
- * Custom hook for handling video URLs with signed tokens and HLS streaming
- * Uses Supabase Edge Function for signed URL generation
- */
 export const useVideoUrl = (
   videoId: string | null | undefined,
+  moduleId: string | null | undefined,
   fallbackUrl: string
 ): UseVideoUrlResult => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [refreshTimer, setRefreshTimer] = useState<NodeJS.Timeout | null>(null);
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchSignedUrl = async () => {
+  const fetchSignedUrl = useCallback(async (isRefresh = false) => {
     if (!videoId) {
       setVideoUrl(fallbackUrl);
       setHlsUrl(null);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    // Only show loading spinner on initial fetch, not refreshes
+    if (!isRefresh) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
+      const body: Record<string, string> = { videoId };
+      if (moduleId) body.moduleId = moduleId;
+
       const { data, error: fnError } = await supabase.functions.invoke('video-signed-url', {
-        body: { videoId },
+        body,
       });
 
       if (fnError) throw new Error(fnError.message);
@@ -51,35 +55,40 @@ export const useVideoUrl = (
         const refreshTime = expiresAt - now - (5 * 60 * 1000);
 
         if (refreshTime > 0) {
-          const timer = setTimeout(() => {
-            fetchSignedUrl();
+          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+          refreshTimerRef.current = setTimeout(() => {
+            fetchSignedUrl(true);
           }, refreshTime);
-          setRefreshTimer(timer);
         }
       }
     } catch (err: any) {
-      console.error('Failed to fetch signed video URL:', err);
-      setError(err.message || 'Failed to load video');
-      setVideoUrl(fallbackUrl);
-      setHlsUrl(null);
+      logger.error('Failed to fetch signed video URL:', err);
+      // On refresh failure, keep existing URLs instead of falling back
+      if (!isRefresh) {
+        setError(err.message || 'Failed to load video');
+        setVideoUrl(fallbackUrl);
+        setHlsUrl(null);
+      }
     } finally {
-      setIsLoading(false);
+      if (!isRefresh) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [videoId, moduleId, fallbackUrl]);
 
-  const refreshUrl = async () => {
-    await fetchSignedUrl();
-  };
+  const refreshUrl = useCallback(async () => {
+    await fetchSignedUrl(true);
+  }, [fetchSignedUrl]);
 
   useEffect(() => {
     fetchSignedUrl();
 
     return () => {
-      if (refreshTimer) {
-        clearTimeout(refreshTimer);
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
       }
     };
-  }, [videoId, fallbackUrl]);
+  }, [fetchSignedUrl]);
 
   return {
     videoUrl,

@@ -41,7 +41,7 @@ export const useScript = (src: string): boolean => {
     const handleError = () => {
       setError(true);
       setLoaded(false);
-      console.error(`[useScript] Error loading: ${src}`);
+      logger.error(`[useScript] Error loading: ${src}`);
     };
 
     script.addEventListener('load', handleLoad);

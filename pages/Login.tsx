@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, ArrowRight, CheckCircle2, Shield, Zap, Star } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 export const Login: React.FC = () => {
   const { user, loginDev, loginWithGoogle, isLoading: authLoading } = useAuth();
@@ -42,7 +43,7 @@ export const Login: React.FC = () => {
       await loginDev(isAdmin);
       // Navigation will happen automatically via useEffect when user changes
     } catch (error) {
-      console.error('Login failed:', error);
+      logger.error('Login failed:', error);
       setError(error instanceof Error ? error.message : 'Login failed. Please try again.');
       setIsLoading(false);
     }
@@ -55,7 +56,7 @@ export const Login: React.FC = () => {
       await loginWithGoogle();
       // Supabase handles redirect - user state updates via onAuthStateChange
     } catch (error) {
-      console.error('Google login failed:', error);
+      logger.error('Google login failed:', error);
       setError(error instanceof Error ? error.message : 'Google login failed. Please try again.');
       setIsLoading(false);
     }

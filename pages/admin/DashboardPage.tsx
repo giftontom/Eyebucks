@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, BookOpen, Award } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import { StatsCard } from './components/StatsCard';
 import { SalesChart } from './components/SalesChart';
 import { ActivityFeed } from './components/ActivityFeed';
@@ -25,7 +26,7 @@ export const DashboardPage: React.FC = () => {
       setSalesData(salesRes.sales);
       setRecentActivity(activityRes.activity);
     } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
+      logger.error('Failed to fetch dashboard data:', err);
     } finally {
       setLoading(false);
     }
@@ -38,7 +39,7 @@ export const DashboardPage: React.FC = () => {
       const salesRes = await adminApi.getSales(days);
       setSalesData(salesRes.sales);
     } catch (err) {
-      console.error('Failed to fetch sales data:', err);
+      logger.error('Failed to fetch sales data:', err);
     }
   };
 

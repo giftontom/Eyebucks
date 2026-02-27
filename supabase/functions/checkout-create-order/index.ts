@@ -2,55 +2,30 @@
 // Replaces: POST /api/checkout/create-order
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+import { verifyAuth } from '../_shared/auth.ts';
+import { jsonResponse, errorResponse } from '../_shared/response.ts';
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Create Supabase client with service role for DB operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    // Verify authenticated user
+    const auth = await verifyAuth(req, corsHeaders);
+    if ('errorResponse' in auth) return auth.errorResponse;
+    const { user } = auth;
 
-    // Verify user from JWT
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const supabaseAdmin = createAdminClient();
 
     const { courseId } = await req.json();
     if (!courseId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'courseId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('courseId is required', corsHeaders, 400);
     }
 
     // Fetch course
@@ -62,10 +37,12 @@ serve(async (req) => {
       .single();
 
     if (courseError || !course) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Course not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Course not found', corsHeaders, 404);
+    }
+
+    // Reject free courses — no payment required
+    if (course.price <= 0) {
+      return errorResponse('This course is free — no payment required', corsHeaders, 400);
     }
 
     // Check existing enrollment
@@ -78,10 +55,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existing) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Already enrolled in this course' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Already enrolled in this course', corsHeaders, 409);
     }
 
     // Create Razorpay order
@@ -109,30 +83,22 @@ serve(async (req) => {
     if (!razorpayResponse.ok) {
       const errorText = await razorpayResponse.text();
       console.error('[Checkout] Razorpay order creation failed:', errorText);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create payment order' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Failed to create payment order', corsHeaders, 500);
     }
 
     const order = await razorpayResponse.json();
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
-        key: razorpayKeyId,
-        courseTitle: course.title,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key: razorpayKeyId,
+      courseTitle: course.title,
+    }, corsHeaders);
   } catch (error) {
     console.error('[Checkout] Error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const corsHeaders = getCorsHeaders(req);
+    return errorResponse('Internal server error', corsHeaders, 500);
   }
 });

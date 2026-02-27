@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Loader2, CheckCircle2, Layers, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/apiClient';
+import { coursesApi, enrollmentsApi, checkoutApi } from '../services/api';
 import { useScript } from '../hooks/useScript';
 import { logger } from '../utils/logger';
 import { CourseType } from '../types';
@@ -85,7 +85,7 @@ export const Checkout: React.FC = () => {
       setIsLoadingCourse(false);
       return;
     }
-    apiClient.getCourse(id)
+    coursesApi.getCourse(id)
       .then(res => setCourse(res.course))
       .catch(err => logger.error('[Checkout] Failed to load course:', err))
       .finally(() => setIsLoadingCourse(false));
@@ -104,10 +104,10 @@ export const Checkout: React.FC = () => {
     const checkOwnership = async () => {
       if (user && id) {
         try {
-          const response = await apiClient.checkAccess(user.id, id);
-          setAlreadyOwned(response.hasAccess);
+          const hasAccess = await enrollmentsApi.checkAccess(id);
+          setAlreadyOwned(hasAccess);
         } catch (error) {
-          console.error('Error checking ownership:', error);
+          logger.error('Error checking ownership:', error);
         }
       }
       setIsCheckingOwnership(false);
@@ -200,10 +200,7 @@ export const Checkout: React.FC = () => {
       // Step 1: Create Order
       setStatus('CREATING_ORDER');
 
-      const orderResponse = await apiClient.createOrder({
-        courseId: course.id,
-        userId: user.id
-      });
+      const orderResponse = await checkoutApi.createOrder(course.id);
 
       logger.debug('[Checkout] Order created:', orderResponse);
 
@@ -265,7 +262,7 @@ export const Checkout: React.FC = () => {
         );
       }
     } catch (error: any) {
-      console.error('[Checkout] Error:', error);
+      logger.error('[Checkout] Error:', error);
       setStatus('IDLE');
       setErrorMessage(error.message || 'Payment failed. Please try again.');
     }
@@ -275,12 +272,11 @@ export const Checkout: React.FC = () => {
     try {
       setStatus('VERIFYING');
 
-      const verifyResponse = await apiClient.verifyPayment({
+      const verifyResponse = await checkoutApi.verifyPayment({
         orderId: orderId,
         paymentId: response.razorpay_payment_id,
         signature: response.razorpay_signature,
         courseId: course.id,
-        userId: user!.id
       });
 
       if (verifyResponse.verified) {
@@ -295,7 +291,7 @@ export const Checkout: React.FC = () => {
         throw new Error('Payment verification failed');
       }
     } catch (error: any) {
-      console.error('[Checkout] Verification error:', error);
+      logger.error('[Checkout] Verification error:', error);
       setStatus('IDLE');
       setErrorMessage('Payment verification failed. Please contact support.');
     }

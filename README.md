@@ -1,473 +1,314 @@
-# 🎓 Eyebuckz LMS - Complete Learning Management System
+# Eyebuckz LMS - Learning Management System
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6)
-![Node](https://img.shields.io/badge/Node-18+-339933)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e)
 
-**A modern, full-stack Learning Management System built with React, TypeScript, Express, and PostgreSQL.**
+**A modern LMS built with React, TypeScript, and Supabase.**
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Deploy](#-deploy-to-production) • [Documentation](#-documentation)
+[Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Deploy](#deploy)
 
 </div>
 
 ---
 
-## 🌟 Features
+## Features
 
-### For Students
-- 📚 Browse comprehensive course catalog
-- 💳 Secure payment processing (Razorpay)
-- 🎥 HD video streaming with progress tracking
-- ⏯️ Auto-resume from last position
-- 📝 Personal notes per module
-- 📊 Progress tracking dashboard
-- 🏆 Course completion certificates
+**Students:** Course catalog, Razorpay payments, HLS video streaming (Bunny.net), progress tracking with auto-resume, personal notes, course completion certificates, real-time notifications.
 
-### For Admins
-- 📈 Real-time analytics dashboard
-- 🎯 Complete course management (CRUD)
-- 👥 User management & role control
-- 🎖️ Certificate issuance & management
-- 📦 Module management with drag-drop reordering
-- 💰 Revenue tracking & reporting
-
-### Technical
-- ⚡ Full-stack TypeScript
-- 🔐 JWT authentication + Google OAuth
-- 💾 PostgreSQL with Prisma ORM
-- 🎨 Modern UI with Tailwind CSS
-- 📱 Fully responsive design
-- 🔒 Enterprise-grade security
-- ☁️ Cloudinary video hosting
-- 📧 Email notifications (Resend)
-- 🛡️ Error boundaries & graceful fallbacks
+**Admins:** Analytics dashboard, course & module CRUD, user management, certificate issuance, CMS content editor, revenue tracking, video uploads.
 
 ---
 
-## 🚀 Quick Start
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, TypeScript 5.8, Vite 6, Tailwind CSS, React Router 7 |
+| Backend | Supabase (PostgreSQL, Auth, RLS, Realtime, Storage) |
+| Edge Functions | Deno runtime (checkout, video signing, certificates, progress) |
+| Payments | Razorpay (order creation, verification, webhooks) |
+| Video | Bunny.net Stream (HLS, signed URLs, CDN) |
+| Email | Resend (transactional emails) |
+| Error Tracking | Sentry |
+| Charts | Recharts |
+| Icons | Lucide React |
+| Deploy | Cloudflare Pages (frontend) + Supabase (backend) |
+
+---
+
+## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- npm or yarn
 
-### Installation (5 minutes)
+- Node.js 18+
+- npm
+- [Supabase CLI](https://supabase.com/docs/guides/cli) (for local dev)
+
+### Setup
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/YOUR_USERNAME/eyebuckz-lms.git
-cd eyebuckz-lms
-
-# 2. Backend setup
-cd server
+# Clone and install
+git clone <repo-url>
+cd eyebuckz
 npm install
 
-# Create .env file
-cat > .env << EOF
-DATABASE_URL="postgresql://localhost:5432/eyebuckz"
-PORT=4000
-NODE_ENV=development
-ALLOWED_ORIGINS="http://localhost:5173"
-JWT_SECRET="test-secret-key-123"
-EOF
+# Copy environment template
+cp .env.example .env
+# Edit .env with your Supabase project URL and anon key
 
-# Setup database
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-
-# Start backend
-npm run dev
-
-# 3. Frontend setup (new terminal)
-cd ..
-npm install
-
-# Create .env.local
-echo 'VITE_API_URL=http://localhost:4000' > .env.local
+# Start local Supabase (optional - for local development)
+supabase start
+supabase db reset   # runs migrations + seed
 
 # Start frontend
 npm run dev
 ```
 
-**Access:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:4000
-- Database UI: `npm run prisma:studio` (port 5555)
+**Access:** http://localhost:3000
 
-**Test Accounts:**
-- Admin: admin@eyebuckz.com
-- User: demo@example.com
+**Dev accounts:** admin@eyebuckz.com / test@example.com (via dev login)
 
-**See:** [QUICK_START.md](QUICK_START.md) for detailed setup guide.
-
----
-
-## 🌐 Deploy to Production
-
-### Option 1: Interactive Script (Recommended)
+### Scripts
 
 ```bash
-./deploy.sh
+npm run dev            # Start dev server (port 3000)
+npm run build          # Production build
+npm run preview        # Preview production build
+npm test               # Run tests (Vitest)
+npm run test:ui        # Tests with browser UI
+npm run test:coverage  # Coverage report
+npm run lint           # ESLint check
+npm run lint:fix       # Auto-fix lint issues
+npm run format         # Prettier format
+npm run type-check     # TypeScript check
 ```
-
-### Option 2: Manual Deployment (10 minutes)
-
-1. **Deploy Backend to Railway**
-   - Create PostgreSQL database
-   - Deploy Node.js app from GitHub
-   - Set root directory to `server`
-   - Add environment variables
-
-2. **Deploy Frontend to Vercel**
-   - Import GitHub repository
-   - Add `VITE_API_URL` variable
-   - Deploy
-
-3. **Configure & Test**
-   - Update CORS settings
-   - Run database migrations
-   - Test all features
-
-**See:** [DEPLOY_NOW.md](DEPLOY_NOW.md) for quick deployment
-**Full Guide:** [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)
-
-**Deployment Cost:** $5-10/month
 
 ---
 
-## 📁 Project Structure
+## Architecture
+
+### Project Structure
 
 ```
-eyebuckz-lms/
-├── server/                    # Backend API
-│   ├── src/
-│   │   ├── routes/           # API endpoints (43 total)
-│   │   ├── middleware/       # Auth, validation, error handling
-│   │   ├── services/         # Business logic
-│   │   └── index.ts          # Express app
-│   ├── prisma/
-│   │   ├── schema.prisma     # Database schema (7 models)
-│   │   └── seed.ts           # Test data
-│   └── package.json
+eyebuckz/
+├── index.html                 # HTML entry
+├── index.tsx                  # React entry (handles OAuth callback)
+├── App.tsx                    # HashRouter, routes, providers
+├── constants.ts               # App constants
 │
-├── src/                       # Frontend
-│   ├── pages/                # Route components
-│   │   ├── Storefront.tsx    # Course catalog
-│   │   ├── CourseDetails.tsx # Course info
-│   │   ├── Checkout.tsx      # Payment flow
-│   │   ├── Dashboard.tsx     # User dashboard
-│   │   ├── Learn.tsx         # Video player
-│   │   └── Admin.tsx         # Admin portal
-│   ├── components/           # Reusable components
-│   ├── context/              # React Context (Auth)
-│   ├── services/             # API clients
-│   └── hooks/                # Custom hooks
+├── components/                # Shared UI components (14)
+│   ├── Layout.tsx             # App shell, nav, sidebar
+│   ├── VideoPlayer.tsx        # HLS player (hls.js + Bunny.net)
+│   ├── VideoUploader.tsx      # Admin video upload
+│   ├── ErrorBoundary.tsx      # Error boundary
+│   ├── ProtectedRoute.tsx     # Auth guard
+│   ├── EnrollmentGate.tsx     # Enrollment access check
+│   ├── NotificationBell.tsx   # Real-time notification UI
+│   ├── SearchBar.tsx          # Course search
+│   ├── CourseFilters.tsx      # Course filter controls
+│   ├── ReviewForm.tsx         # Course review form
+│   ├── ReviewList.tsx         # Course reviews display
+│   ├── StarRating.tsx         # Star rating component
+│   ├── Toast.tsx              # Toast notifications
+│   └── CourseCardSkeleton.tsx # Loading skeleton
 │
-├── docs/                      # Documentation
-│   ├── PHASE_2A_COMPLETE.md  # Backend foundation
-│   ├── PHASE_2B_COMPLETE.md  # Payments & auth
-│   ├── PHASE_4_COMPLETE.md   # Testing & polish
-│   ├── PHASE_5_COMPLETE.md   # Advanced features
-│   ├── USER_FLOWS.md         # User journey guides
-│   ├── ACCESS_CONTROL.md     # Security docs
-│   └── DATA_ARCHITECTURE.md  # Database design
+├── pages/                     # Route pages
+│   ├── Storefront.tsx         # Course catalog (/)
+│   ├── CourseDetails.tsx      # Course info (/course/:id)
+│   ├── Checkout.tsx           # Payment flow (/checkout/:id)
+│   ├── Dashboard.tsx          # User dashboard (/dashboard)
+│   ├── Learn.tsx              # Video player + progress (/learn/:id)
+│   ├── Profile.tsx            # User profile (/profile)
+│   ├── Login.tsx              # Auth page (/login)
+│   ├── PurchaseSuccess.tsx    # Post-payment (/success)
+│   ├── Privacy.tsx            # Privacy policy (/privacy)
+│   ├── Terms.tsx              # Terms of service (/terms)
+│   └── admin/                 # Admin panel (/admin/*)
+│       ├── AdminRoutes.tsx    # Admin route definitions
+│       ├── AdminLayout.tsx    # Admin shell + sidebar
+│       ├── AdminContext.tsx    # Admin state provider
+│       ├── DashboardPage.tsx  # Admin analytics
+│       ├── CoursesPage.tsx    # Course management
+│       ├── CourseEditorPage.tsx # Course editor
+│       ├── UsersPage.tsx      # User management
+│       ├── UserDetailPage.tsx # User detail view
+│       ├── CertificatesPage.tsx # Certificate management
+│       ├── PaymentsPage.tsx   # Payment records
+│       ├── ContentPage.tsx    # CMS content editor
+│       └── components/        # Admin-specific components (12)
 │
-├── QUICK_START.md            # 5-minute setup guide
-├── DEPLOY_NOW.md             # Quick deployment
-├── PRODUCTION_DEPLOYMENT.md  # Complete deployment guide
-├── PROJECT_STATUS.md         # Current project status
-├── deploy.sh                 # Interactive deployment script
-└── README.md                 # This file
+├── context/
+│   └── AuthContext.tsx         # Supabase Auth (Google OAuth + dev mode)
+│
+├── hooks/
+│   ├── useAccessControl.ts    # Enrollment access checks
+│   ├── useRealtimeNotifications.ts  # Supabase Realtime subscription
+│   ├── useScript.ts           # Dynamic script loading (Razorpay)
+│   └── useVideoUrl.ts         # Bunny.net signed URL management
+│
+├── services/
+│   ├── supabase.ts            # Supabase client singleton
+│   ├── apiClient.ts           # API facade (backward compat)
+│   ├── authService.ts         # Auth helpers
+│   ├── enrollmentService.ts   # Enrollment helpers
+│   ├── progressService.ts     # Progress helpers
+│   └── api/                   # Typed Supabase query modules
+│       ├── index.ts           # Barrel export
+│       ├── courses.api.ts     # Course queries
+│       ├── enrollments.api.ts # Enrollment queries
+│       ├── progress.api.ts    # Progress tracking
+│       ├── checkout.api.ts    # Payment Edge Function calls
+│       ├── admin.api.ts       # Admin operations
+│       ├── certificates.api.ts # Certificate queries
+│       ├── notifications.api.ts # Notification queries
+│       ├── payments.api.ts    # Payment records
+│       └── siteContent.api.ts # CMS content queries
+│
+├── types/
+│   ├── index.ts               # Business types (User, Course, Module, etc.)
+│   ├── api.ts                 # API request/response types
+│   └── supabase.ts            # Auto-generated DB types
+│
+├── utils/
+│   ├── logger.ts              # Conditional logger (dev/prod)
+│   └── dataExport.ts          # Data export utility
+│
+├── supabase/
+│   ├── config.toml            # Supabase project config
+│   ├── seed.sql               # Seed data
+│   ├── migrations/            # 7 SQL migrations
+│   │   ├── 001_initial_schema.sql     # Core tables
+│   │   ├── 002_functions.sql          # PL/pgSQL functions
+│   │   ├── 003_rls_policies.sql       # Row Level Security
+│   │   ├── 004_auth_trigger.sql       # Auth user creation trigger
+│   │   ├── 005_storage.sql            # Storage buckets
+│   │   ├── 006_production_gaps.sql    # Reviews, notifications, payments, CMS
+│   │   └── 007_bundle_courses.sql     # Bundle course support
+│   └── functions/             # 7 Edge Functions (Deno)
+│       ├── checkout-create-order/     # Create Razorpay order
+│       ├── checkout-verify/           # Verify payment + enroll
+│       ├── checkout-webhook/          # Razorpay webhook handler
+│       ├── video-signed-url/          # Bunny.net signed URL generation
+│       ├── admin-video-upload/        # Video upload to Bunny.net
+│       ├── certificate-generate/      # Certificate PDF generation
+│       └── progress-complete/         # Atomic module completion
+│
+└── src/__tests__/             # Test files (Vitest + jsdom)
 ```
 
+### Routes
+
+| Path | Component | Access |
+|------|-----------|--------|
+| `/` | Storefront | Public |
+| `/login` | Login | Public |
+| `/course/:id` | CourseDetails | Public |
+| `/privacy` | Privacy | Public |
+| `/terms` | Terms | Public |
+| `/checkout/:id` | Checkout | Auth required |
+| `/dashboard` | Dashboard | Auth required |
+| `/learn/:id` | Learn | Auth required |
+| `/profile` | Profile | Auth required |
+| `/success` | PurchaseSuccess | Auth required |
+| `/admin/*` | AdminRoutes | Auth required |
+
+### Security Model
+
+All data access is secured via Supabase Row Level Security (RLS):
+
+- **Users** can only read/write their own data (enrollments, progress, certificates, notifications)
+- **Admins** have full access via `is_admin()` SQL function
+- **Edge Functions** use `service_role` key for privileged operations (payment processing, certificate generation)
+- **Razorpay** HMAC signature verification in checkout-verify Edge Function
+- **Video URLs** are signed server-side with time-limited tokens (Bunny.net)
+
 ---
 
-## 🗄️ Database Schema
+## Environment Variables
 
-**7 Core Models:**
-- `User` - Authentication & profiles
-- `Course` - Course metadata & pricing
-- `Module` - Video lessons & content
-- `Enrollment` - Student-course relationships
-- `Progress` - Video progress tracking
-- `Certificate` - Course completion certificates
-- `Review` - Course ratings & reviews
+### Frontend (.env)
 
-**See:** [docs/DATA_ARCHITECTURE.md](docs/DATA_ARCHITECTURE.md)
-
----
-
-## 🔑 Environment Variables
-
-### Backend (`server/.env`)
-
-**Required:**
 ```env
-DATABASE_URL="postgresql://localhost:5432/eyebuckz"
-NODE_ENV=development
-PORT=4000
-JWT_SECRET=your-secret-key
-ALLOWED_ORIGINS=http://localhost:5173
+# Required
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbG...
+VITE_RAZORPAY_KEY_ID=rzp_test_xxxxx
+
+# Optional
+VITE_SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+VITE_MOCK_PAYMENT=true
+VITE_DEBUG_MODE=true
 ```
 
-**Optional** (mock mode works without these):
-```env
-RAZORPAY_KEY_ID=rzp_test_xxxxx
-RAZORPAY_KEY_SECRET=xxxxx
-GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
-CLOUDINARY_CLOUD_NAME=your-cloud
-CLOUDINARY_API_KEY=xxxxx
-CLOUDINARY_API_SECRET=xxxxx
-RESEND_API_KEY=re_xxxxx
-RESEND_FROM_EMAIL=noreply@yourdomain.com
-ADMIN_EMAILS=admin@example.com
+### Supabase Edge Function Secrets
+
+Set via `supabase secrets set`:
+
 ```
-
-### Frontend (`.env.local`)
-
-```env
-VITE_API_URL=http://localhost:4000
-VITE_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+BUNNY_STREAM_API_KEY, BUNNY_STREAM_LIBRARY_ID, BUNNY_STREAM_CDN_HOSTNAME, BUNNY_STREAM_TOKEN_KEY
+RESEND_API_KEY, RESEND_FROM_EMAIL
+ADMIN_EMAILS, APP_URL
 ```
 
 ---
 
-## 📚 Documentation
+## Database
 
-### Quick References
-- [QUICK_START.md](QUICK_START.md) - 5-minute setup
-- [DEPLOY_NOW.md](DEPLOY_NOW.md) - Quick deployment
-- [PROJECT_STATUS.md](PROJECT_STATUS.md) - Current status & roadmap
+**PostgreSQL via Supabase** with 7 sequential migrations:
 
-### Implementation Guides
-- [docs/IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md) - Complete roadmap
-- [docs/USER_FLOWS.md](docs/USER_FLOWS.md) - User journeys
-- [docs/ACCESS_CONTROL.md](docs/ACCESS_CONTROL.md) - Security architecture
-- [docs/DATA_ARCHITECTURE.md](docs/DATA_ARCHITECTURE.md) - Database design
+**Core tables:** users, courses, modules, enrollments, progress, certificates, reviews, notifications, payments, site_content, bundle_courses
 
-### Completion Reports
-- [docs/PHASE_2A_COMPLETE.md](docs/PHASE_2A_COMPLETE.md) - Backend foundation
-- [docs/PHASE_2B_COMPLETE.md](docs/PHASE_2B_COMPLETE.md) - Payments & auth
-- [docs/PHASE_4_COMPLETE.md](docs/PHASE_4_COMPLETE.md) - Testing & polish
-- [docs/PHASE_5_COMPLETE.md](docs/PHASE_5_COMPLETE.md) - Advanced features
+**Key functions:** `is_admin()`, `complete_module()`, `get_admin_stats()`, `get_progress_stats()`, `get_course_analytics()`, `update_course_rating()`
 
-### Deployment
-- [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) - Complete guide
-- [server/README.md](server/README.md) - Backend setup
+**Auth trigger:** Automatically creates user profile on Supabase Auth signup.
 
 ---
 
-## 🧪 Testing
+## Deploy
 
-### Run Local Development
+### Frontend (Cloudflare Pages)
+
+1. Connect repository on Cloudflare Pages dashboard
+2. Build settings: Framework preset `None`, build command `npm run build`, output directory `dist`
+3. Set environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_RAZORPAY_KEY_ID`)
+4. Deploy (or push to trigger auto-deploy)
+
+### Backend (Supabase)
+
+1. Link project: `supabase link --project-ref <ref>`
+2. Push migrations: `supabase db push`
+3. Deploy functions: `supabase functions deploy`
+4. Set secrets: `supabase secrets set KEY=value`
+
+---
+
+## Testing
 
 ```bash
-# Start backend
-cd server && npm run dev
-
-# Start frontend (new terminal)
-npm run dev
-
-# Open Prisma Studio (new terminal)
-cd server && npm run prisma:studio
+npm test                # Run all tests
+npm run test:coverage   # With coverage report
+npm run test:ui         # Browser-based test UI
 ```
 
-### Test Flows
-
-1. **Mock Payment (No API keys needed)**
-   - Browse courses
-   - Click "Enroll Now"
-   - Complete mock payment
-   - Access course content
-
-2. **Video Learning**
-   - Watch video for 30+ seconds
-   - Progress auto-saves
-   - Close and reopen - resumes from last position
-
-3. **Admin Portal**
-   - Login as admin@eyebuckz.com
-   - Create/edit courses
-   - Manage users
-   - Issue certificates
+Tests use Vitest with jsdom environment and React Testing Library.
 
 ---
 
-## 🛠️ Tech Stack
+## Contributing
 
-### Frontend
-- React 19
-- TypeScript 5.8
-- Vite 6
-- Tailwind CSS 4
-- React Router 7
-- Lucide Icons
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and workflow.
 
-### Backend
-- Node.js 18+
-- Express 4
-- TypeScript 5.8
-- Prisma ORM 6
-- PostgreSQL 14+
+See [CODING_STANDARDS.md](CODING_STANDARDS.md) for code style guidelines.
 
-### Integrations
-- Razorpay (Payments)
-- Google OAuth (Authentication)
-- Cloudinary (Video hosting)
-- Resend (Email)
-- JWT (Sessions)
-
-### Infrastructure
-- Railway (Backend + Database)
-- Vercel (Frontend)
-- GitHub (Version control)
+See [SECURITY_STANDARDS.md](SECURITY_STANDARDS.md) for security practices.
 
 ---
 
-## 📊 Statistics
+## License
 
-- **Codebase:** ~7,300 lines of TypeScript
-- **API Endpoints:** 43 (19 public + 24 admin)
-- **Database Models:** 7 with full relations
-- **Documentation:** 12 comprehensive guides
-- **Development Time:** ~24 hours total
-- **Production Readiness:** 95%
-
----
-
-## 🔐 Security
-
-- ✅ JWT authentication
-- ✅ Password hashing (bcrypt)
-- ✅ CORS protection
-- ✅ Helmet.js security headers
-- ✅ Rate limiting
-- ✅ Input validation (Joi)
-- ✅ SQL injection protection (Prisma)
-- ✅ XSS protection
-- ✅ Payment signature verification
-- ✅ Webhook signature validation
-
----
-
-## 🚦 Status
-
-**Current Phase:** Phase 6 - Production Deployment ✅
-**Production Ready:** 95%
-**Status:** Ready for deployment
-
-✅ **Complete:**
-- Core features
-- Backend API
-- Frontend UI
-- Admin portal
-- Payment processing
-- Video streaming
-- Progress tracking
-- Authentication
-- Deployment infrastructure
-
-⚠️ **Optional Enhancements:**
-- Production API keys
-- Monitoring setup
-- Analytics integration
-
----
-
-## 💰 Cost Breakdown
-
-### Development
-- **$0/month** - Works completely offline with mock data
-
-### Production (Minimum)
-- Railway: $5/month (Backend + Database)
-- Vercel: $0/month (Frontend)
-- **Total: $5/month** + 2% per transaction
-
-### Production (Scaled)
-- Railway Pro: $20/month
-- Vercel Pro: $20/month
-- Cloudinary Plus: $89/month
-- Resend Pro: $20/month
-- **Total: ~$149/month** + 2% per transaction
-
----
-
-## 🤝 Contributing
-
-This is a private project, but feedback and suggestions are welcome!
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
-
----
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) for details
-
----
-
-## 🆘 Support
-
-- **Documentation:** Check `/docs` folder
-- **Issues:** GitHub Issues
-- **Email:** support@eyebuckz.com
-
----
-
-## 🗺️ Roadmap
-
-### Phase 6: Production Deployment ✅ (Current)
-- Railway + Vercel deployment
-- Complete documentation
-- Interactive deployment script
-
-### Phase 7: Post-Launch Enhancements
-- User analytics (Google Analytics)
-- Course search & filtering
-- Reviews & ratings system
-- Performance optimization
-- Redis caching
-- Mobile app (React Native)
-
-### Phase 8: Advanced Features
-- Discussion forums
-- Live sessions
-- Bulk course upload
-- Subtitle support
-- Multiple quality options
-- Student leaderboards
-
----
-
-## 🎉 Quick Links
-
-| Link | Description |
-|------|-------------|
-| [Quick Start](QUICK_START.md) | 5-minute local setup |
-| [Deploy Now](DEPLOY_NOW.md) | 10-minute production deployment |
-| [Full Deployment Guide](PRODUCTION_DEPLOYMENT.md) | Complete deployment docs |
-| [Project Status](PROJECT_STATUS.md) | Current status & roadmap |
-| [User Flows](docs/USER_FLOWS.md) | User journey guides |
-| [API Documentation](server/README.md) | Backend API reference |
-
----
-
-<div align="center">
-
-**Built with ❤️ using React, TypeScript, Express, and PostgreSQL**
-
-**Ready to deploy?** Run `./deploy.sh` or see [DEPLOY_NOW.md](DEPLOY_NOW.md)
-
-[⬆ Back to Top](#-eyebuckz-lms---complete-learning-management-system)
-
-</div>
+MIT

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2 } from 'lucide-react';
-import { apiClient } from '../services/apiClient';
-import { paymentsApi } from '../services/api/payments.api';
+import { coursesApi, paymentsApi } from '../services/api';
 import type { Payment } from '../services/api/payments.api';
 import { useAuth } from '../context/AuthContext';
 import { logger } from '../utils/logger';
@@ -27,7 +26,7 @@ export const PurchaseSuccess: React.FC = () => {
 
   useEffect(() => {
     if (!courseId) { setIsLoading(false); return; }
-    apiClient.getCourse(courseId)
+    coursesApi.getCourse(courseId)
       .then(res => setCourse(res.course))
       .catch(() => {})
       .finally(() => setIsLoading(false));

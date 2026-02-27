@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { logger } from '../utils/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -34,8 +35,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // Log error to console (in production, you'd send to error tracking service)
-    console.error('[ErrorBoundary] Caught error:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
+    logger.error('[ErrorBoundary] Caught error:', error);
+    logger.error('[ErrorBoundary] Error info:', errorInfo);
 
     this.setState({
       error,
@@ -55,10 +56,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             },
           });
         }).catch((importErr) => {
-          console.error('[ErrorBoundary] Failed to load Sentry module:', importErr);
+          logger.error('[ErrorBoundary] Failed to load Sentry module:', importErr);
         });
       } catch (err) {
-        console.error('[ErrorBoundary] Failed to send error to Sentry:', err);
+        logger.error('[ErrorBoundary] Failed to send error to Sentry:', err);
       }
     }
   }

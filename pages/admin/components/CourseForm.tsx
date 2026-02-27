@@ -1,6 +1,6 @@
 import React from 'react';
 import { BundleCoursePicker } from './BundleCoursePicker';
-import type { AdminCourse } from '../../../types';
+import type { AdminCourse, CourseType } from '../../../types';
 
 interface CourseFormData {
   title: string;
@@ -8,7 +8,7 @@ interface CourseFormData {
   description: string;
   price: string;
   thumbnail: string;
-  type: 'MODULE' | 'BUNDLE';
+  type: CourseType;
   features: string[];
 }
 
@@ -87,7 +87,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         <select
           value={formData.type}
           onChange={(e) => {
-            const newType = e.target.value as 'MODULE' | 'BUNDLE';
+            const newType = e.target.value as CourseType;
             update({ type: newType });
             if (newType !== 'BUNDLE') onBundledCourseIdsChange([]);
           }}

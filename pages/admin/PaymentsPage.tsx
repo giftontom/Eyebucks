@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, CreditCard } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import { useAdmin } from './AdminContext';
 import { useDebounce } from './hooks/useDebounce';
 import { usePagination } from './hooks/usePagination';
@@ -33,7 +34,7 @@ export const PaymentsPage: React.FC = () => {
       setPayments(res.payments);
       setTotal(res.total);
     } catch (err: any) {
-      console.error('Failed to fetch payments:', err);
+      logger.error('Failed to fetch payments:', err);
     } finally {
       setLoading(false);
     }

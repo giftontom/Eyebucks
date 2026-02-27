@@ -6,6 +6,7 @@
 import type {
   User,
   Course,
+  CourseType,
   Module,
   Enrollment,
   EnrollmentWithCourse,
@@ -19,7 +20,6 @@ import type {
   VideoUploadResult,
   PaymentOrder,
   PaymentVerification,
-  Session
 } from './index';
 
 // ============================================
@@ -357,7 +357,7 @@ export interface CreateCourseRequest {
   description: string;
   price: number;
   thumbnail: string;
-  type: 'MODULE' | 'BUNDLE';
+  type: CourseType;
   features: string[];
   heroVideoId?: string;
 }

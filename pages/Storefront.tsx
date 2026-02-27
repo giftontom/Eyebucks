@@ -4,9 +4,8 @@ import { Play, Star, ArrowRight, Youtube, Users, CheckCircle2, Download, Message
 import { CourseType } from '../types';
 import type { Course } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { apiClient } from '../services/apiClient';
-import { siteContentApi } from '../services/api/siteContent.api';
-import type { SiteContentItem } from '../services/api/siteContent.api';
+import { coursesApi, siteContentApi } from '../services/api';
+import type { SiteContentItem } from '../types';
 
 // --- Fallback Data for Static Sections (used if DB is empty) ---
 
@@ -31,11 +30,14 @@ const DEFAULT_SHOWCASE = [
 ];
 
 // --- Animation Helper Component ---
-const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({ children, delay = 0, className = "" }) => {
+const FadeIn = React.memo<{ children: React.ReactNode; delay?: number; className?: string }>(({ children, delay = 0, className = "" }) => {
     const [isVisible, setIsVisible] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -46,12 +48,10 @@ const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; className?: 
             { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
         );
 
-        if (ref.current) {
-            observer.observe(ref.current);
-        }
+        observer.observe(el);
 
         return () => {
-            if (ref.current) observer.unobserve(ref.current);
+            observer.unobserve(el);
         };
     }, []);
 
@@ -66,7 +66,67 @@ const FadeIn: React.FC<{ children: React.ReactNode; delay?: number; className?: 
             {children}
         </div>
     );
-};
+});
+FadeIn.displayName = 'FadeIn';
+
+// --- Memoized Course Card ---
+const CourseCard = React.memo<{ course: Course; index: number; onBuy: (courseId: string) => void }>(({ course, index, onBuy }) => {
+    const isBundle = course.type === CourseType.BUNDLE;
+    return (
+        <FadeIn delay={index * 50} className={`${isBundle ? 'lg:col-span-2' : ''}`}>
+            <div className="group flex flex-col bg-white rounded-3xl overflow-hidden border border-neutral-200 hover:border-brand-500/30 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 h-full">
+                <Link to={`/course/${course.id}`} className={`relative overflow-hidden bg-neutral-900 block ${isBundle ? 'aspect-[2.2/1]' : 'aspect-[4/3]'}`}>
+                    <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
+                    <div className="absolute top-4 left-4 flex gap-2">
+                        <span className="bg-white/95 backdrop-blur-md text-neutral-900 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide shadow-lg">{course.type}</span>
+                        {isBundle && <span className="bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide animate-pulse shadow-lg shadow-brand-500/40">Best Value</span>}
+                    </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                        <div className="group-hover:scale-110 transition-transform duration-300 flex flex-col items-center gap-3">
+                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border border-white/50 backdrop-blur-md">
+                                <Play size={32} fill="white" className="ml-1 text-white" />
+                            </div>
+                            <span className="text-white font-bold tracking-widest text-sm uppercase">Preview Course</span>
+                        </div>
+                    </div>
+                </Link>
+                <div className="p-8 flex flex-col flex-grow relative">
+                    <div className="flex items-center gap-3 mb-4 text-xs font-bold text-neutral-500">
+                        <div className="flex text-yellow-500 bg-yellow-50 px-2 py-1 rounded-md">
+                            <Star size={12} fill="currentColor" className="mr-1"/>
+                            <span>{course.rating || '4.8'}</span>
+                        </div>
+                        <span className="flex items-center gap-1"><Users size={12}/> {course.totalStudents || 0} Students</span>
+                        {isBundle && course.bundledCourses ? (
+                            <span className="flex items-center gap-1"><Layers size={12}/> {course.bundledCourses.length} Courses</span>
+                        ) : (
+                            <span className="flex items-center gap-1"><Clapperboard size={12}/> {(course.chapters?.length || 0)} Lessons</span>
+                        )}
+                    </div>
+                    <Link to={`/course/${course.id}`} className="block">
+                        <h3 className="text-2xl font-bold text-neutral-900 mb-3 group-hover:text-brand-600 transition-colors leading-tight">{course.title}</h3>
+                        <p className="text-neutral-500 mb-8 line-clamp-2 text-sm leading-relaxed">{course.description}</p>
+                    </Link>
+                    <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100">
+                        <div className="flex flex-col">
+                            <span className="text-xs text-neutral-400 line-through font-medium">₹{Math.round(course.price * 1.5 / 100).toLocaleString()}</span>
+                            <div className="text-2xl font-bold text-neutral-900">₹{(course.price / 100).toLocaleString()}</div>
+                        </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onBuy(course.id); }}
+                            className="relative overflow-hidden bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3 rounded-full text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-xl shadow-neutral-900/20 hover:-translate-y-1 group/btn"
+                        >
+                            <span className="relative z-10 flex items-center gap-2">Buy Now <ArrowRight size={16}/></span>
+                            <div className="absolute inset-0 bg-brand-600 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform origin-left duration-300"></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </FadeIn>
+    );
+});
+CourseCard.displayName = 'CourseCard';
 
 export const Storefront: React.FC = () => {
   const [filterType, setFilterType] = useState<'ALL' | CourseType>('ALL');
@@ -84,7 +144,7 @@ export const Storefront: React.FC = () => {
 
   // Fetch courses from API
   useEffect(() => {
-    apiClient.getCourses()
+    coursesApi.getCourses()
       .then(res => {
         setCourses(res.courses);
         setIsLoading(false);
@@ -136,6 +196,10 @@ export const Storefront: React.FC = () => {
   const handleMouseLeave = () => {
       setRotate({ x: 0, y: 0 });
   };
+
+  const handleBuy = React.useCallback((courseId: string) => {
+    navigate(`/checkout/${courseId}`);
+  }, [navigate]);
 
   const filteredCourses = courses.filter(c => {
     if (filterType !== 'ALL' && c.type !== filterType) return false;
@@ -500,82 +564,9 @@ export const Storefront: React.FC = () => {
               <div className="text-center py-24 text-neutral-500">No courses available yet.</div>
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredCourses.map((course, index) => {
-                     const isBundle = course.type === CourseType.BUNDLE;
-                     return (
-                        <FadeIn key={course.id} delay={index * 50} className={`${isBundle ? 'lg:col-span-2' : ''}`}>
-                            <div 
-                                className={`group flex flex-col bg-white rounded-3xl overflow-hidden border border-neutral-200 hover:border-brand-500/30 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 h-full`}
-                            >
-                                {/* Card Header / Image */}
-                                <Link to={`/course/${course.id}`} className={`relative overflow-hidden bg-neutral-900 block ${isBundle ? 'aspect-[2.2/1]' : 'aspect-[4/3]'}`}>
-                                    <img 
-                                        src={course.thumbnail} 
-                                        alt={course.title} 
-                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 group-hover:opacity-100"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
-                                    
-                                    <div className="absolute top-4 left-4 flex gap-2">
-                                        <span className="bg-white/95 backdrop-blur-md text-neutral-900 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide shadow-lg">
-                                            {course.type}
-                                        </span>
-                                        {isBundle && <span className="bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide animate-pulse shadow-lg shadow-brand-500/40">Best Value</span>}
-                                    </div>
-                                    {/* Hover Play Overlay */}
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                                        <div className="group-hover:scale-110 transition-transform duration-300 flex flex-col items-center gap-3">
-                                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border border-white/50 backdrop-blur-md">
-                                                <Play size={32} fill="white" className="ml-1 text-white" />
-                                            </div>
-                                            <span className="text-white font-bold tracking-widest text-sm uppercase">Preview Course</span>
-                                        </div>
-                                    </div>
-                                </Link>
-                                
-                                {/* Card Content */}
-                                <div className="p-8 flex flex-col flex-grow relative">
-                                    <div className="flex items-center gap-3 mb-4 text-xs font-bold text-neutral-500">
-                                        <div className="flex text-yellow-500 bg-yellow-50 px-2 py-1 rounded-md">
-                                            <Star size={12} fill="currentColor" className="mr-1"/>
-                                            <span>{course.rating || '4.8'}</span>
-                                        </div>
-                                        <span className="flex items-center gap-1"><Users size={12}/> {course.totalStudents || 0} Students</span>
-                                        {isBundle && course.bundledCourses ? (
-                                            <span className="flex items-center gap-1"><Layers size={12}/> {course.bundledCourses.length} Courses</span>
-                                        ) : (
-                                            <span className="flex items-center gap-1"><Clapperboard size={12}/> {(course.chapters?.length || 0)} Lessons</span>
-                                        )}
-                                    </div>
-                                    <Link to={`/course/${course.id}`} className="block">
-                                        <h3 className="text-2xl font-bold text-neutral-900 mb-3 group-hover:text-brand-600 transition-colors leading-tight">
-                                            {course.title}
-                                        </h3>
-                                        <p className="text-neutral-500 mb-8 line-clamp-2 text-sm leading-relaxed">{course.description}</p>
-                                    </Link>
-                                    
-                                    <div className="mt-auto flex items-center justify-between pt-6 border-t border-neutral-100">
-                                        <div className="flex flex-col">
-                                            <span className="text-xs text-neutral-400 line-through font-medium">₹{Math.round(course.price * 1.5 / 100).toLocaleString()}</span>
-                                            <div className="text-2xl font-bold text-neutral-900">₹{(course.price / 100).toLocaleString()}</div>
-                                        </div>
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                navigate(`/checkout/${course.id}`);
-                                            }}
-                                            className="relative overflow-hidden bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3 rounded-full text-sm font-bold flex items-center gap-2 transition-all active:scale-95 shadow-xl shadow-neutral-900/20 hover:-translate-y-1 group/btn"
-                                        >
-                                            <span className="relative z-10 flex items-center gap-2">Buy Now <ArrowRight size={16}/></span>
-                                            <div className="absolute inset-0 bg-brand-600 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform origin-left duration-300"></div>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </FadeIn>
-                     );
-                })}
+                {filteredCourses.map((course, index) => (
+                    <CourseCard key={course.id} course={course} index={index} onBuy={handleBuy} />
+                ))}
             </div>
             )}
         </div>

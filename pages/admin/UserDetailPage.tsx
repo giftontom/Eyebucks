@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
+import { logger } from '../../utils/logger';
 import { useAdmin } from './AdminContext';
 import { StatusBadge } from './components/StatusBadge';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -48,7 +49,7 @@ export const UserDetailPage: React.FC = () => {
       const res = await adminApi.getUserDetails(userId);
       setUser(res.user);
     } catch (err: any) {
-      console.error('Failed to fetch user details:', err);
+      logger.error('Failed to fetch user details:', err);
       showToast(err.message || 'Failed to load user', 'error');
     } finally {
       setLoading(false);

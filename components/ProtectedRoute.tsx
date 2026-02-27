@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -12,20 +12,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   redirectTo = '/login'
 }) => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const location = useLocation();
-  const [isChecking, setIsChecking] = useState(true);
 
-  useEffect(() => {
-    // Small delay to prevent flash of redirect
-    const timer = setTimeout(() => {
-      setIsChecking(false);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isChecking) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">

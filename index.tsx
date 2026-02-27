@@ -50,7 +50,17 @@ if (!rootElement) {
  */
 async function handleOAuthCallbackIfNeeded(): Promise<void> {
   const hash = window.location.hash;
-  if (hash && (hash.includes('access_token=') || hash.includes('error_description='))) {
+  if (hash && hash.includes('error_description=')) {
+    // OAuth error — extract message and redirect to login with error
+    const params = new URLSearchParams(hash.substring(1));
+    const errorDesc = params.get('error_description') || 'Authentication failed';
+    logger.error('[OAuth] Error:', errorDesc);
+    window.history.replaceState(null, '', window.location.pathname + '#/login');
+    // Store error for the login page to display
+    sessionStorage.setItem('oauth_error', errorDesc);
+    return;
+  }
+  if (hash && hash.includes('access_token=')) {
     // getSession() awaits Supabase's internal _initialize(), which reads
     // window.location.hash (still intact — React hasn't rendered yet).
     await supabase.auth.getSession();
@@ -59,11 +69,13 @@ async function handleOAuthCallbackIfNeeded(): Promise<void> {
   }
 }
 
-handleOAuthCallbackIfNeeded().then(() => {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
-});
+handleOAuthCallbackIfNeeded()
+  .catch(err => logger.error('[OAuth] Callback error:', err))
+  .then(() => {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  });
