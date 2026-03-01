@@ -64,12 +64,17 @@ serve(async (req) => {
     if (moduleId) {
       const { data: module } = await supabaseAdmin
         .from('modules')
-        .select('course_id, is_free_preview')
+        .select('course_id, is_free_preview, video_url')
         .eq('id', moduleId)
         .single();
 
       if (!module) {
         return errorResponse('Module not found', corsHeaders, 404);
+      }
+
+      // Validate that the requested videoId matches this module's video
+      if (!isAdmin && module.video_url && !module.video_url.includes(videoId)) {
+        return errorResponse('Video does not belong to this module', corsHeaders, 403);
       }
 
       if (!module.is_free_preview && !isAdmin) {

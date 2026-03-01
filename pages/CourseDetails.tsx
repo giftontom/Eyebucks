@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
+import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi } from '../services/api';
 import ReviewList from '../components/ReviewList';
 import { CourseType } from '../types';
 import type { Course } from '../types';
+
+const FALLBACK_VIDEO = 'https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4';
 
 export const CourseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,15 +17,21 @@ export const CourseDetails: React.FC = () => {
   const { user, login } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { hasAccess, isLoading: isCheckingAccess, isEnrolled, isAdmin } = useAccessControl(id);
 
-  useEffect(() => {
+  const fetchCourse = () => {
     if (!id) { setIsLoadingCourse(false); return; }
+    setLoadError(null);
+    setIsLoadingCourse(true);
     coursesApi.getCourse(id)
       .then(res => setCourse(res.course))
-      .catch(() => {})
+      .catch((err) => setLoadError(err.message || 'Failed to load course'))
       .finally(() => setIsLoadingCourse(false));
-  }, [id]);
+  };
+
+  useEffect(() => { fetchCourse(); }, [id]);
+  const { videoUrl: heroVideoSrc } = useVideoUrl(course?.heroVideoId, null, FALLBACK_VIDEO);
   const [isMuted, setIsMuted] = useState(true);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'COURSES' | 'REVIEWS'>('OVERVIEW');
@@ -53,7 +62,26 @@ export const CourseDetails: React.FC = () => {
   }, []);
 
   if (isLoadingCourse) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand-600" size={48} /></div>;
-  if (!course) return <div>Course not found</div>;
+  if (loadError) return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-red-600 text-2xl font-bold">!</span>
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Failed to load course</h2>
+        <p className="text-slate-500 mb-6">{loadError}</p>
+        <button onClick={fetchCourse} className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg transition">Try Again</button>
+      </div>
+    </div>
+  );
+  if (!course) return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-slate-900 mb-4">Course not found</h2>
+        <Link to="/" className="text-brand-600 hover:text-brand-700 font-bold">Back to Catalog</Link>
+      </div>
+    </div>
+  );
 
   const handleCTA = async () => {
     // If user has access (enrolled or admin), go to course
@@ -93,8 +121,8 @@ export const CourseDetails: React.FC = () => {
       {/* Video Trailer Header */}
       <div className="relative h-[40vh] md:h-[60vh] bg-black group">
         <video
-          src="https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4"
-          poster="https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920"
+          src={heroVideoSrc || FALLBACK_VIDEO}
+          poster={course.thumbnail || 'https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920'}
           autoPlay
           loop
           muted={isMuted}

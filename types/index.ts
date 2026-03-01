@@ -354,29 +354,8 @@ export interface SiteContentItem {
 
 export type PaymentStatus = 'pending' | 'captured' | 'refunded' | 'failed';
 
-export interface PaymentRecord {
-  id: string;
-  userId: string;
-  courseId: string;
-  enrollmentId: string | null;
-  razorpayOrderId: string | null;
-  razorpayPaymentId: string | null;
-  amount: number;
-  currency: string;
-  status: PaymentStatus;
-  method: string | null;
-  receiptNumber: string | null;
-  refundId: string | null;
-  refundAmount: number | null;
-  refundReason: string | null;
-  refundedAt: string | null;
-  metadata: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-  userName?: string;
-  userEmail?: string;
-  courseTitle?: string;
-}
+// Note: Canonical Payment type is in services/api/payments.api.ts
+// Use `import type { Payment } from '../services/api/payments.api'` for payment records
 
 // ============================================
 // COURSE ANALYTICS TYPES

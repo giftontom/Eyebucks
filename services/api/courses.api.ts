@@ -121,8 +121,9 @@ export const coursesApi = {
         reviews(id, rating, comment, created_at, user_id, users(name))
       `);
 
-    // Determine if it's an ID or slug
-    if (idOrSlug.startsWith('c') || idOrSlug.length < 30) {
+    // Determine if it's an ID or slug (UUID detection)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+    if (isUuid || idOrSlug.startsWith('c')) {
       query = query.eq('id', idOrSlug);
     } else {
       query = query.eq('slug', idOrSlug);

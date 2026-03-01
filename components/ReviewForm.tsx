@@ -90,7 +90,7 @@ export default function ReviewForm({
           rows={6}
           maxLength={1000}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg
-                     focus:ring-2 focus:ring-orange-500 focus:border-orange-500
+                     focus:ring-2 focus:ring-brand-500 focus:border-brand-500
                      resize-none"
         />
         <div className="mt-1 flex justify-between text-xs text-gray-500">
@@ -111,8 +111,8 @@ export default function ReviewForm({
         <button
           type="submit"
           disabled={isSubmitting || rating === 0 || comment.trim().length < 10}
-          className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg
-                     font-medium hover:bg-orange-700 disabled:opacity-50
+          className="flex-1 px-6 py-3 bg-brand-600 text-white rounded-lg
+                     font-medium hover:bg-brand-500 disabled:opacity-50
                      disabled:cursor-not-allowed transition-colors
                      flex items-center justify-center gap-2"
         >

@@ -144,7 +144,7 @@ export default function ReviewList({
         <button
           onClick={() => setShowReviewForm(true)}
           className="w-full px-6 py-4 border-2 border-dashed border-gray-300 rounded-lg
-                     text-gray-600 hover:border-orange-500 hover:text-orange-600
+                     text-gray-600 hover:border-brand-500 hover:text-brand-600
                      transition-colors font-medium flex items-center justify-center gap-2"
         >
           <MessageSquare className="h-5 w-5" />
@@ -217,7 +217,7 @@ export default function ReviewList({
                       <div className="flex gap-2">
                         <button
                           onClick={() => setEditingReviewId(review.id)}
-                          className="p-2 text-gray-400 hover:text-orange-600 transition-colors"
+                          className="p-2 text-gray-400 hover:text-brand-600 transition-colors"
                           title="Edit review"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -243,7 +243,7 @@ export default function ReviewList({
 
                   {/* Footer */}
                   <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
-                    <button className="flex items-center gap-1 hover:text-orange-600 transition-colors">
+                    <button className="flex items-center gap-1 hover:text-brand-600 transition-colors">
                       <ThumbsUp className="h-4 w-4" />
                       <span>Helpful ({review.helpful})</span>
                     </button>

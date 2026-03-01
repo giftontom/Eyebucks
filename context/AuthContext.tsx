@@ -199,12 +199,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { error } = await supabase
       .from('users')
-      .update({ phone_e164: phone, phone_verified: true })
+      .update({ phone_e164: phone })
       .eq('id', user.id);
 
     if (error) throw new Error('Failed to update phone number');
 
-    setUser({ ...user, phone_e164: phone, phoneVerified: true });
+    setUser({ ...user, phone_e164: phone });
   };
 
   const updateProfile = async (data: { name?: string }) => {
@@ -228,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       session,
       isLoading,
-      login: loginDev,
+      login: loginWithGoogle,
       loginWithGoogle,
       loginDev,
       logout,

@@ -56,7 +56,7 @@ export default function StarRating({
               className={`
                 ${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}
                 transition-transform duration-150
-                ${!readonly && 'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 rounded'}
+                ${!readonly && 'focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 rounded'}
               `}
               aria-label={`Rate ${star} stars`}
             >

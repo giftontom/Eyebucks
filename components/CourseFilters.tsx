@@ -63,7 +63,7 @@ export default function CourseFilters({
       {hasActiveFilters && (
         <button
           onClick={clearAllFilters}
-          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+          className="text-sm text-brand-600 hover:text-brand-500 font-medium"
         >
           Clear all filters
         </button>
@@ -78,7 +78,7 @@ export default function CourseFilters({
           value={filters.sortBy}
           onChange={(e) => updateFilter('sortBy', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg
-                     focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                     focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
         >
           <option value="newest">Newest</option>
           <option value="price-asc">Price: Low to High</option>
@@ -100,7 +100,7 @@ export default function CourseFilters({
               name="type"
               checked={!filters.type}
               onChange={() => updateFilter('type', undefined)}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">All Types</span>
           </label>
@@ -110,7 +110,7 @@ export default function CourseFilters({
               name="type"
               checked={filters.type === 'MODULE'}
               onChange={() => updateFilter('type', 'MODULE')}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">Single Module</span>
           </label>
@@ -120,7 +120,7 @@ export default function CourseFilters({
               name="type"
               checked={filters.type === 'BUNDLE'}
               onChange={() => updateFilter('type', 'BUNDLE')}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">Bundle</span>
           </label>
@@ -142,7 +142,7 @@ export default function CourseFilters({
                 updateFilter('minPrice', undefined);
                 updateFilter('maxPrice', undefined);
               }}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">All Prices</span>
           </label>
@@ -155,7 +155,7 @@ export default function CourseFilters({
                 updateFilter('minPrice', 0);
                 updateFilter('maxPrice', 0);
               }}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">Free</span>
           </label>
@@ -168,7 +168,7 @@ export default function CourseFilters({
                 updateFilter('minPrice', 1);
                 updateFilter('maxPrice', 50000);
               }}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">Under ₹500</span>
           </label>
@@ -181,7 +181,7 @@ export default function CourseFilters({
                 updateFilter('minPrice', 50000);
                 updateFilter('maxPrice', 100000);
               }}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">₹500 - ₹1,000</span>
           </label>
@@ -194,7 +194,7 @@ export default function CourseFilters({
                 updateFilter('minPrice', 100000);
                 updateFilter('maxPrice', undefined);
               }}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">Over ₹1,000</span>
           </label>
@@ -213,7 +213,7 @@ export default function CourseFilters({
               name="rating"
               checked={!filters.minRating}
               onChange={() => updateFilter('minRating', undefined)}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">All Ratings</span>
           </label>
@@ -223,7 +223,7 @@ export default function CourseFilters({
               name="rating"
               checked={filters.minRating === 4}
               onChange={() => updateFilter('minRating', 4)}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">⭐ 4.0 & up</span>
           </label>
@@ -233,7 +233,7 @@ export default function CourseFilters({
               name="rating"
               checked={filters.minRating === 3}
               onChange={() => updateFilter('minRating', 3)}
-              className="h-4 w-4 text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-brand-600 focus:ring-brand-500"
             />
             <span className="ml-2 text-sm text-gray-700">⭐ 3.0 & up</span>
           </label>

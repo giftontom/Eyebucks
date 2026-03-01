@@ -11,9 +11,6 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
-  // Detect if Supabase is configured (production mode)
-  const isProductionMode = !!import.meta.env.VITE_SUPABASE_URL;
-
   // Get the return path from location state
   const returnTo = (location.state as any)?.returnTo || '/';
 

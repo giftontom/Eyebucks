@@ -80,6 +80,15 @@ serve(async (req) => {
       return errorResponse('No active enrollment found', corsHeaders, 400);
     }
 
+    // Require course completion (admin can override)
+    if (!isAdmin && (enrollment.overall_percent || 0) < 100) {
+      return errorResponse(
+        `Course not yet completed (${enrollment.overall_percent || 0}% done). Complete all modules first.`,
+        corsHeaders,
+        400
+      );
+    }
+
     // Generate certificate number
     const certificateNumber = generateCertificateNumber();
     const now = new Date();

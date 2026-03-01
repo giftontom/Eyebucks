@@ -33,6 +33,9 @@ dist-ssr
 # Claude AI
 .claude/
 
+# Supabase temp files
+supabase/.temp/
+
 # Database
 *.db
 *.sqlite

@@ -45,59 +45,12 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================
-// AUTH API
+// AUTH API (Supabase Auth — no custom token types needed)
 // ============================================
-
-export interface LoginWithGoogleRequest {
-  credential: string;
-  email?: string;
-  name?: string;
-  picture?: string;
-  sub?: string;
-}
-
-export interface LoginResponse {
-  success: boolean;
-  user: User;
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
-  };
-  isNewUser: boolean;
-}
 
 export interface UpdatePhoneRequest {
   userId: string;
   phone: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
-export interface RefreshTokenResponse {
-  success: boolean;
-  accessToken: string;
-  expiresIn: number;
-}
-
-export interface LogoutResponse {
-  success: boolean;
-  message: string;
-}
-
-export interface SessionsResponse {
-  success: boolean;
-  sessions: Array<{
-    id: string;
-    ipAddress: string | null;
-    deviceInfo: string | null;
-    lastActivity: Date;
-    createdAt: Date;
-    expiresAt: Date;
-    isCurrent: boolean;
-  }>;
 }
 
 // ============================================

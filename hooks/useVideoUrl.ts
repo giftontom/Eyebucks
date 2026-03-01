@@ -20,6 +20,7 @@ export const useVideoUrl = (
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchSignedUrl = useCallback(async (isRefresh = false) => {
     if (!videoId) {
@@ -42,6 +43,8 @@ export const useVideoUrl = (
         body,
       });
 
+      if (!mountedRef.current) return;
+
       if (fnError) throw new Error(fnError.message);
       if (!data?.success) throw new Error(data?.error || 'Failed to get video URL');
 
@@ -57,20 +60,22 @@ export const useVideoUrl = (
         if (refreshTime > 0) {
           if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
           refreshTimerRef.current = setTimeout(() => {
-            fetchSignedUrl(true);
+            if (mountedRef.current) fetchSignedUrl(true);
           }, refreshTime);
         }
       }
     } catch (err: any) {
+      if (!mountedRef.current) return;
       logger.error('Failed to fetch signed video URL:', err);
-      // On refresh failure, keep existing URLs instead of falling back
       if (!isRefresh) {
         setError(err.message || 'Failed to load video');
         setVideoUrl(fallbackUrl);
         setHlsUrl(null);
+      } else {
+        setError('Video session expired. Click retry to reload.');
       }
     } finally {
-      if (!isRefresh) {
+      if (!isRefresh && mountedRef.current) {
         setIsLoading(false);
       }
     }
@@ -81,9 +86,11 @@ export const useVideoUrl = (
   }, [fetchSignedUrl]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchSignedUrl();
 
     return () => {
+      mountedRef.current = false;
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
       }

@@ -98,6 +98,7 @@ export const Checkout: React.FC = () => {
   });
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [warningMessage, setWarningMessage] = useState<string>('');
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; phone?: string }>({});
 
   // Check if user already owns this course
   useEffect(() => {
@@ -186,6 +187,21 @@ export const Checkout: React.FC = () => {
     );
   }
 
+  const validateForm = (): boolean => {
+    const errors: typeof fieldErrors = {};
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    }
+    if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Enter a valid email address';
+    }
+    if (!formData.phone.trim() || !/^\+[1-9]\d{6,14}$/.test(formData.phone)) {
+      errors.phone = 'Enter a valid phone number (e.g., +919876543210)';
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -195,6 +211,8 @@ export const Checkout: React.FC = () => {
       await login();
       return;
     }
+
+    if (!validateForm()) return;
 
     try {
       // Step 1: Create Order
@@ -281,12 +299,19 @@ export const Checkout: React.FC = () => {
 
       if (verifyResponse.verified) {
         logger.info('[Checkout] Payment verified, enrollment created:', verifyResponse.enrollmentId);
+
+        if (verifyResponse.bundleWarning && verifyResponse.failedCourseIds?.length) {
+          setWarningMessage(
+            `${verifyResponse.bundleWarning}. Please contact support with these course IDs: ${verifyResponse.failedCourseIds.join(', ')}`
+          );
+        }
+
         setStatus('SUCCESS');
 
-        // Redirect to success page after 1.5 seconds
+        // Redirect to success page after brief delay (longer if there's a warning)
         setTimeout(() => {
-          navigate(`/success?courseId=${course.id}`);
-        }, 1500);
+          navigate(`/success?courseId=${course.id}&orderId=${orderId}`);
+        }, verifyResponse.bundleWarning ? 4000 : 1500);
       } else {
         throw new Error('Payment verification failed');
       }
@@ -373,32 +398,35 @@ export const Checkout: React.FC = () => {
                   <input
                     required
                     type="text"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition"
+                    className={`w-full bg-slate-50 border rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition ${fieldErrors.name ? 'border-red-400' : 'border-slate-200'}`}
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, name: e.target.value}); setFieldErrors(prev => ({ ...prev, name: undefined })); }}
                   />
+                  {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-500 mb-1">Email Address</label>
                   <input
                     required
                     type="email"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition"
+                    className={`w-full bg-slate-50 border rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition ${fieldErrors.email ? 'border-red-400' : 'border-slate-200'}`}
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, email: e.target.value}); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
                   />
+                  {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-500 mb-1">Phone Number</label>
                   <input
                     required
                     type="tel"
-                    placeholder="+1..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition"
+                    placeholder="+919876543210"
+                    className={`w-full bg-slate-50 border rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition ${fieldErrors.phone ? 'border-red-400' : 'border-slate-200'}`}
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => { setFormData({...formData, phone: e.target.value}); setFieldErrors(prev => ({ ...prev, phone: undefined })); }}
                     readOnly={!!user?.phone_e164}
                   />
+                  {fieldErrors.phone && <p className="text-red-500 text-xs mt-1">{fieldErrors.phone}</p>}
                 </div>
 
                 <button

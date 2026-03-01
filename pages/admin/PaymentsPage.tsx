@@ -18,6 +18,9 @@ export const PaymentsPage: React.FC = () => {
   const debouncedSearch = useDebounce(search);
   const { pagination, setPage, setTotal } = usePagination(20);
 
+  // Revenue totals (from aggregate query, not current page)
+  const [totalRevenue, setTotalRevenue] = useState(0);
+
   // Refund modal
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundPayment, setRefundPayment] = useState<Payment | null>(null);
@@ -42,6 +45,13 @@ export const PaymentsPage: React.FC = () => {
 
   useEffect(() => { fetchPayments(); }, [debouncedSearch, pagination.page]);
 
+  // Fetch aggregate revenue from admin stats (not page-dependent)
+  useEffect(() => {
+    adminApi.getStats()
+      .then(res => setTotalRevenue(res.stats.totalRevenue))
+      .catch(() => {});
+  }, []);
+
   const handleRefund = async () => {
     if (!refundPayment || !refundReason.trim()) {
       showToast('Please provide a reason', 'error');
@@ -58,8 +68,7 @@ export const PaymentsPage: React.FC = () => {
     }
   };
 
-  // Revenue summaries
-  const capturedRevenue = payments.filter(p => p.status === 'captured').reduce((s, p) => s + p.amount, 0);
+  // Page-level refund total (aggregate captured comes from stats)
   const refundedAmount = payments.filter(p => p.status === 'refunded').reduce((s, p) => s + p.amount, 0);
 
   return (
@@ -72,9 +81,9 @@ export const PaymentsPage: React.FC = () => {
             <p className="text-2xl font-bold text-slate-900">{pagination.total}</p>
           </div>
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Captured Revenue</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Revenue</p>
             <p className="text-2xl font-bold text-green-600">
-              ₹{(capturedRevenue / 100).toLocaleString('en-IN')}
+              ₹{(totalRevenue / 100).toLocaleString('en-IN')}
             </p>
           </div>
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">

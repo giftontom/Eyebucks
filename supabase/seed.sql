@@ -64,6 +64,14 @@ INSERT INTO courses (id, slug, title, description, price, thumbnail, type, statu
 );
 
 -- ============================================
+-- BUNDLE_COURSES (link masterclass to individual courses)
+-- ============================================
+INSERT INTO bundle_courses (bundle_id, course_id, order_index) VALUES
+('c1-masterclass', 'c2-scripting', 0),
+('c1-masterclass', 'c3-cinematography', 1),
+('c1-masterclass', 'c4-editing', 2);
+
+-- ============================================
 -- MODULES
 -- ============================================
 

@@ -41,28 +41,45 @@ export const progressApi = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase
+    // Try update first (increment view_count atomically)
+    const { data: existing } = await supabase
       .from('progress')
-      .upsert(
-        {
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .eq('module_id', moduleId)
+      .maybeSingle();
+
+    if (existing) {
+      // Update existing record — use RPC-style raw update for atomic increment
+      await (supabase.rpc as any)('increment_view_count', {
+        p_user_id: user.id,
+        p_course_id: courseId,
+        p_module_id: moduleId,
+        p_timestamp: timestamp,
+      }).then(({ error: rpcError }: { error: any }) => {
+        // Fallback if RPC doesn't exist yet
+        if (rpcError) {
+          return supabase
+            .from('progress')
+            .update({ timestamp, last_updated_at: new Date().toISOString() })
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .eq('module_id', moduleId);
+        }
+      });
+    } else {
+      // Insert new record with view_count = 1
+      await supabase
+        .from('progress')
+        .insert({
           user_id: user.id,
           course_id: courseId,
           module_id: moduleId,
           timestamp,
           last_updated_at: new Date().toISOString(),
-          view_count: 1,  // Will be incremented on conflict
-        },
-        { onConflict: 'user_id,course_id,module_id' }
-      );
-
-    if (error) {
-      // If upsert failed, try update
-      await supabase
-        .from('progress')
-        .update({ timestamp, last_updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
-        .eq('course_id', courseId)
-        .eq('module_id', moduleId);
+          view_count: 1,
+        });
     }
   },
 
