@@ -115,8 +115,14 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       });
 
       if (fnError) {
-        const ctx = (fnError as any).context;
-        const msg = (typeof ctx === 'object' && ctx?.error) ? ctx.error : fnError.message;
+        let msg = fnError.message;
+        try {
+          const ctx = (fnError as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            msg = body?.error || body?.message || msg;
+          }
+        } catch { /* ignore parse errors */ }
         throw new Error(msg);
       }
 

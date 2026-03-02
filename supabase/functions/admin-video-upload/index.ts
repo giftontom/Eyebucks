@@ -78,8 +78,8 @@ serve(async (req) => {
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      console.error('[Video Upload] Create entry failed:', errorText);
-      return errorResponse('Failed to create video entry', corsHeaders, 500);
+      console.error('[Video Upload] Bunny API error:', createResponse.status, errorText);
+      return errorResponse(`Failed to create video entry: ${errorText}`, corsHeaders, 500);
     }
 
     const videoEntry = await createResponse.json();

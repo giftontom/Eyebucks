@@ -25,7 +25,10 @@ export async function verifyAuth(
   const supabaseUser = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
+    {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    }
   );
 
   const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
