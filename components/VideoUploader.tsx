@@ -3,6 +3,7 @@ import { Upload, X, Film, CheckCircle, AlertCircle, Loader2 } from 'lucide-react
 import * as tus from 'tus-js-client';
 import { supabase } from '../services/supabase';
 import { logger } from '../utils/logger';
+import { isEdgeFnAuthError, extractEdgeFnError } from '../utils/edgeFunctionError';
 
 interface VideoUploaderProps {
   onUploadComplete: (videoData: {publicId: string; secureUrl: string; duration: number; thumbnail: string}) => void;
@@ -110,20 +111,27 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
     try {
       // Phase 1: Get TUS credentials from Edge Function
-      const { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
+      let { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
         body: { title: file.name },
       });
 
       if (fnError) {
-        let msg = fnError.message;
-        try {
-          const ctx = (fnError as any).context;
-          if (ctx && typeof ctx.json === 'function') {
-            const body = await ctx.json();
-            msg = body?.error || body?.message || msg;
+        // If JWT expired, refresh session and retry once
+        if (isEdgeFnAuthError(fnError)) {
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            throw new Error('Your session has expired. Please log in again.');
           }
-        } catch { /* ignore parse errors */ }
-        throw new Error(msg);
+          const retry = await supabase.functions.invoke('admin-video-upload', {
+            body: { title: file.name },
+          });
+          data = retry.data;
+          if (retry.error) {
+            throw new Error(await extractEdgeFnError(retry.error, retry.error.message));
+          }
+        } else {
+          throw new Error(await extractEdgeFnError(fnError, fnError.message));
+        }
       }
 
       if (!data?.success) {

@@ -429,6 +429,39 @@ return new Response(
 
 ---
 
+## Known Security Issues
+
+### 1. Dev Credentials in Production Bundle (Medium)
+
+**Location:** `context/AuthContext.tsx` (loginDev function)
+
+The dev login function contains hardcoded credentials (`admin@eyebuckz.com` / `dev-password-123`) that are included in the production JavaScript bundle. While the dev login UI is hidden in production, the credentials exist in the compiled code.
+
+**Mitigation:** Guard `loginDev` behind `import.meta.env.DEV` so the code is tree-shaken in production builds.
+
+### 2. No RLS Preventing Admin Self-Promotion (Low)
+
+**Location:** `supabase/migrations/003_rls_policies.sql`
+
+The `users` table RLS policies allow users to update their own row (`users_update_own`). The `role` column is not excluded from user self-updates, meaning a user could theoretically set their own role to `ADMIN` via a direct Supabase client call.
+
+**Mitigation:** Add a column-level check or a trigger that prevents non-admin users from modifying the `role` column.
+
+### 3. Filter Injection Risk in admin.api.ts (Low)
+
+**Location:** `services/api/admin.api.ts`
+
+The `.or()` filter uses string interpolation with user-provided search values:
+```typescript
+query.or(`name.ilike.%${params.search}%,email.ilike.%${params.search}%`)
+```
+
+While Supabase's PostgREST layer sanitizes these queries internally (this is not raw SQL), crafted filter strings could potentially manipulate the PostgREST filter syntax.
+
+**Mitigation:** Sanitize search input to remove PostgREST filter operators (`.`, `,`) or use individual `.ilike()` calls.
+
+---
+
 ## Resources
 
 - [Supabase Auth docs](https://supabase.com/docs/guides/auth)

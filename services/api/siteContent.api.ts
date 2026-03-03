@@ -3,14 +3,16 @@
  */
 import { supabase } from '../supabase';
 import type { SiteContentItem } from '../../types';
+import type { SiteContentRow, SiteContentUpdate } from '../../types/supabase';
+import type { Json } from '../../types/supabase';
 
-function mapRow(row: any): SiteContentItem {
+function mapRow(row: SiteContentRow): SiteContentItem {
   return {
     id: row.id,
-    section: row.section,
+    section: row.section as SiteContentItem['section'],
     title: row.title,
     body: row.body,
-    metadata: row.metadata || {},
+    metadata: (row.metadata || {}) as Record<string, unknown>,
     orderIndex: row.order_index,
     isActive: row.is_active,
     createdAt: row.created_at,
@@ -54,7 +56,7 @@ export const siteContentApi = {
     section: string;
     title: string;
     body: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     orderIndex?: number;
     isActive?: boolean;
   }): Promise<SiteContentItem> {
@@ -64,7 +66,7 @@ export const siteContentApi = {
         section: item.section,
         title: item.title,
         body: item.body,
-        metadata: item.metadata || {},
+        metadata: (item.metadata || {}) as Json,
         order_index: item.orderIndex ?? 0,
         is_active: item.isActive ?? true,
       })
@@ -78,14 +80,14 @@ export const siteContentApi = {
   async update(id: string, updates: {
     title?: string;
     body?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     orderIndex?: number;
     isActive?: boolean;
   }): Promise<SiteContentItem> {
-    const update: any = {};
+    const update: SiteContentUpdate = {};
     if (updates.title !== undefined) update.title = updates.title;
     if (updates.body !== undefined) update.body = updates.body;
-    if (updates.metadata !== undefined) update.metadata = updates.metadata;
+    if (updates.metadata !== undefined) update.metadata = updates.metadata as Json;
     if (updates.orderIndex !== undefined) update.order_index = updates.orderIndex;
     if (updates.isActive !== undefined) update.is_active = updates.isActive;
 

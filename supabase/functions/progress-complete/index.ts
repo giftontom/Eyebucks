@@ -9,7 +9,7 @@ import { verifyAuth } from '../_shared/auth.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { generateCertificateNumber } from '../_shared/certificates.ts';
 
-const COMPLETION_THRESHOLD = 0.90; // 90% watch threshold
+const COMPLETION_THRESHOLD = 0.95; // 95% watch threshold — must match frontend
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, BookOpen, Award } from 'lucide-react';
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+import { useToast } from '../../components/Toast';
 import { StatsCard } from './components/StatsCard';
 import { SalesChart } from './components/SalesChart';
 import { ActivityFeed } from './components/ActivityFeed';
@@ -13,6 +14,7 @@ export const DashboardPage: React.FC = () => {
   const [salesData, setSalesData] = useState<SalesDataPoint[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity | null>(null);
   const [loading, setLoading] = useState(true);
+  const { showToast, ToastContainer } = useToast();
 
   const fetchDashboard = async (days: number = 30) => {
     try {
@@ -27,6 +29,7 @@ export const DashboardPage: React.FC = () => {
       setRecentActivity(activityRes.activity);
     } catch (err) {
       logger.error('Failed to fetch dashboard data:', err);
+      showToast('Failed to load dashboard data', 'error');
     } finally {
       setLoading(false);
     }
@@ -53,6 +56,7 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <ToastContainer />
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard

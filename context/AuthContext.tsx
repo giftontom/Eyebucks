@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import type { User } from '../types';
 import type { Session } from '@supabase/supabase-js';
+import type { UserUpdate } from '../types/supabase';
+import { mapUserProfile } from '../services/api/users.api';
 import { logger } from '../utils/logger';
 
 interface AuthContextType {
@@ -17,22 +19,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function mapSupabaseUser(profile: any): User {
-  return {
-    id: profile.id,
-    name: profile.name || '',
-    email: profile.email || '',
-    avatar: profile.avatar || '',
-    phone_e164: profile.phone_e164 || null,
-    role: profile.role || 'USER',
-    phoneVerified: profile.phone_verified || false,
-    emailVerified: profile.email_verified || false,
-    google_id: profile.google_id,
-    created_at: profile.created_at ? new Date(profile.created_at) : undefined,
-    last_login_at: profile.last_login_at ? new Date(profile.last_login_at) : undefined,
-  };
-}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -52,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
 
-    const mappedUser = mapSupabaseUser(profile);
+    const mappedUser = mapUserProfile(profile);
     setUser(mappedUser);
 
     // Update last login
@@ -99,6 +85,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           };
           retryLoadProfile(newSession.user.id);
+
+          // Invalidate all other sessions for this user (fire-and-forget)
+          supabase.functions.invoke('session-enforce').catch(err => {
+            logger.error('[AuthContext] Session enforce failed:', err);
+          });
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -210,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProfile = async (data: { name?: string }) => {
     if (!user) return;
 
-    const update: any = {};
+    const update: UserUpdate = {};
     if (data.name !== undefined) update.name = data.name;
 
     const { error } = await supabase

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
@@ -6,15 +6,23 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Storefront } from './pages/Storefront';
 import { CourseDetails } from './pages/CourseDetails';
-import { Checkout } from './pages/Checkout';
-import { Dashboard } from './pages/Dashboard';
-import { Learn } from './pages/Learn';
-import { AdminRoutes } from './pages/admin';
 import { Login } from './pages/Login';
-import { PurchaseSuccess } from './pages/PurchaseSuccess';
-import { Profile } from './pages/Profile';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
+
+// Lazy-loaded routes (code splitting)
+const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Learn = lazy(() => import('./pages/Learn').then(m => ({ default: m.Learn })));
+const AdminRoutes = lazy(() => import('./pages/admin').then(m => ({ default: m.AdminRoutes })));
+const PurchaseSuccess = lazy(() => import('./pages/PurchaseSuccess').then(m => ({ default: m.PurchaseSuccess })));
+const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+
+const PageLoader: React.FC = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 const App: React.FC = () => {
   return (
@@ -30,12 +38,14 @@ const App: React.FC = () => {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
 
-              {/* Protected Routes - Require Authentication */}
+              {/* Protected Routes - Require Authentication (lazy-loaded) */}
               <Route
                 path="/checkout/:id"
                 element={
                   <ProtectedRoute>
-                    <Checkout />
+                    <Suspense fallback={<PageLoader />}>
+                      <Checkout />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -43,7 +53,9 @@ const App: React.FC = () => {
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <Suspense fallback={<PageLoader />}>
+                      <Dashboard />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -51,7 +63,9 @@ const App: React.FC = () => {
                 path="/learn/:id"
                 element={
                   <ProtectedRoute>
-                    <Learn />
+                    <Suspense fallback={<PageLoader />}>
+                      <Learn />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -59,7 +73,9 @@ const App: React.FC = () => {
                 path="/admin/*"
                 element={
                   <ProtectedRoute>
-                    <AdminRoutes />
+                    <Suspense fallback={<PageLoader />}>
+                      <AdminRoutes />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -67,7 +83,9 @@ const App: React.FC = () => {
                 path="/profile"
                 element={
                   <ProtectedRoute>
-                    <Profile />
+                    <Suspense fallback={<PageLoader />}>
+                      <Profile />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -75,7 +93,9 @@ const App: React.FC = () => {
                 path="/success"
                 element={
                   <ProtectedRoute>
-                    <PurchaseSuccess />
+                    <Suspense fallback={<PageLoader />}>
+                      <PurchaseSuccess />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />

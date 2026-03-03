@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-0.0.0-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6)
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e)
@@ -27,9 +27,10 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19, TypeScript 5.8, Vite 6, Tailwind CSS, React Router 7 |
+| Frontend | React 19, TypeScript 5.8, Vite 6, Tailwind CSS v4, React Router 7 |
 | Backend | Supabase (PostgreSQL, Auth, RLS, Realtime, Storage) |
-| Edge Functions | Deno runtime (checkout, video signing, certificates, progress) |
+| Edge Functions | Deno runtime (checkout, video signing, certificates, progress, refunds) |
+| Video Upload | tus-js-client (resumable uploads to Bunny.net) |
 | Payments | Razorpay (order creation, verification, webhooks) |
 | Video | Bunny.net Stream (HLS, signed URLs, CDN) |
 | Email | Resend (transactional emails) |
@@ -100,21 +101,22 @@ eyebuckz/
 ├── App.tsx                    # HashRouter, routes, providers
 ├── constants.ts               # App constants
 │
-├── components/                # Shared UI components (14)
+├── components/                # Shared UI components (15)
 │   ├── Layout.tsx             # App shell, nav, sidebar
 │   ├── VideoPlayer.tsx        # HLS player (hls.js + Bunny.net)
-│   ├── VideoUploader.tsx      # Admin video upload
-│   ├── ErrorBoundary.tsx      # Error boundary
+│   ├── VideoUploader.tsx      # Admin video upload (TUS protocol)
+│   ├── ErrorBoundary.tsx      # Error boundary + withErrorBoundary HOC
 │   ├── ProtectedRoute.tsx     # Auth guard
 │   ├── EnrollmentGate.tsx     # Enrollment access check
 │   ├── NotificationBell.tsx   # Real-time notification UI
-│   ├── SearchBar.tsx          # Course search
+│   ├── SearchBar.tsx          # Course search (debounced)
 │   ├── CourseFilters.tsx      # Course filter controls
 │   ├── ReviewForm.tsx         # Course review form
 │   ├── ReviewList.tsx         # Course reviews display
 │   ├── StarRating.tsx         # Star rating component
-│   ├── Toast.tsx              # Toast notifications
-│   └── CourseCardSkeleton.tsx # Loading skeleton
+│   ├── Toast.tsx              # Toast notifications + useToast hook
+│   ├── CourseCardSkeleton.tsx # Loading skeleton + DashboardSkeleton
+│   └── index.ts              # Barrel exports
 │
 ├── pages/                     # Route pages
 │   ├── Storefront.tsx         # Course catalog (/)
@@ -139,7 +141,9 @@ eyebuckz/
 │       ├── CertificatesPage.tsx # Certificate management
 │       ├── PaymentsPage.tsx   # Payment records
 │       ├── ContentPage.tsx    # CMS content editor
-│       └── components/        # Admin-specific components (12)
+│       ├── ReviewsPage.tsx    # Review moderation
+│       ├── components/        # Admin-specific components (12)
+│       └── hooks/             # Admin hooks (useAdminData, useDebounce, usePagination)
 │
 ├── context/
 │   └── AuthContext.tsx         # Supabase Auth (Google OAuth + dev mode)
@@ -152,11 +156,7 @@ eyebuckz/
 │
 ├── services/
 │   ├── supabase.ts            # Supabase client singleton
-│   ├── apiClient.ts           # API facade (backward compat)
-│   ├── authService.ts         # Auth helpers
-│   ├── enrollmentService.ts   # Enrollment helpers
-│   ├── progressService.ts     # Progress helpers
-│   └── api/                   # Typed Supabase query modules
+│   └── api/                   # Typed Supabase query modules (11)
 │       ├── index.ts           # Barrel export
 │       ├── courses.api.ts     # Course queries
 │       ├── enrollments.api.ts # Enrollment queries
@@ -166,7 +166,9 @@ eyebuckz/
 │       ├── certificates.api.ts # Certificate queries
 │       ├── notifications.api.ts # Notification queries
 │       ├── payments.api.ts    # Payment records
-│       └── siteContent.api.ts # CMS content queries
+│       ├── siteContent.api.ts # CMS content queries
+│       ├── reviews.api.ts     # Course reviews CRUD
+│       └── users.api.ts       # User profile operations
 │
 ├── types/
 │   ├── index.ts               # Business types (User, Course, Module, etc.)
@@ -175,27 +177,35 @@ eyebuckz/
 │
 ├── utils/
 │   ├── logger.ts              # Conditional logger (dev/prod)
-│   └── dataExport.ts          # Data export utility
+│   ├── dataExport.ts          # Data export utility
+│   └── edgeFunctionError.ts   # Edge Function error extraction helpers
 │
 ├── supabase/
 │   ├── config.toml            # Supabase project config
 │   ├── seed.sql               # Seed data
-│   ├── migrations/            # 7 SQL migrations
-│   │   ├── 001_initial_schema.sql     # Core tables
-│   │   ├── 002_functions.sql          # PL/pgSQL functions
-│   │   ├── 003_rls_policies.sql       # Row Level Security
-│   │   ├── 004_auth_trigger.sql       # Auth user creation trigger
-│   │   ├── 005_storage.sql            # Storage buckets
-│   │   ├── 006_production_gaps.sql    # Reviews, notifications, payments, CMS
-│   │   └── 007_bundle_courses.sql     # Bundle course support
-│   └── functions/             # 7 Edge Functions (Deno)
+│   ├── migrations/            # 12 SQL migrations
+│   │   ├── 001_initial_schema.sql         # Core tables
+│   │   ├── 002_functions.sql              # PL/pgSQL functions
+│   │   ├── 003_rls_policies.sql           # Row Level Security
+│   │   ├── 004_auth_trigger.sql           # Auth user creation trigger
+│   │   ├── 005_storage.sql                # Storage buckets
+│   │   ├── 006_production_gaps.sql        # Reviews, notifications, payments, CMS
+│   │   ├── 007_bundle_courses.sql         # Bundle course support
+│   │   ├── 008_schema_fixes.sql           # Constraints, FK fixes, RLS tightening
+│   │   ├── 009_review_fixes.sql           # Review indexes, dropped legacy tables
+│   │   ├── 010_enrollment_expiration.sql  # Enrollment expiry + pg_cron job
+│   │   ├── 011_increment_view_count.sql   # Atomic view count function
+│   │   └── 012_set_bunny_video_urls.sql   # Bunny video URL migration
+│   └── functions/             # 8 Edge Functions (Deno)
+│       ├── _shared/                   # Shared utilities (cors, auth, response, hmac, email, certificates, supabaseAdmin)
 │       ├── checkout-create-order/     # Create Razorpay order
 │       ├── checkout-verify/           # Verify payment + enroll
 │       ├── checkout-webhook/          # Razorpay webhook handler
 │       ├── video-signed-url/          # Bunny.net signed URL generation
-│       ├── admin-video-upload/        # Video upload to Bunny.net
-│       ├── certificate-generate/      # Certificate PDF generation
-│       └── progress-complete/         # Atomic module completion
+│       ├── admin-video-upload/        # Video upload to Bunny.net (TUS)
+│       ├── certificate-generate/      # Certificate generation
+│       ├── progress-complete/         # Atomic module completion
+│       └── refund-process/            # Razorpay refund processing
 │
 └── src/__tests__/             # Test files (Vitest + jsdom)
 ```
@@ -259,11 +269,11 @@ ADMIN_EMAILS, APP_URL
 
 ## Database
 
-**PostgreSQL via Supabase** with 7 sequential migrations:
+**PostgreSQL via Supabase** with 12 sequential migrations:
 
-**Core tables:** users, courses, modules, enrollments, progress, certificates, reviews, notifications, payments, site_content, bundle_courses
+**Core tables:** users, courses, modules, enrollments, progress, certificates, reviews, notifications, payments, site_content, bundle_courses, login_attempts
 
-**Key functions:** `is_admin()`, `complete_module()`, `get_admin_stats()`, `get_progress_stats()`, `get_course_analytics()`, `update_course_rating()`
+**Key functions:** `is_admin()`, `complete_module()`, `get_admin_stats()`, `get_sales_data()`, `get_recent_activity()`, `get_progress_stats()`, `get_course_analytics()`, `update_course_rating()`, `expire_enrollments()`, `increment_view_count()`
 
 **Auth trigger:** Automatically creates user profile on Supabase Auth signup.
 
@@ -296,6 +306,20 @@ npm run test:ui         # Browser-based test UI
 ```
 
 Tests use Vitest with jsdom environment and React Testing Library.
+
+---
+
+## Documentation
+
+See [`docs/README.md`](docs/README.md) for the full documentation index.
+
+| Category | Docs |
+|----------|------|
+| Architecture | [System Overview](docs/architecture/SYSTEM_OVERVIEW.md), [Database Schema](docs/architecture/DATABASE_SCHEMA.md), [Security Model](docs/architecture/SECURITY_MODEL.md), [Access Control](docs/architecture/ACCESS_CONTROL.md) |
+| API Reference | [Service Modules](docs/api/SERVICE_MODULES.md), [Edge Functions](docs/api/EDGE_FUNCTIONS.md) |
+| Guides | [Development Setup](docs/guides/DEVELOPMENT_SETUP.md), [Deployment](docs/guides/DEPLOYMENT.md), [Testing](docs/guides/TESTING.md), [Admin Panel](docs/guides/ADMIN_PANEL.md), [Troubleshooting](docs/guides/TROUBLESHOOTING.md) |
+| Reference | [Components](docs/reference/COMPONENTS.md), [Hooks](docs/reference/HOOKS.md), [User Flows](docs/reference/USER_FLOWS.md) |
+| Project | [Known Issues](docs/project/KNOWN_ISSUES.md) |
 
 ---
 

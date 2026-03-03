@@ -3,8 +3,45 @@
  * Replaces: apiClient admin methods
  */
 import { supabase } from '../supabase';
-import type { AdminStats, SalesDataPoint, Course, Module, CourseAnalytics, SiteContentItem } from '../../types';
+import type {
+  AdminStats, SalesDataPoint, Module, CourseAnalytics,
+  SiteContentItem, AdminCourse, AdminUser, AdminCertificate, RecentActivity,
+} from '../../types';
 import type { Payment } from './payments.api';
+import { paymentsApi } from './payments.api';
+import type {
+  CourseRow, ModuleRow, UserRow, CourseUpdate, UserUpdate, SiteContentUpdate,
+  SiteContentRow, ModuleUpdate, EnrollmentRow, CertificateRow, Json,
+} from '../../types/supabase';
+import { extractEdgeFnError, isEdgeFnAuthError } from '../../utils/edgeFunctionError';
+
+// Query result types for joined queries
+type UserWithEnrollments = UserRow & { enrollments: { id: string }[] };
+type CourseWithJoins = CourseRow & { modules: { id: string }[]; enrollments: { id: string }[] };
+type CertificateWithJoins = {
+  id: string; certificate_number: string; student_name: string; course_title: string;
+  issue_date: string; status: string; revoked_at: string | null; revoked_reason: string | null;
+  created_at: string;
+  users: { id: string; name: string; email: string } | null;
+  courses: { id: string; title: string } | null;
+};
+type PaymentWithJoins = {
+  id: string; user_id: string; course_id: string; enrollment_id: string | null;
+  razorpay_order_id: string | null; razorpay_payment_id: string | null;
+  amount: number; currency: string; status: string; method: string | null;
+  receipt_number: string | null; refund_id: string | null; refund_amount: number | null;
+  refund_reason: string | null; refunded_at: string | null; metadata: Json;
+  created_at: string; updated_at: string;
+  users: { name: string; email: string } | null;
+  courses: { title: string } | null;
+};
+type ReviewWithJoins = {
+  id: string; user_id: string; course_id: string; rating: number;
+  comment: string | null; helpful?: number; helpful_count: number; created_at: string;
+  users: { name: string; email: string; avatar: string | null } | null;
+  courses: { title: string } | null;
+};
+type SalesRow = { date: string; amount: number; count: number };
 
 export const adminApi = {
   // ============================================
@@ -22,14 +59,14 @@ export const adminApi = {
     if (error) throw new Error(error.message);
     return {
       success: true,
-      sales: (data || []).map((d: any) => ({ date: d.date, amount: Number(d.amount) })),
+      sales: (data || []).map((d: SalesRow) => ({ date: d.date, amount: Number(d.amount) })),
     };
   },
 
-  async getRecentActivity(limit: number = 10): Promise<{ success: boolean; activity: any }> {
+  async getRecentActivity(limit: number = 10): Promise<{ success: boolean; activity: RecentActivity }> {
     const { data, error } = await supabase.rpc('get_recent_activity', { p_limit: limit });
     if (error) throw new Error(error.message);
-    return { success: true, activity: data };
+    return { success: true, activity: data as unknown as RecentActivity };
   },
 
   // ============================================
@@ -38,8 +75,8 @@ export const adminApi = {
 
   async getUsers(params?: { page?: number; limit?: number; search?: string; role?: string }): Promise<{
     success: boolean;
-    users: any[];
-    pagination: any;
+    users: AdminUser[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const page = params?.page || 1;
     const limit = Math.min(params?.limit || 20, 100);
@@ -62,10 +99,19 @@ export const adminApi = {
 
     if (error) throw new Error(error.message);
 
-    const users = (data || []).map(u => ({
-      ...u,
+    const users: AdminUser[] = (data || []).map((u: UserWithEnrollments) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      avatar: u.avatar,
+      role: u.role,
+      isActive: u.is_active,
+      phoneVerified: u.phone_verified,
+      phoneE164: u.phone_e164,
+      createdAt: new Date(u.created_at),
+      lastLoginAt: u.last_login_at ? new Date(u.last_login_at) : null,
       enrollmentCount: u.enrollments?.length || 0,
-      _count: { enrollments: u.enrollments?.length || 0 },
+      _count: { enrollments: u.enrollments?.length || 0, certificates: 0 },
     }));
 
     return {
@@ -80,7 +126,7 @@ export const adminApi = {
     };
   },
 
-  async getUserDetails(userId: string): Promise<{ success: boolean; user: any }> {
+  async getUserDetails(userId: string): Promise<{ success: boolean; user: UserRow & { enrollments: Array<EnrollmentRow & { courses: CourseRow }> } }> {
     const { data, error } = await supabase
       .from('users')
       .select('*, enrollments(*, courses(*))')
@@ -94,11 +140,11 @@ export const adminApi = {
   async updateUser(userId: string, updates: { isActive?: boolean; role?: string }): Promise<{
     success: boolean;
     message: string;
-    user: any;
+    user: UserRow;
   }> {
-    const update: any = {};
+    const update: UserUpdate = {};
     if (updates.isActive !== undefined) update.is_active = updates.isActive;
-    if (updates.role) update.role = updates.role;
+    if (updates.role) update.role = updates.role as 'USER' | 'ADMIN';
 
     const { data, error } = await supabase
       .from('users')
@@ -114,7 +160,7 @@ export const adminApi = {
   async manualEnrollUser(userId: string, courseId: string): Promise<{
     success: boolean;
     message: string;
-    enrollment: any;
+    enrollment: EnrollmentRow;
   }> {
     const { data, error } = await supabase
       .from('enrollments')
@@ -140,7 +186,7 @@ export const adminApi = {
   // COURSE MANAGEMENT
   // ============================================
 
-  async getCourses(): Promise<{ success: boolean; courses: any[] }> {
+  async getCourses(): Promise<{ success: boolean; courses: AdminCourse[] }> {
     const { data, error } = await supabase
       .from('courses')
       .select('*, modules(id), enrollments(id)')
@@ -148,10 +194,23 @@ export const adminApi = {
 
     if (error) throw new Error(error.message);
 
-    const courses = (data || []).map(c => ({
-      ...c,
+    const courses: AdminCourse[] = (data || []).map((c: CourseWithJoins) => ({
+      id: c.id,
+      slug: c.slug,
+      title: c.title,
+      description: c.description,
+      price: c.price,
+      thumbnail: c.thumbnail,
       heroVideoId: c.hero_video_id,
+      type: c.type,
+      status: c.status,
+      rating: c.rating,
       totalStudents: c.total_students,
+      features: c.features,
+      createdAt: new Date(c.created_at),
+      updatedAt: new Date(c.updated_at),
+      publishedAt: c.published_at ? new Date(c.published_at) : null,
+      deletedAt: c.deleted_at,
       enrollmentCount: c.enrollments?.length || 0,
       _count: {
         modules: c.modules?.length || 0,
@@ -171,7 +230,7 @@ export const adminApi = {
     type: string;
     features?: string[];
     heroVideoId?: string;
-  }): Promise<{ success: boolean; message: string; course: any }> {
+  }): Promise<{ success: boolean; message: string; course: CourseRow }> {
     const { data, error } = await supabase
       .from('courses')
       .insert({
@@ -192,21 +251,25 @@ export const adminApi = {
     return { success: true, message: 'Course created', course: data };
   },
 
-  async updateCourse(courseId: string, courseData: any): Promise<{
+  async updateCourse(courseId: string, courseData: {
+    title?: string; slug?: string; description?: string; price?: number;
+    thumbnail?: string; type?: string; features?: string[];
+    heroVideoId?: string; status?: string;
+  }): Promise<{
     success: boolean;
     message: string;
-    course: any;
+    course: CourseRow;
   }> {
-    const update: any = {};
+    const update: CourseUpdate = {};
     if (courseData.title !== undefined) update.title = courseData.title;
     if (courseData.slug !== undefined) update.slug = courseData.slug;
     if (courseData.description !== undefined) update.description = courseData.description;
     if (courseData.price !== undefined) update.price = courseData.price;
     if (courseData.thumbnail !== undefined) update.thumbnail = courseData.thumbnail;
-    if (courseData.type !== undefined) update.type = courseData.type;
+    if (courseData.type !== undefined) update.type = courseData.type as 'BUNDLE' | 'MODULE';
     if (courseData.features !== undefined) update.features = courseData.features;
     if (courseData.heroVideoId !== undefined) update.hero_video_id = courseData.heroVideoId;
-    if (courseData.status !== undefined) update.status = courseData.status;
+    if (courseData.status !== undefined) update.status = courseData.status as 'PUBLISHED' | 'DRAFT';
 
     const { data, error } = await supabase
       .from('courses')
@@ -243,9 +306,9 @@ export const adminApi = {
   async publishCourse(courseId: string, status: 'PUBLISHED' | 'DRAFT'): Promise<{
     success: boolean;
     message: string;
-    course: any;
+    course: CourseRow;
   }> {
-    const update: any = { status };
+    const update: CourseUpdate = { status };
     if (status === 'PUBLISHED') update.published_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -294,7 +357,7 @@ export const adminApi = {
     duration: string;
     videoUrl: string;
     isFreePreview?: boolean;
-  }): Promise<{ success: boolean; message: string; module: any }> {
+  }): Promise<{ success: boolean; message: string; module: ModuleRow }> {
     // Get current max order_index
     const { data: existing } = await supabase
       .from('modules')
@@ -335,8 +398,8 @@ export const adminApi = {
     videoUrl?: string;
     isFreePreview?: boolean;
     orderIndex?: number;
-  }): Promise<{ success: boolean; message: string; module: any }> {
-    const update: any = {};
+  }): Promise<{ success: boolean; message: string; module: ModuleRow }> {
+    const update: ModuleUpdate = {};
     if (moduleData.title !== undefined) update.title = moduleData.title;
     if (moduleData.duration !== undefined) {
       update.duration = moduleData.duration;
@@ -437,8 +500,8 @@ export const adminApi = {
 
   async getCertificates(params?: { page?: number; limit?: number }): Promise<{
     success: boolean;
-    certificates: any[];
-    pagination: any;
+    certificates: AdminCertificate[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const page = params?.page || 1;
     const limit = Math.min(params?.limit || 20, 100);
@@ -454,17 +517,17 @@ export const adminApi = {
 
     return {
       success: true,
-      certificates: (data || []).map(c => ({
+      certificates: (data || []).map((c: CertificateWithJoins) => ({
         id: c.id,
         certificateNumber: c.certificate_number,
         studentName: c.student_name,
         courseTitle: c.course_title,
-        issueDate: c.issue_date,
-        status: c.status,
-        revokedAt: c.revoked_at,
+        issueDate: new Date(c.issue_date),
+        status: c.status as 'ACTIVE' | 'REVOKED',
+        revokedAt: c.revoked_at ? new Date(c.revoked_at) : null,
         revokedReason: c.revoked_reason,
-        user: c.users,
-        course: c.courses,
+        user: c.users || { id: '', name: '', email: '' },
+        course: c.courses || { id: '', title: '' },
       })),
       pagination: {
         page,
@@ -478,13 +541,31 @@ export const adminApi = {
   async issueCertificate(userId: string, courseId: string): Promise<{
     success: boolean;
     message: string;
-    certificate: any;
+    certificate: Record<string, unknown>;
   }> {
-    const { data, error } = await supabase.functions.invoke('certificate-generate', {
+    let { data, error } = await supabase.functions.invoke('certificate-generate', {
       body: { userId, courseId },
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      // If JWT expired, refresh session and retry once
+      if (isEdgeFnAuthError(error)) {
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+        const retry = await supabase.functions.invoke('certificate-generate', {
+          body: { userId, courseId },
+        });
+        data = retry.data;
+        if (retry.error) {
+          throw new Error(await extractEdgeFnError(retry.error, 'Failed to issue certificate'));
+        }
+      } else {
+        throw new Error(await extractEdgeFnError(error, 'Failed to issue certificate'));
+      }
+    }
+
     if (!data?.success) throw new Error(data?.error || 'Failed to issue certificate');
     return { success: true, message: 'Certificate issued', certificate: data.certificate };
   },
@@ -492,7 +573,7 @@ export const adminApi = {
   async revokeCertificate(certificateId: string, reason?: string): Promise<{
     success: boolean;
     message: string;
-    certificate: any;
+    certificate: CertificateRow;
   }> {
     const { data, error } = await supabase
       .from('certificates')
@@ -537,12 +618,12 @@ export const adminApi = {
     if (error) throw new Error(error.message);
     return {
       success: true,
-      items: (data || []).map((r: any) => ({
+      items: (data || []).map((r: SiteContentRow) => ({
         id: r.id,
-        section: r.section,
+        section: r.section as SiteContentItem['section'],
         title: r.title,
         body: r.body,
-        metadata: r.metadata || {},
+        metadata: (r.metadata || {}) as Record<string, unknown>,
         orderIndex: r.order_index,
         isActive: r.is_active,
         createdAt: r.created_at,
@@ -555,7 +636,7 @@ export const adminApi = {
     section: string;
     title: string;
     body: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     orderIndex?: number;
     isActive?: boolean;
   }): Promise<{ success: boolean; message: string }> {
@@ -565,7 +646,7 @@ export const adminApi = {
         section: item.section,
         title: item.title,
         body: item.body,
-        metadata: item.metadata || {},
+        metadata: (item.metadata || {}) as Json,
         order_index: item.orderIndex ?? 0,
         is_active: item.isActive ?? true,
       });
@@ -577,14 +658,14 @@ export const adminApi = {
   async updateSiteContent(id: string, updates: {
     title?: string;
     body?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     orderIndex?: number;
     isActive?: boolean;
   }): Promise<{ success: boolean; message: string }> {
-    const update: any = {};
+    const update: SiteContentUpdate = {};
     if (updates.title !== undefined) update.title = updates.title;
     if (updates.body !== undefined) update.body = updates.body;
-    if (updates.metadata !== undefined) update.metadata = updates.metadata;
+    if (updates.metadata !== undefined) update.metadata = updates.metadata as Json;
     if (updates.orderIndex !== undefined) update.order_index = updates.orderIndex;
     if (updates.isActive !== undefined) update.is_active = updates.isActive;
 
@@ -637,7 +718,7 @@ export const adminApi = {
     if (error) throw new Error(error.message);
     return {
       success: true,
-      payments: (data || []).map((r: any) => ({
+      payments: (data || []).map((r: PaymentWithJoins) => ({
         id: r.id,
         userId: r.user_id,
         courseId: r.course_id,
@@ -646,14 +727,14 @@ export const adminApi = {
         razorpayPaymentId: r.razorpay_payment_id,
         amount: r.amount,
         currency: r.currency,
-        status: r.status,
+        status: r.status as Payment['status'],
         method: r.method,
         receiptNumber: r.receipt_number,
         refundId: r.refund_id,
         refundAmount: r.refund_amount,
         refundReason: r.refund_reason,
         refundedAt: r.refunded_at,
-        metadata: r.metadata || {},
+        metadata: (r.metadata || {}) as Record<string, unknown>,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
         userName: r.users?.name,
@@ -665,17 +746,8 @@ export const adminApi = {
   },
 
   async processRefund(paymentId: string, reason: string): Promise<{ success: boolean; message: string }> {
-    const { error } = await supabase
-      .from('payments')
-      .update({
-        status: 'refunded',
-        refund_reason: reason,
-        refunded_at: new Date().toISOString(),
-      })
-      .eq('id', paymentId);
-
-    if (error) throw new Error(error.message);
-    return { success: true, message: 'Refund processed' };
+    const result = await paymentsApi.processRefund(paymentId, reason);
+    return { success: true, message: result.message };
   },
 
   // ============================================
@@ -687,4 +759,70 @@ export const adminApi = {
     if (error) throw new Error(error.message);
     return { success: true, analytics: data as unknown as CourseAnalytics };
   },
+
+  // ============================================
+  // REVIEWS MODERATION
+  // ============================================
+
+  async getReviews(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{ reviews: AdminReview[]; total: number }> {
+    const page = params?.page || 1;
+    const limit = Math.min(params?.limit || 20, 100);
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('reviews')
+      .select('*, users:user_id(name, email, avatar), courses:course_id(title)', { count: 'exact' });
+
+    if (params?.search) {
+      query = query.or(`comment.ilike.%${params.search}%`);
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(error.message);
+
+    return {
+      reviews: (data || []).map((r: ReviewWithJoins) => ({
+        id: r.id,
+        userId: r.user_id,
+        courseId: r.course_id,
+        rating: r.rating,
+        comment: r.comment || '',
+        helpful: r.helpful_count || 0,
+        createdAt: r.created_at,
+        userName: r.users?.name || 'Unknown',
+        userEmail: r.users?.email || '',
+        courseTitle: r.courses?.title || 'Unknown',
+      })),
+      total: count || 0,
+    };
+  },
+
+  async deleteReview(reviewId: string): Promise<void> {
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId);
+
+    if (error) throw new Error(error.message);
+  },
 };
+
+export interface AdminReview {
+  id: string;
+  userId: string;
+  courseId: string;
+  rating: number;
+  comment: string;
+  helpful: number;
+  createdAt: string;
+  userName: string;
+  userEmail: string;
+  courseTitle: string;
+}

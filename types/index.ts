@@ -242,6 +242,7 @@ export interface AdminUser {
 }
 
 export interface AdminCourse extends Course {
+  deletedAt?: string | null;
   enrollmentCount?: number;
   _count?: {
     modules: number;
@@ -338,10 +339,10 @@ export interface UserUpdateData {
 
 export interface SiteContentItem {
   id: string;
-  section: 'faq' | 'testimonial' | 'showcase';
+  section: 'faq' | 'testimonial' | 'showcase' | 'banner';
   title: string;
   body: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   orderIndex: number;
   isActive: boolean;
   createdAt: string;

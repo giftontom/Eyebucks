@@ -48,9 +48,9 @@ export const UserDetailPage: React.FC = () => {
       setLoading(true);
       const res = await adminApi.getUserDetails(userId);
       setUser(res.user);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to fetch user details:', err);
-      showToast(err.message || 'Failed to load user', 'error');
+      showToast(err instanceof Error ? err.message : 'Failed to load user', 'error');
     } finally {
       setLoading(false);
     }

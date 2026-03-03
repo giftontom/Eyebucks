@@ -48,7 +48,7 @@ supabase link --project-ref <your-project-ref>
 
 ## 4. Run Migrations
 
-The project has 7 sequential migrations in `supabase/migrations/`:
+The project has 12 sequential migrations in `supabase/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -59,6 +59,11 @@ The project has 7 sequential migrations in `supabase/migrations/`:
 | `005_storage.sql` | Storage bucket configuration |
 | `006_production_gaps.sql` | Reviews, notifications, payments, site_content, analytics |
 | `007_bundle_courses.sql` | Bundle course support (bundle_courses table) |
+| `008_schema_fixes.sql` | CHECK constraints, FK fixes, RLS tightening |
+| `009_review_fixes.sql` | Review indexes, dropped legacy sessions/refresh_tokens tables |
+| `010_enrollment_expiration.sql` | Enrollment expiry + pg_cron scheduled job |
+| `011_increment_view_count.sql` | Atomic view count increment function |
+| `012_set_bunny_video_urls.sql` | Bunny.net video URL migration |
 
 ```bash
 # Push migrations to remote Supabase
@@ -106,6 +111,7 @@ supabase functions deploy video-signed-url
 supabase functions deploy admin-video-upload
 supabase functions deploy certificate-generate
 supabase functions deploy progress-complete
+supabase functions deploy refund-process
 ```
 
 ### Set Edge Function Secrets
@@ -142,6 +148,7 @@ supabase secrets set ADMIN_EMAILS=admin@eyebuckz.com
 | admin-video-upload | `true` | Requires admin auth |
 | certificate-generate | `true` | Requires authenticated user |
 | progress-complete | `true` | Requires authenticated user |
+| refund-process | `true` | Requires admin auth |
 
 ---
 

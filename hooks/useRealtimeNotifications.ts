@@ -5,7 +5,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import { mapNotification } from '../services/api/notifications.api';
 import type { Notification } from '../services/api/notifications.api';
+import type { NotificationRow } from '../types/supabase';
 
 interface UseRealtimeNotificationsResult {
   notifications: Notification[];
@@ -40,16 +42,7 @@ export const useRealtimeNotifications = (): UseRealtimeNotificationsResult => {
       .limit(50);
 
     if (!error && data) {
-      const mapped: Notification[] = data.map(n => ({
-        id: n.id,
-        userId: n.user_id,
-        type: n.type,
-        title: n.title,
-        message: n.message,
-        link: n.link,
-        read: n.read,
-        createdAt: n.created_at,
-      }));
+      const mapped: Notification[] = data.map(mapNotification);
       setNotifications(mapped);
       setUnreadCount(mapped.filter(n => !n.read).length);
     }
@@ -73,16 +66,7 @@ export const useRealtimeNotifications = (): UseRealtimeNotificationsResult => {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const newNotif: Notification = {
-            id: payload.new.id,
-            userId: payload.new.user_id,
-            type: payload.new.type,
-            title: payload.new.title,
-            message: payload.new.message,
-            link: payload.new.link,
-            read: payload.new.read,
-            createdAt: payload.new.created_at,
-          };
+          const newNotif: Notification = mapNotification(payload.new as NotificationRow);
           setNotifications(prev => [newNotif, ...prev]);
           setUnreadCount(prev => prev + 1);
         }

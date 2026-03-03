@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, ThumbsUp, Edit2, Trash2, Loader2, Star } from 'lucide-react';
-import StarRating from './StarRating';
-import ReviewForm from './ReviewForm';
+import { StarRating } from './StarRating';
+import { ReviewForm } from './ReviewForm';
 import { useAuth } from '../context/AuthContext';
 import { reviewsApi } from '../services/api';
 import { logger } from '../utils/logger';
@@ -16,11 +16,11 @@ interface ReviewListProps {
 /**
  * Display list of reviews for a course with submission form
  */
-export default function ReviewList({
+export const ReviewList: React.FC<ReviewListProps> = ({
   courseId,
   canReview = false,
   onReviewSubmitted
-}: ReviewListProps) {
+}) => {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [summary, setSummary] = useState<ReviewSummary | null>(null);
@@ -60,8 +60,9 @@ export default function ReviewList({
         fetchReviews(); // Refresh reviews
         onReviewSubmitted?.();
       }
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to submit review');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to submit review';
+      throw new Error(message);
     }
   };
 
@@ -73,8 +74,9 @@ export default function ReviewList({
         setEditingReviewId(null);
         fetchReviews(); // Refresh reviews
       }
-    } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Failed to update review');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update review';
+      throw new Error(message);
     }
   };
 
@@ -273,4 +275,4 @@ export default function ReviewList({
       </div>
     </div>
   );
-}
+};

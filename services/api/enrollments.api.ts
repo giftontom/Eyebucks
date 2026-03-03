@@ -4,8 +4,9 @@
  */
 import { supabase } from '../supabase';
 import type { Enrollment, EnrollmentWithCourse } from '../../types';
+import type { EnrollmentRow, EnrollmentUpdate } from '../../types/supabase';
 
-function mapEnrollment(row: any): Enrollment {
+function mapEnrollment(row: EnrollmentRow): Enrollment {
   return {
     id: row.id,
     userId: row.user_id,
@@ -139,7 +140,7 @@ export const enrollmentsApi = {
     overallPercent?: number;
     totalWatchTime?: number;
   }): Promise<void> {
-    const update: any = {};
+    const update: EnrollmentUpdate = {};
     if (data.completedModules !== undefined) update.completed_modules = data.completedModules;
     if (data.currentModule !== undefined) update.current_module = data.currentModule;
     if (data.overallPercent !== undefined) update.overall_percent = data.overallPercent;

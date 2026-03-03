@@ -12,7 +12,7 @@ export const BundleCoursePicker: React.FC<BundleCoursePickerProps> = ({
   selectedIds,
   onChange,
 }) => {
-  const moduleCourses = courses.filter(c => c.type === 'MODULE' && !(c as any).deleted_at);
+  const moduleCourses = courses.filter(c => c.type === 'MODULE' && !c.deletedAt);
 
   return (
     <div>
@@ -37,7 +37,7 @@ export const BundleCoursePicker: React.FC<BundleCoursePickerProps> = ({
                 className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
               />
               <span className="text-sm text-slate-800">{c.title}</span>
-              <span className="text-xs text-slate-400 ml-auto">{(c as any)._count?.modules || 0} modules</span>
+              <span className="text-xs text-slate-400 ml-auto">{c._count?.modules || 0} modules</span>
             </label>
           ))
         )}

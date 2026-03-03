@@ -93,8 +93,8 @@ assignees: ''
 ## 🔗 Related Files/Code
 <!-- Link to relevant code or files -->
 
-- `src/components/Auth.tsx`
-- `server/src/routes/auth.ts`
+- `context/AuthContext.tsx`
+- `services/api/users.api.ts`
 - Related issue: #
 
 ## ✅ Acceptance Criteria

@@ -3,6 +3,23 @@
  */
 import { supabase } from '../supabase';
 import type { User } from '../../types';
+import type { UserRow } from '../../types/supabase';
+
+export function mapUserProfile(profile: UserRow): User {
+  return {
+    id: profile.id,
+    name: profile.name || '',
+    email: profile.email || '',
+    avatar: profile.avatar || '',
+    phone_e164: profile.phone_e164 || null,
+    role: profile.role || 'USER',
+    phoneVerified: profile.phone_verified || false,
+    emailVerified: profile.email_verified || false,
+    google_id: profile.google_id ?? undefined,
+    created_at: profile.created_at ? new Date(profile.created_at) : undefined,
+    last_login_at: profile.last_login_at ? new Date(profile.last_login_at) : undefined,
+  };
+}
 
 export const usersApi = {
   async getCurrentUser(): Promise<User | null> {
@@ -17,19 +34,7 @@ export const usersApi = {
 
     if (error || !profile) return null;
 
-    return {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      avatar: profile.avatar || '',
-      phone_e164: profile.phone_e164,
-      role: profile.role,
-      phoneVerified: profile.phone_verified,
-      emailVerified: profile.email_verified,
-      google_id: profile.google_id,
-      created_at: profile.created_at ? new Date(profile.created_at) : undefined,
-      last_login_at: profile.last_login_at ? new Date(profile.last_login_at) : undefined,
-    };
+    return mapUserProfile(profile);
   },
 
   async getUser(userId: string): Promise<Pick<User, 'id' | 'name' | 'email' | 'avatar' | 'role' | 'created_at'> | null> {

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User as UserIcon, LogOut, ShieldAlert, ChevronRight, Aperture, Youtube, UserCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { AnnouncementBanner } from './AnnouncementBanner';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -33,18 +34,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900">
+      <AnnouncementBanner />
+
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b border-neutral-100 bg-white/80 backdrop-blur-md" role="navigation" aria-label="Main navigation">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-12">
-              <Link to="/" className="flex-shrink-0 z-50 relative flex items-center gap-2 group" aria-label="Eyebuckz Home">
-                <div className="w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-                    <span className="font-bold text-lg" aria-hidden="true">E</span>
-                </div>
-                <span className="text-xl font-bold tracking-tight text-neutral-900 group-hover:text-brand-600 transition-colors">
-                  Eyebuckz
-                </span>
+              <Link to="/" className="flex-shrink-0 z-50 relative flex items-center group" aria-label="Eyebuckz Home">
+                <img src="/logo.svg" alt="Eyebuckz" className="h-8 w-auto" style={{ filter: 'invert(1)' }} />
               </Link>
               <div className="hidden md:block">
                 <div className="flex items-baseline space-x-8" role="menubar">

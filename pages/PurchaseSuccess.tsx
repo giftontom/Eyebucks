@@ -28,7 +28,7 @@ export const PurchaseSuccess: React.FC = () => {
     if (!courseId) { setIsLoading(false); return; }
     coursesApi.getCourse(courseId)
       .then(res => setCourse(res.course))
-      .catch(() => {})
+      .catch((err) => logger.error('[PurchaseSuccess] Failed to load course:', err))
       .finally(() => setIsLoading(false));
   }, [courseId]);
 
@@ -36,7 +36,7 @@ export const PurchaseSuccess: React.FC = () => {
     if (!orderId) return;
     paymentsApi.getPaymentByOrder(orderId)
       .then(p => { if (p) setPayment(p); })
-      .catch(() => {});
+      .catch((err) => logger.error('[PurchaseSuccess] Failed to load payment:', err));
   }, [orderId]);
 
   if (isLoading) {

@@ -1,5 +1,5 @@
+import React, { useState } from 'react';
 import { Star } from 'lucide-react';
-import { useState } from 'react';
 
 interface StarRatingProps {
   value: number;
@@ -13,13 +13,13 @@ interface StarRatingProps {
  * Star rating component
  * Can be used as display-only or interactive input
  */
-export default function StarRating({
+export const StarRating: React.FC<StarRatingProps> = ({
   value,
   onChange,
   readonly = false,
   size = 'md',
   showValue = false
-}: StarRatingProps) {
+}) => {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
 
   const sizeClasses = {
@@ -88,4 +88,4 @@ export default function StarRating({
       )}
     </div>
   );
-}
+};

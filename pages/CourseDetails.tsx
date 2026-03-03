@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi } from '../services/api';
-import ReviewList from '../components/ReviewList';
+import { ReviewList } from '../components/ReviewList';
 import { CourseType } from '../types';
 import type { Course } from '../types';
 

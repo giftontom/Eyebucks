@@ -25,16 +25,30 @@ export const Profile: React.FC = () => {
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [phoneSaved, setPhoneSaved] = useState(false);
 
-  useEffect(() => {
+  const [certsError, setCertsError] = useState<string | null>(null);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
+
+  const loadCerts = () => {
+    setCertsError(null);
+    setIsLoadingCerts(true);
     certificatesApi.getUserCertificates()
       .then(setCertificates)
-      .catch(() => {})
+      .catch((err) => setCertsError(err.message || 'Failed to load certificates'))
       .finally(() => setIsLoadingCerts(false));
+  };
 
+  const loadPayments = () => {
+    setPaymentsError(null);
+    setIsLoadingPayments(true);
     paymentsApi.getUserPayments()
       .then(res => setPayments(res.payments))
-      .catch(() => {})
+      .catch((err) => setPaymentsError(err.message || 'Failed to load payments'))
       .finally(() => setIsLoadingPayments(false));
+  };
+
+  useEffect(() => {
+    loadCerts();
+    loadPayments();
   }, []);
 
   const handleSaveName = async () => {
@@ -47,7 +61,7 @@ export const Profile: React.FC = () => {
       await updateProfile({ name: nameInput.trim() });
       setIsEditingName(false);
     } catch {
-      // revert
+      setNameInput(user?.name || '');
     } finally {
       setNameSaving(false);
     }
@@ -183,6 +197,11 @@ export const Profile: React.FC = () => {
         </h2>
         {isLoadingCerts ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-400" size={32} /></div>
+        ) : certsError ? (
+          <div className="text-center py-8">
+            <p className="text-red-500 text-sm mb-2">{certsError}</p>
+            <button onClick={loadCerts} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
+          </div>
         ) : certificates.length === 0 ? (
           <p className="text-slate-400 text-center py-8">No certificates earned yet. Complete a course to earn one!</p>
         ) : (
@@ -214,6 +233,11 @@ export const Profile: React.FC = () => {
         </h2>
         {isLoadingPayments ? (
           <div className="flex justify-center py-8"><Loader2 className="animate-spin text-slate-400" size={32} /></div>
+        ) : paymentsError ? (
+          <div className="text-center py-8">
+            <p className="text-red-500 text-sm mb-2">{paymentsError}</p>
+            <button onClick={loadPayments} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Try again</button>
+          </div>
         ) : payments.length === 0 ? (
           <p className="text-slate-400 text-center py-8">No transactions yet.</p>
         ) : (

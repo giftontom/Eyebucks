@@ -20,22 +20,19 @@ vi.mock('../../../context/AuthContext', () => ({
   AuthProvider: ({ children }: any) => children,
 }));
 
-const { mockEnrollmentsApi, mockSupabaseFrom } = vi.hoisted(() => {
+const { mockEnrollmentsApi, mockCoursesApi } = vi.hoisted(() => {
   const mockEnrollmentsApi = {
     getUserEnrollments: vi.fn(),
   };
-  const mockSupabaseFrom = vi.fn();
-  return { mockEnrollmentsApi, mockSupabaseFrom };
+  const mockCoursesApi = {
+    getCoursesByIds: vi.fn(),
+  };
+  return { mockEnrollmentsApi, mockCoursesApi };
 });
 
 vi.mock('../../../services/api', () => ({
   enrollmentsApi: mockEnrollmentsApi,
-}));
-
-vi.mock('../../../services/supabase', () => ({
-  supabase: {
-    from: mockSupabaseFrom,
-  },
+  coursesApi: mockCoursesApi,
 }));
 
 import { Dashboard } from '../../../pages/Dashboard';
@@ -64,16 +61,9 @@ describe('Dashboard', () => {
       },
     ]);
 
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        in: vi.fn().mockResolvedValue({
-          data: [
-            { id: 'course-1', title: 'React Course', thumbnail: 'thumb.jpg', type: 'MODULE', description: 'desc' },
-          ],
-          error: null,
-        }),
-      }),
-    });
+    mockCoursesApi.getCoursesByIds.mockResolvedValueOnce([
+      { id: 'course-1', title: 'React Course', thumbnail: 'thumb.jpg', type: 'MODULE', description: 'desc' },
+    ]);
 
     renderDashboard();
 
@@ -84,6 +74,7 @@ describe('Dashboard', () => {
 
   it('should show empty state when no enrollments', async () => {
     mockEnrollmentsApi.getUserEnrollments.mockResolvedValueOnce([]);
+    mockCoursesApi.getCoursesByIds.mockResolvedValueOnce([]);
 
     renderDashboard();
 

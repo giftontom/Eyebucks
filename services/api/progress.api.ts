@@ -4,6 +4,7 @@
  */
 import { supabase } from '../supabase';
 import type { Progress, ProgressStats } from '../../types';
+import type { ProgressRow } from '../../types/supabase';
 
 const COMPLETION_THRESHOLD = 0.95;
 const AUTO_SAVE_INTERVAL = 30000;
@@ -18,7 +19,7 @@ interface ModuleProgress {
   lastUpdatedAt: string;
 }
 
-function mapProgress(row: any): Progress {
+function mapProgress(row: ProgressRow): Progress {
   return {
     id: row.id,
     userId: row.user_id,

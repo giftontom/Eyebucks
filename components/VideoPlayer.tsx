@@ -1,7 +1,14 @@
 import React, { useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import Hls from 'hls.js';
+import { Film } from 'lucide-react';
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { logger } from '../utils/logger';
+
+export interface QualityLevel {
+  index: number;  // HLS level index (-1 = auto)
+  height: number; // e.g. 720, 1080
+  label: string;  // e.g. "720p"
+}
 
 interface VideoPlayerProps {
   videoId?: string;
@@ -15,12 +22,16 @@ interface VideoPlayerProps {
   onError?: (error: string) => void;
   onLoadedMetadata?: () => void;
   onQualityChange?: (quality: string) => void;
+  onLevelsLoaded?: (levels: QualityLevel[]) => void;
 }
 
 export interface VideoPlayerHandle {
   play: () => Promise<void>;
   pause: () => void;
   load: () => void;
+  refreshUrl: () => Promise<void>;
+  requestPiP: () => Promise<void>;
+  setQualityLevel: (index: number) => void;
   currentTime: number;
   duration: number;
   paused: boolean;
@@ -45,7 +56,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       onEnded,
       onError,
       onLoadedMetadata,
-      onQualityChange
+      onQualityChange,
+      onLevelsLoaded
     },
     ref
   ) => {
@@ -53,13 +65,15 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const hlsRef = useRef<Hls | null>(null);
     const onErrorRef = useRef(onError);
     const onQualityChangeRef = useRef(onQualityChange);
+    const onLevelsLoadedRef = useRef(onLevelsLoaded);
 
     // Keep refs in sync without triggering effects
     onErrorRef.current = onError;
     onQualityChangeRef.current = onQualityChange;
+    onLevelsLoadedRef.current = onLevelsLoaded;
 
     // Fetch signed URL for the video
-    const { videoUrl, hlsUrl, isLoading, error: fetchError } = useVideoUrl(
+    const { videoUrl, hlsUrl, isLoading, error: fetchError, refreshUrl } = useVideoUrl(
       videoId,
       moduleId,
       fallbackUrl
@@ -81,6 +95,23 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       load: () => {
         if (videoRef.current) {
           videoRef.current.load();
+        }
+      },
+      refreshUrl: async () => {
+        await refreshUrl();
+      },
+      requestPiP: async () => {
+        if (videoRef.current && document.pictureInPictureEnabled) {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else {
+            await videoRef.current.requestPictureInPicture();
+          }
+        }
+      },
+      setQualityLevel: (index: number) => {
+        if (hlsRef.current) {
+          hlsRef.current.currentLevel = index;
         }
       },
       get currentTime() {
@@ -165,6 +196,14 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (destroyed) return;
           logger.debug('[HLS] Manifest parsed, ready to play');
+          if (onLevelsLoadedRef.current && hls.levels.length > 0) {
+            const levels: QualityLevel[] = hls.levels.map((level, i) => ({
+              index: i,
+              height: level.height,
+              label: `${level.height}p`,
+            }));
+            onLevelsLoadedRef.current(levels);
+          }
         });
 
         hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
@@ -242,6 +281,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       };
     }, [hlsUrl, videoUrl]);
 
+    // Track fetch errors so video element onError can check
+    const fetchErrorRef = useRef<string | null>(null);
+    fetchErrorRef.current = fetchError;
+
     // Handle fetch errors
     useEffect(() => {
       if (fetchError && onErrorRef.current) {
@@ -261,6 +304,18 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       );
     }
 
+    // No video available
+    if (!videoUrl && !hlsUrl && !isLoading) {
+      return (
+        <div className={`${className} flex items-center justify-center bg-black`}>
+          <div className="text-center text-neutral-500">
+            <Film size={48} className="mx-auto mb-3 opacity-50" />
+            <p className="text-sm">No video available for this module</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <video
         ref={videoRef}
@@ -270,6 +325,20 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onClick={onClick}
         onEnded={onEnded}
         onLoadedMetadata={onLoadedMetadata}
+        onContextMenu={(e) => e.preventDefault()}
+        aria-label="Course video player"
+        onError={() => {
+          if (videoRef.current?.error && onErrorRef.current && !fetchErrorRef.current) {
+            const code = videoRef.current.error.code;
+            const messages: Record<number, string> = {
+              1: 'Video loading was aborted.',
+              2: 'Network error while loading video.',
+              3: 'Video decoding failed.',
+              4: 'Video format not supported.',
+            };
+            onErrorRef.current(messages[code] || 'Failed to load video.');
+          }
+        }}
         playsInline
         crossOrigin="anonymous"
         preload="metadata"

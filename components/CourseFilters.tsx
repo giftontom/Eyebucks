@@ -1,3 +1,4 @@
+import React from 'react';
 import { X, Filter } from 'lucide-react';
 
 export interface CourseFiltersState {
@@ -19,14 +20,14 @@ interface CourseFiltersProps {
  * Course filtering sidebar component
  * Allows users to filter courses by type, price, rating, and sort order
  */
-export default function CourseFilters({
+export const CourseFilters: React.FC<CourseFiltersProps> = ({
   filters,
   onChange,
   onClose,
   showCloseButton = false
-}: CourseFiltersProps) {
+}) => {
 
-  const updateFilter = (key: keyof CourseFiltersState, value: any) => {
+  const updateFilter = (key: keyof CourseFiltersState, value: string | number | undefined) => {
     onChange({ ...filters, [key]: value });
   };
 
@@ -241,4 +242,4 @@ export default function CourseFilters({
       </div>
     </div>
   );
-}
+};

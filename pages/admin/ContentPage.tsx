@@ -123,7 +123,7 @@ export const ContentPage: React.FC = () => {
           <div className="flex items-center justify-center py-20"><div className="text-slate-400">No content found</div></div>
         ) : (
           <div className="divide-y divide-slate-200">
-            {(['faq', 'testimonial', 'showcase'] as const).map(section => {
+            {(['faq', 'testimonial', 'showcase', 'banner'] as const).map(section => {
               const items = siteContent.filter(c => c.section === section);
               if (items.length === 0) return null;
               return (
@@ -180,6 +180,7 @@ export const ContentPage: React.FC = () => {
               <option value="faq">FAQ</option>
               <option value="testimonial">Testimonial</option>
               <option value="showcase">Showcase</option>
+              <option value="banner">Banner</option>
             </select>
           </div>
           <div>

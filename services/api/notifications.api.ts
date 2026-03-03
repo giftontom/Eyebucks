@@ -3,6 +3,7 @@
  * Replaces: apiClient notification methods
  */
 import { supabase } from '../supabase';
+import type { NotificationRow } from '../../types/supabase';
 
 export interface Notification {
   id: string;
@@ -15,7 +16,7 @@ export interface Notification {
   createdAt: string;
 }
 
-function mapNotification(row: any): Notification {
+export function mapNotification(row: NotificationRow): Notification {
   return {
     id: row.id,
     userId: row.user_id,

@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { PhoneGateModal } from './PhoneGateModal';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -29,6 +30,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!user) {
     // Redirect to login with return path
     return <Navigate to={redirectTo} state={{ returnTo: location.pathname + location.search }} replace />;
+  }
+
+  if (!user.phone_e164) {
+    return (
+      <>
+        <div className="pointer-events-none opacity-30 blur-sm">{children}</div>
+        <PhoneGateModal />
+      </>
+    );
   }
 
   return <>{children}</>;

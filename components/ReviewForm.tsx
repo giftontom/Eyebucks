@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
-import StarRating from './StarRating';
+import { StarRating } from './StarRating';
 
 interface ReviewFormProps {
   courseId: string;
@@ -14,14 +14,14 @@ interface ReviewFormProps {
 /**
  * Form for submitting or editing a course review
  */
-export default function ReviewForm({
+export const ReviewForm: React.FC<ReviewFormProps> = ({
   courseId,
   onSubmit,
   onCancel,
   initialRating = 0,
   initialComment = '',
   isEditing = false
-}: ReviewFormProps) {
+}) => {
   const [rating, setRating] = useState(initialRating);
   const [comment, setComment] = useState(initialComment);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,8 +56,8 @@ export default function ReviewForm({
         setRating(0);
         setComment('');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to submit review');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to submit review');
     } finally {
       setIsSubmitting(false);
     }
@@ -144,4 +144,4 @@ export default function ReviewForm({
       </div>
     </form>
   );
-}
+};

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PlayCircle, UserCircle, Layers } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { enrollmentsApi } from '../services/api';
-import { supabase } from '../services/supabase';
+import { enrollmentsApi, coursesApi } from '../services/api';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
 import { logger } from '../utils/logger';
 import { CourseType } from '../types';
@@ -21,58 +20,68 @@ export const Dashboard: React.FC = () => {
     type?: string;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Load user's enrolled courses
-  useEffect(() => {
-    const loadEnrollments = async () => {
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
+  const loadEnrollments = async () => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        // Get user's enrollments
-        const enrollments = await enrollmentsApi.getUserEnrollments();
+    setLoadError(null);
+    setIsLoading(true);
 
-        // Batch-fetch all course details in a single query (replaces N+1 per-enrollment calls)
-        const courseIds = enrollments.map(e => e.courseId);
-        const { data: coursesData } = await supabase
-          .from('courses')
-          .select('id, title, thumbnail, type, description')
-          .in('id', courseIds);
+    try {
+      const enrollments = await enrollmentsApi.getUserEnrollments();
 
-        const courseMap = new Map((coursesData || []).map(c => [c.id, c]));
+      const courseIds = enrollments.map(e => e.courseId);
+      const coursesData = await coursesApi.getCoursesByIds(courseIds);
 
-        const courses = enrollments
-          .map(enrollment => {
-            const course = courseMap.get(enrollment.courseId);
-            if (!course) return null;
-            return {
-              id: course.id,
-              title: course.title,
-              thumbnail: course.thumbnail,
-              type: course.type,
-              enrollmentId: enrollment.id,
-              progress: enrollment.progress.overallPercent,
-              enrolledAt: enrollment.enrolledAt,
-              lastAccessedAt: enrollment.lastAccessedAt,
-            };
-          })
-          .filter(Boolean);
-        setEnrolledCourses(courses);
-      } catch (error) {
-        logger.error('[Dashboard] Error loading enrollments:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      const courseMap = new Map(coursesData.map(c => [c.id, c]));
 
-    loadEnrollments();
-  }, [user]);
+      const courses = enrollments
+        .map(enrollment => {
+          const course = courseMap.get(enrollment.courseId);
+          if (!course) return null;
+          return {
+            id: course.id,
+            title: course.title,
+            thumbnail: course.thumbnail,
+            type: course.type,
+            enrollmentId: enrollment.id,
+            progress: enrollment.progress.overallPercent,
+            enrolledAt: enrollment.enrolledAt,
+            lastAccessedAt: enrollment.lastAccessedAt,
+          };
+        })
+        .filter(Boolean);
+      setEnrolledCourses(courses);
+    } catch (error) {
+      logger.error('[Dashboard] Error loading enrollments:', error);
+      setLoadError(error instanceof Error ? error.message : 'Failed to load your courses');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // Show loading state
+  useEffect(() => { loadEnrollments(); }, [user]);
+
   if (isLoading) {
     return <DashboardSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-200">
+          <p className="text-red-700 font-medium mb-2">Failed to load your courses</p>
+          <p className="text-red-500 text-sm mb-4">{loadError}</p>
+          <button onClick={loadEnrollments} className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg transition">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const myCourses = enrolledCourses;

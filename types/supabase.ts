@@ -181,6 +181,7 @@ export interface Database {
           overall_percent: number;
           total_watch_time: number;
           enrolled_at: string;
+          expires_at: string | null;
           last_accessed_at: string | null;
           created_at: string;
           updated_at: string;
@@ -198,6 +199,7 @@ export interface Database {
           overall_percent?: number;
           total_watch_time?: number;
           enrolled_at?: string;
+          expires_at?: string | null;
           last_accessed_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -215,6 +217,7 @@ export interface Database {
           overall_percent?: number;
           total_watch_time?: number;
           enrolled_at?: string;
+          expires_at?: string | null;
           last_accessed_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -736,6 +739,7 @@ export interface Database {
       };
     };
     Views: {};
+
     Functions: {
       complete_module: {
         Args: { p_user_id: string; p_module_id: string; p_course_id: string };
@@ -776,3 +780,23 @@ export interface Database {
     };
   };
 }
+
+// Row type aliases for cleaner imports
+export type UserRow = Database['public']['Tables']['users']['Row'];
+export type CourseRow = Database['public']['Tables']['courses']['Row'];
+export type ModuleRow = Database['public']['Tables']['modules']['Row'];
+export type EnrollmentRow = Database['public']['Tables']['enrollments']['Row'];
+export type ProgressRow = Database['public']['Tables']['progress']['Row'];
+export type CertificateRow = Database['public']['Tables']['certificates']['Row'];
+export type ReviewRow = Database['public']['Tables']['reviews']['Row'];
+export type NotificationRow = Database['public']['Tables']['notifications']['Row'];
+export type PaymentRow = Database['public']['Tables']['payments']['Row'];
+export type SiteContentRow = Database['public']['Tables']['site_content']['Row'];
+export type BundleCourseRow = Database['public']['Tables']['bundle_courses']['Row'];
+
+// Update type aliases for conditional update builders
+export type CourseUpdate = Database['public']['Tables']['courses']['Update'];
+export type UserUpdate = Database['public']['Tables']['users']['Update'];
+export type EnrollmentUpdate = Database['public']['Tables']['enrollments']['Update'];
+export type SiteContentUpdate = Database['public']['Tables']['site_content']['Update'];
+export type ModuleUpdate = Database['public']['Tables']['modules']['Update'];

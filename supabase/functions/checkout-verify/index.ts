@@ -101,6 +101,7 @@ serve(async (req) => {
 
     // If this is a BUNDLE, also enroll in all bundled courses
     let bundleWarning: string | undefined;
+    const failedCourseIds: string[] = [];
     if (course.type === 'BUNDLE') {
       const { data: bundledCourses } = await supabaseAdmin
         .from('bundle_courses')
@@ -108,24 +109,31 @@ serve(async (req) => {
         .eq('bundle_id', courseId);
 
       if (bundledCourses && bundledCourses.length > 0) {
-        const bundleEnrollments = bundledCourses.map((bc: any) => ({
-          user_id: user.id,
-          course_id: bc.course_id,
-          status: 'ACTIVE',
-          payment_id: paymentId,
-          order_id: orderId,
-          amount: 0, // Included via bundle
-          enrolled_at: new Date().toISOString(),
-        }));
+        // Enroll each course individually so we can track per-course failures
+        for (const bc of bundledCourses) {
+          const { error: singleEnrollError } = await supabaseAdmin
+            .from('enrollments')
+            .upsert(
+              {
+                user_id: user.id,
+                course_id: bc.course_id,
+                status: 'ACTIVE',
+                payment_id: paymentId,
+                order_id: orderId,
+                amount: 0,
+                enrolled_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+            );
 
-        // Use upsert to skip courses the user is already enrolled in
-        const { error: bundleEnrollError } = await supabaseAdmin
-          .from('enrollments')
-          .upsert(bundleEnrollments, { onConflict: 'user_id,course_id', ignoreDuplicates: true });
+          if (singleEnrollError) {
+            console.error(`[Checkout] Bundle enrollment failed for course ${bc.course_id}:`, singleEnrollError);
+            failedCourseIds.push(bc.course_id);
+          }
+        }
 
-        if (bundleEnrollError) {
-          console.error('[Checkout] Bundle enrollment error:', bundleEnrollError);
-          bundleWarning = 'Some bundle courses could not be enrolled';
+        if (failedCourseIds.length > 0) {
+          bundleWarning = `${failedCourseIds.length} bundle course(s) could not be enrolled`;
         }
       }
     }
@@ -200,7 +208,7 @@ serve(async (req) => {
       success: true,
       verified: true,
       enrollmentId: enrollment.id,
-      ...(bundleWarning && { bundleWarning }),
+      ...(bundleWarning && { bundleWarning, failedCourseIds }),
     }, corsHeaders);
   } catch (error) {
     console.error('[Checkout Verify] Error:', error);

@@ -52,10 +52,10 @@ INSERT INTO public.site_content (section, title, body, order_index, metadata) VA
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS public.payments (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
-  enrollment_id UUID REFERENCES public.enrollments(id) ON DELETE SET NULL,
+  course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+  enrollment_id TEXT REFERENCES public.enrollments(id) ON DELETE SET NULL,
   razorpay_order_id TEXT,
   razorpay_payment_id TEXT,
   amount INTEGER NOT NULL DEFAULT 0,
@@ -119,7 +119,7 @@ CREATE POLICY "courses_select" ON public.courses
 -- 4. Course analytics RPC
 -- ============================================
 
-CREATE OR REPLACE FUNCTION get_course_analytics(p_course_id UUID)
+CREATE OR REPLACE FUNCTION get_course_analytics(p_course_id TEXT)
 RETURNS JSON AS $$
 DECLARE
   result JSON;

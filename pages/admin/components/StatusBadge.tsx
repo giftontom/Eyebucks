@@ -24,6 +24,7 @@ interface StatusBadgeProps {
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => (
   <span
+    role="status"
     className={`px-2 py-0.5 rounded text-xs font-bold ${statusStyles[status] || 'bg-slate-100 text-slate-600'} ${className}`}
   >
     {status}

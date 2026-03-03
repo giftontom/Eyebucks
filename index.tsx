@@ -6,11 +6,6 @@ import { logger } from './utils/logger';
 import { supabase } from './services/supabase';
 import './index.css';
 
-// Import data export utility (makes tools available in console) — dev only
-if (import.meta.env.DEV) {
-  import('./utils/dataExport');
-}
-
 // Initialize Sentry if configured
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({

@@ -4,9 +4,55 @@
  */
 import { supabase } from '../supabase';
 import type { Course, Module } from '../../types';
+import type { CourseRow, ModuleRow } from '../../types/supabase';
+
+// Query result types for joined queries
+interface CourseQueryModule {
+  id: string;
+  title: string;
+  duration: string | null;
+  duration_seconds: number;
+  video_url: string | null;
+  is_free_preview: boolean;
+  order_index: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface CourseQueryReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  user_id: string;
+  users: { name: string } | null;
+}
+
+type CourseQueryRow = CourseRow & {
+  modules?: CourseQueryModule[];
+  reviews?: CourseQueryReview[];
+};
+
+interface BundleQueryCourse {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  thumbnail: string;
+  price?: number;
+  rating?: number | null;
+  total_students?: number;
+  modules?: { id: string }[];
+}
+
+interface BundleQueryRow {
+  bundle_id: string;
+  course_id: string;
+  courses: BundleQueryCourse;
+}
 
 // Map DB row to frontend Course type
-function mapCourse(row: any): Course {
+function mapCourse(row: CourseQueryRow): Course {
   return {
     id: row.id,
     slug: row.slug,
@@ -23,14 +69,14 @@ function mapCourse(row: any): Course {
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     publishedAt: row.published_at ? new Date(row.published_at) : null,
-    chapters: row.modules?.map((m: any) => ({
+    chapters: row.modules?.map((m: CourseQueryModule) => ({
       id: m.id,
       title: m.title,
       duration: m.duration,
       durationSeconds: m.duration_seconds,
       videoUrl: m.video_url,
     })),
-    reviews: row.reviews?.map((r: any) => ({
+    reviews: row.reviews?.map((r: CourseQueryReview) => ({
       id: r.id,
       user: r.users?.name || 'Anonymous',
       rating: r.rating,
@@ -40,7 +86,7 @@ function mapCourse(row: any): Course {
   };
 }
 
-function mapModule(row: any): Module {
+function mapModule(row: ModuleRow): Module {
   return {
     id: row.id,
     courseId: row.course_id,
@@ -80,8 +126,8 @@ export const coursesApi = {
         .order('order_index', { ascending: true });
 
       if (bundleRows) {
-        const bundleMap = new Map<string, any[]>();
-        for (const row of bundleRows) {
+        const bundleMap = new Map<string, BundleQueryRow[]>();
+        for (const row of bundleRows as unknown as BundleQueryRow[]) {
           const list = bundleMap.get(row.bundle_id) || [];
           list.push(row);
           bundleMap.set(row.bundle_id, list);
@@ -89,7 +135,7 @@ export const coursesApi = {
         for (const course of courses) {
           if (course.type === 'BUNDLE') {
             const rows = bundleMap.get(course.id) || [];
-            course.bundledCourses = rows.map((r: any) => ({
+            course.bundledCourses = rows.map((r: BundleQueryRow) => ({
               id: r.courses.id,
               title: r.courses.title,
               slug: r.courses.slug,
@@ -136,7 +182,7 @@ export const coursesApi = {
 
     // Sort modules by order_index
     if (data.modules) {
-      data.modules.sort((a: any, b: any) => a.order_index - b.order_index);
+      data.modules.sort((a: CourseQueryModule, b: CourseQueryModule) => a.order_index - b.order_index);
     }
 
     const course = mapCourse(data);
@@ -150,14 +196,14 @@ export const coursesApi = {
         .order('order_index', { ascending: true });
 
       if (bundleRows) {
-        course.bundledCourses = bundleRows.map((r: any) => ({
+        course.bundledCourses = (bundleRows as unknown as BundleQueryRow[]).map((r: BundleQueryRow) => ({
           id: r.courses.id,
           title: r.courses.title,
           slug: r.courses.slug,
           description: r.courses.description || '',
           thumbnail: r.courses.thumbnail || '',
           price: r.courses.price || 0,
-          rating: r.courses.rating,
+          rating: r.courses.rating ?? null,
           totalStudents: r.courses.total_students || 0,
           moduleCount: r.courses.modules?.length || 0,
         }));
@@ -214,5 +260,20 @@ export const coursesApi = {
     }
 
     return { success: true, modules, hasAccess };
+  },
+
+  /**
+   * Get courses by IDs (for dashboard enrolled course display)
+   */
+  async getCoursesByIds(ids: string[]): Promise<{ id: string; title: string; thumbnail: string; type: string; description: string }[]> {
+    if (ids.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('courses')
+      .select('id, title, thumbnail, type, description')
+      .in('id', ids);
+
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 };

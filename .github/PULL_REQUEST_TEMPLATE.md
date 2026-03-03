@@ -62,7 +62,7 @@
 
 ### Git & Process
 - [ ] Branch is rebased on latest `main`
-- [ ] Commit messages follow [conventional commits](../GIT_WORKFLOW.md)
+- [ ] Commit messages follow [conventional commits](https://www.conventionalcommits.org/)
 - [ ] No merge commits (used rebase)
 - [ ] Related issues/PRs linked below
 

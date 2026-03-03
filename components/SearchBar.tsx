@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, X } from 'lucide-react';
 
 interface SearchBarProps {
@@ -12,12 +12,12 @@ interface SearchBarProps {
  * Debounced search input component
  * Automatically debounces user input to avoid excessive API calls
  */
-export default function SearchBar({
+export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChange,
   placeholder = 'Search courses...',
   debounceMs = 400
-}: SearchBarProps) {
+}) => {
   const [localValue, setLocalValue] = useState(value);
 
   // Sync with parent value
@@ -69,4 +69,4 @@ export default function SearchBar({
       )}
     </div>
   );
-}
+};

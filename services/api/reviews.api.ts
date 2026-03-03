@@ -2,6 +2,12 @@
  * Reviews API - Course review CRUD operations
  */
 import { supabase } from '../supabase';
+import type { ReviewRow } from '../../types/supabase';
+
+// Query result type for review with user join
+type ReviewQueryRow = ReviewRow & {
+  users: { name: string; avatar: string | null } | null;
+};
 
 export interface ReviewUser {
   name: string;
@@ -43,7 +49,7 @@ export const reviewsApi = {
     const { data: reviews, error, count } = await supabase
       .from('reviews')
       .select(`
-        id, user_id, rating, comment, helpful, created_at, updated_at,
+        id, user_id, rating, comment, helpful_count, created_at, updated_at,
         users:user_id (name, avatar)
       `, { count: 'exact' })
       .eq('course_id', courseId)
@@ -70,12 +76,12 @@ export const reviewsApi = {
 
     return {
       success: true,
-      reviews: (reviews || []).map((r: any) => ({
+      reviews: (reviews || []).map((r: ReviewQueryRow) => ({
         id: r.id,
         userId: r.user_id,
         rating: r.rating,
-        comment: r.comment,
-        helpful: r.helpful,
+        comment: r.comment || '',
+        helpful: r.helpful_count,
         user: { name: r.users?.name || 'Anonymous', avatar: r.users?.avatar || '' },
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -89,7 +95,7 @@ export const reviewsApi = {
     courseId: string,
     rating: number,
     comment: string
-  ): Promise<{ success: boolean; review: any }> {
+  ): Promise<{ success: boolean; review: ReviewRow }> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -112,7 +118,7 @@ export const reviewsApi = {
     reviewId: string,
     rating: number,
     comment: string
-  ): Promise<{ success: boolean; review: any }> {
+  ): Promise<{ success: boolean; review: ReviewRow }> {
     const { data, error } = await supabase
       .from('reviews')
       .update({ rating, comment })

@@ -3,6 +3,7 @@
  * Replaces: apiClient.createOrder(), verifyPayment(), checkOrderStatus()
  */
 import { supabase } from '../supabase';
+import { extractEdgeFnError } from '../../utils/edgeFunctionError';
 
 export const checkoutApi = {
   /**
@@ -23,7 +24,7 @@ export const checkoutApi = {
       body: { courseId },
     });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(await extractEdgeFnError(error, 'Failed to create order'));
     if (!data?.success) throw new Error(data?.error || 'Failed to create order');
     return data;
   },
@@ -42,12 +43,14 @@ export const checkoutApi = {
     enrollmentId: string;
     mock?: boolean;
     message?: string;
+    bundleWarning?: string;
+    failedCourseIds?: string[];
   }> {
     const { data, error } = await supabase.functions.invoke('checkout-verify', {
       body: params,
     });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(await extractEdgeFnError(error, 'Payment verification failed'));
     if (!data?.success) throw new Error(data?.error || 'Payment verification failed');
     return data;
   },

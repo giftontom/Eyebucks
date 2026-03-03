@@ -9,6 +9,7 @@ import { UserDetailPage } from './UserDetailPage';
 import { CertificatesPage } from './CertificatesPage';
 import { ContentPage } from './ContentPage';
 import { PaymentsPage } from './PaymentsPage';
+import { ReviewsPage } from './ReviewsPage';
 
 export const AdminRoutes: React.FC = () => (
   <Routes>
@@ -22,6 +23,7 @@ export const AdminRoutes: React.FC = () => (
       <Route path="certificates" element={<CertificatesPage />} />
       <Route path="content" element={<ContentPage />} />
       <Route path="payments" element={<PaymentsPage />} />
+      <Route path="reviews" element={<ReviewsPage />} />
     </Route>
   </Routes>
 );

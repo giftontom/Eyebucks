@@ -2,6 +2,8 @@
  * Payments API - Transaction history, receipts, and refund processing
  */
 import { supabase } from '../supabase';
+import type { PaymentRow } from '../../types/supabase';
+import { extractEdgeFnError } from '../../utils/edgeFunctionError';
 
 export interface Payment {
   id: string;
@@ -19,7 +21,7 @@ export interface Payment {
   refundAmount: number | null;
   refundReason: string | null;
   refundedAt: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
   // Joined fields
@@ -28,7 +30,13 @@ export interface Payment {
   courseTitle?: string;
 }
 
-function mapRow(row: any): Payment {
+// Query result type for payment with user/course joins
+type PaymentQueryRow = PaymentRow & {
+  users?: { name: string; email: string } | null;
+  courses?: { title: string } | null;
+};
+
+function mapRow(row: PaymentQueryRow): Payment {
   return {
     id: row.id,
     userId: row.user_id,
@@ -38,14 +46,14 @@ function mapRow(row: any): Payment {
     razorpayPaymentId: row.razorpay_payment_id,
     amount: row.amount,
     currency: row.currency,
-    status: row.status,
+    status: row.status as Payment['status'],
     method: row.method,
     receiptNumber: row.receipt_number,
     refundId: row.refund_id,
     refundAmount: row.refund_amount,
     refundReason: row.refund_reason,
     refundedAt: row.refunded_at,
-    metadata: row.metadata || {},
+    metadata: (row.metadata || {}) as Record<string, unknown>,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     userName: row.users?.name,
@@ -118,16 +126,13 @@ export const paymentsApi = {
     };
   },
 
-  async processRefund(paymentId: string, reason: string): Promise<void> {
-    const { error } = await supabase
-      .from('payments')
-      .update({
-        status: 'refunded',
-        refund_reason: reason,
-        refunded_at: new Date().toISOString(),
-      })
-      .eq('id', paymentId);
+  async processRefund(paymentId: string, reason: string): Promise<{ refundId: string; amount: number; message: string }> {
+    const { data, error } = await supabase.functions.invoke('refund-process', {
+      body: { paymentId, reason },
+    });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(await extractEdgeFnError(error, 'Refund failed'));
+    if (!data?.success) throw new Error(data?.error || 'Refund failed');
+    return { refundId: data.refundId, amount: data.amount, message: `Refund processed (ID: ${data.refundId})` };
   },
 };

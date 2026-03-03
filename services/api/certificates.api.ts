@@ -3,8 +3,9 @@
  */
 import { supabase } from '../supabase';
 import type { Certificate } from '../../types';
+import type { CertificateRow } from '../../types/supabase';
 
-function mapRow(row: any): Certificate {
+function mapRow(row: CertificateRow): Certificate {
   return {
     id: row.id,
     userId: row.user_id,

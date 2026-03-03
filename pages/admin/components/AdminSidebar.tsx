@@ -7,6 +7,7 @@ import {
   Award,
   FileText,
   CreditCard,
+  Star,
   Menu,
   X,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/admin/certificates', label: 'Certificates', icon: Award },
   { to: '/admin/content', label: 'Content', icon: FileText },
   { to: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { to: '/admin/reviews', label: 'Reviews', icon: Star },
 ];
 
 export const AdminSidebar: React.FC = () => {

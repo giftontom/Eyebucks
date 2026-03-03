@@ -147,9 +147,9 @@ export const Storefront: React.FC = () => {
     coursesApi.getCourses()
       .then(res => {
         setCourses(res.courses);
-        setIsLoading(false);
       })
-      .catch(() => setIsLoading(false));
+      .catch(err => console.error('[Storefront] Failed to load courses:', err))
+      .finally(() => setIsLoading(false));
   }, []);
 
   // Fetch dynamic content from DB
