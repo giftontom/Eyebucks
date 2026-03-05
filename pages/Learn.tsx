@@ -1,15 +1,20 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, BookOpen, Layers, ArrowRight, ChevronUp, X, PictureInPicture2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+
+import { EnrollmentGate } from '../components/EnrollmentGate';
+import { useToast } from '../components/Toast';
+import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
-import { coursesApi, progressApi, AUTO_SAVE_INTERVAL } from '../services/api';
-import { useToast } from '../components/Toast';
-import { EnrollmentGate } from '../components/EnrollmentGate';
-import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
-import type { QualityLevel } from '../components/VideoPlayer';
-import { logger } from '../utils/logger';
+import { useMobileGestures } from '../hooks/useMobileGestures';
+import { useModuleNotes } from '../hooks/useModuleNotes';
+import { useModuleProgress } from '../hooks/useModuleProgress';
+import { useVideoPlayer } from '../hooks/useVideoPlayer';
+import { coursesApi } from '../services/api';
 import { CourseType } from '../types';
+import { logger } from '../utils/logger';
+
 import type { Course, Module } from '../types';
 
 /**
@@ -17,12 +22,10 @@ import type { Course, Module } from '../types';
  * Bunny URLs follow: https://{cdn}/{guid}/playlist.m3u8
  */
 function extractVideoId(videoUrl?: string): string | undefined {
-  if (!videoUrl) return undefined;
+  if (!videoUrl) {return undefined;}
   const match = videoUrl.match(/\/([a-f0-9-]{36})\/playlist\.m3u8/i);
   return match?.[1];
 }
-
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export const Learn: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,60 +41,87 @@ export const Learn: React.FC = () => {
   // Use access control hook
   const { hasAccess, isLoading: isCheckingAccess, isAdmin } = useAccessControl(id);
   const [activeChapterId, setActiveChapterId] = useState<string | undefined>(undefined);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [notes, setNotes] = useState('');
-  const notesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showCompletionNotification, setShowCompletionNotification] = useState(false);
-  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Mobile responsiveness
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [doubleTapIndicator, setDoubleTapIndicator] = useState<{ side: 'left' | 'right'; key: number } | null>(null);
-  const [seekPreviewTime, setSeekPreviewTime] = useState<number | null>(null);
-  const [seekPreviewX, setSeekPreviewX] = useState(0);
-  const doubleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastTapRef = useRef<{ time: number; x: number } | null>(null);
-
-  // Playback speed
-  const [playbackRate, setPlaybackRate] = useState(1);
-
-  // HLS quality
-  const [hlsQuality, setHlsQuality] = useState<string | null>(null);
-  const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
-  const [selectedQuality, setSelectedQuality] = useState(-1); // -1 = auto
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-
-  // Reset quality state when switching modules (HLS reinitializes in auto mode)
-  useEffect(() => {
-    setQualityLevels([]);
-    setSelectedQuality(-1);
-    setShowQualityMenu(false);
-  }, [activeChapterId]);
-
-  // Buffered amount
-  const [bufferedEnd, setBufferedEnd] = useState(0);
 
   const videoRef = useRef<VideoPlayerHandle>(null);
-  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const completionCheckingRef = useRef(false);
 
   const activeChapterIndex = modules.findIndex(m => m.id === activeChapterId) ?? 0;
 
-  // Calculate real progress from progressService
-  const [progressPercent, setProgressPercent] = useState(0);
+  // --- Hook wiring ---
 
-  // Pre-loaded module completion status (async data loaded into sync map)
-  const [moduleCompletionMap, setModuleCompletionMap] = useState<Record<string, boolean>>({});
+  const {
+    isPlaying, setIsPlaying,
+    currentTime,
+    duration, setDuration,
+    volume, setVolume,
+    isMuted, setIsMuted,
+    showControls,
+    videoError,
+    playbackRate,
+    hlsQuality,
+    qualityLevels,
+    selectedQuality,
+    showQualityMenu, setShowQualityMenu,
+    bufferedEnd,
+    seekPreviewTime, setSeekPreviewTime,
+    seekPreviewX,
+    handlePlayPause,
+    handleTimeUpdateBasic,
+    handleSeek,
+    toggleMute,
+    toggleFullScreen,
+    cycleSpeed,
+    adjustSpeed,
+    handleMouseMove,
+    handleTouchInteraction,
+    togglePiP,
+    handleVideoError,
+    retryVideo,
+    handleQualityChange,
+    handleLevelsLoaded,
+    handleSelectQuality,
+    handleSeekHover,
+  } = useVideoPlayer({ videoRef, activeChapterId, showToast });
+
+  const {
+    progressPercent,
+    moduleCompletionMap,
+    showCompletionNotification,
+    pendingResumeRef,
+    checkCompletion,
+  } = useModuleProgress({
+    courseId: id,
+    activeChapterId,
+    isPlaying,
+    user: user as any,
+    videoRef,
+    hasAccess,
+  });
+
+  const { doubleTapIndicator, handleVideoTap, handleKeyDown } = useMobileGestures({
+    videoRef,
+    handlePlayPause,
+    toggleMute,
+    toggleFullScreen,
+    adjustSpeed,
+    setShowQualityMenu,
+    setVolume,
+    setIsMuted,
+    duration,
+  });
+
+  const { notes, setNotes } = useModuleNotes({
+    courseId: id,
+    activeChapterId,
+    userId: user?.id,
+  });
 
   // Load course and modules from API (parallelized)
   useEffect(() => {
     const loadCourse = async () => {
-      if (!id) return;
+      if (!id) {return;}
 
       try {
         setIsLoadingCourse(true);
@@ -119,412 +149,28 @@ export const Learn: React.FC = () => {
     loadCourse();
   }, [id, showToast]);
 
-  // Pre-load module completion statuses
-  useEffect(() => {
-    const loadModuleCompletions = async () => {
-      if (!user || !id || modules.length === 0) return;
-
-      try {
-        const allProgress = await progressApi.getProgress(id);
-        const completionMap: Record<string, boolean> = {};
-        for (const p of allProgress) {
-          completionMap[p.moduleId] = p.completed;
-        }
-        setModuleCompletionMap(completionMap);
-      } catch (error) {
-        logger.error('[Progress] Error loading module completions:', error);
-      }
-    };
-
-    loadModuleCompletions();
-  }, [user, id, modules.length]);
-
-  // Load course progress stats
-  useEffect(() => {
-    const loadProgress = async () => {
-      if (!user || !id) {
-        setProgressPercent(0);
-        return;
-      }
-
-      try {
-        const stats = await progressApi.getCourseStats(id);
-        setProgressPercent(stats.overallPercent);
-      } catch (error) {
-        logger.error('[Progress] Error loading course stats:', error);
-      }
-    };
-
-    loadProgress();
-  }, [user, id]);
-
-  // Load resume position when module changes
-  useEffect(() => {
-    if (!user || !id || !activeChapterId || !videoRef.current || !hasAccess) return;
-
-    const loadResumePosition = async () => {
-      try {
-        const resumePosition = await progressApi.getResumePosition(id, activeChapterId);
-
-        if (resumePosition > 0 && videoRef.current) {
-          videoRef.current.currentTime = resumePosition;
-          logger.debug(`[Progress] Resumed ${activeChapterId} at ${resumePosition}s`);
-        }
-
-        // Update current module in enrollment
-        await progressApi.updateCurrentModule(id, activeChapterId);
-      } catch (error) {
-        logger.error('[Progress] Error loading resume position:', error);
-      }
-    };
-
-    loadResumePosition();
-  }, [activeChapterId, user, id, hasAccess]);
-
-  // Sync playback rate when switching modules
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.playbackRate = playbackRate;
-    }
-  }, [activeChapterId, playbackRate]);
-
-  // Load notes from localStorage when module changes
-  useEffect(() => {
-    if (!user || !id || !activeChapterId) return;
-
-    const notesKey = `eyebuckz_notes_${id}_${activeChapterId}`;
-    const savedNotes = localStorage.getItem(notesKey);
-
-    if (savedNotes) {
-      setNotes(savedNotes);
-    } else {
-      setNotes('');
-    }
-  }, [user, id, activeChapterId]);
-
-  // Save notes to localStorage (debounced)
-  useEffect(() => {
-    if (!user || !id || !activeChapterId) return;
-
-    // Clear previous timeout
-    if (notesTimeoutRef.current) {
-      clearTimeout(notesTimeoutRef.current);
-    }
-
-    // Debounce save by 1 second
-    notesTimeoutRef.current = setTimeout(() => {
-      const notesKey = `eyebuckz_notes_${id}_${activeChapterId}`;
-      localStorage.setItem(notesKey, notes);
-      logger.debug(`[Notes] Saved for ${activeChapterId}`);
-    }, 1000);
-
-    return () => {
-      if (notesTimeoutRef.current) {
-        clearTimeout(notesTimeoutRef.current);
-      }
-    };
-  }, [notes, user, id, activeChapterId]);
-
-  // Module 3: Progress Save Logic (Auto-save every 30s)
-  useEffect(() => {
-    const saveProgress = () => {
-      if (!videoRef.current || !user || !id || !activeChapterId) return;
-
-      const timestamp = Math.floor(videoRef.current.currentTime);
-      progressApi.saveProgress(id, activeChapterId, timestamp);
-
-      // Show subtle toast notification
-      showToast('Progress saved ✓', 'success', 2000);
-    };
-
-    const interval = setInterval(() => {
-      if (isPlaying) saveProgress();
-    }, AUTO_SAVE_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [isPlaying, activeChapterId, user, id, showToast]);
-
-  const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
-        setIsPlaying(true);
-      } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      }
-    }
-  };
-
+  // Combined onTimeUpdate: basic state + completion check
   const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
-
-    setCurrentTime(videoRef.current.currentTime);
-    setDuration(videoRef.current.duration);
-
-    // Update buffered amount
-    setBufferedEnd(videoRef.current.buffered);
-
-    // Check for module completion (95% threshold)
-    if (user && id && activeChapterId) {
-      const ct = videoRef.current.currentTime;
-      const dur = videoRef.current.duration;
-
-      // Pre-check: skip if already completed or not past 95%
-      if (moduleCompletionMap[activeChapterId]) return;
-      if (!dur || dur <= 0 || ct / dur < 0.95) return;
-
-      // Guard against concurrent async calls
-      if (completionCheckingRef.current) return;
-      completionCheckingRef.current = true;
-
-      progressApi.checkCompletion(id, activeChapterId, ct, dur)
-        .then((wasCompleted) => {
-          if (wasCompleted) {
-            // Immediately mark in map to prevent re-triggering
-            setModuleCompletionMap(prev => ({ ...prev, [activeChapterId]: true }));
-
-            // Show completion notification
-            setShowCompletionNotification(true);
-            if (completionNotifRef.current) clearTimeout(completionNotifRef.current);
-            completionNotifRef.current = setTimeout(() => setShowCompletionNotification(false), 3000);
-
-            // Reload progress stats
-            progressApi.getCourseStats(id).then(stats => {
-              setProgressPercent(stats.overallPercent);
-            });
-          }
-        })
-        .catch(err => {
-          logger.error('[Progress] Completion check failed:', err);
-        })
-        .finally(() => {
-          completionCheckingRef.current = false;
-        });
-    }
-  };
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = Number(e.target.value);
+    handleTimeUpdateBasic();
     if (videoRef.current) {
-      videoRef.current.currentTime = time;
-      setCurrentTime(time);
+      checkCompletion(videoRef.current.currentTime, videoRef.current.duration);
     }
   };
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const toggleFullScreen = () => {
-      if (!document.fullscreenElement) {
-          videoRef.current?.parentElement?.requestFullscreen();
-      } else {
-          document.exitFullscreen();
-      }
-  };
-
-  const cycleSpeed = useCallback(() => {
-    setPlaybackRate(prev => {
-      const idx = SPEED_OPTIONS.indexOf(prev);
-      const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
-      if (videoRef.current) videoRef.current.playbackRate = next;
-      return next;
-    });
-  }, []);
-
-  const adjustSpeed = useCallback((direction: 'up' | 'down') => {
-    setPlaybackRate(prev => {
-      const idx = SPEED_OPTIONS.indexOf(prev);
-      let nextIdx: number;
-      if (direction === 'up') {
-        nextIdx = Math.min(idx + 1, SPEED_OPTIONS.length - 1);
-      } else {
-        nextIdx = Math.max(idx - 1, 0);
-      }
-      const next = SPEED_OPTIONS[nextIdx];
-      if (videoRef.current) videoRef.current.playbackRate = next;
-      return next;
-    });
-  }, []);
 
   // Previous / Next Chapter Logic
   const handlePrev = () => {
-      if (activeChapterIndex > 0) {
-          setActiveChapterId(modules[activeChapterIndex - 1].id);
-          setIsPlaying(false);
-      }
+    if (activeChapterIndex > 0) {
+      setActiveChapterId(modules[activeChapterIndex - 1].id);
+      setIsPlaying(false);
+    }
   };
 
   const handleNext = () => {
-      if (activeChapterIndex < modules.length - 1) {
-          setActiveChapterId(modules[activeChapterIndex + 1].id);
-          setIsPlaying(false);
-      }
-  };
-
-  // Clean up timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-      if (doubleTapTimeoutRef.current) clearTimeout(doubleTapTimeoutRef.current);
-    };
-  }, []);
-
-  const completionNotifRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Clean up completion notification timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (completionNotifRef.current) clearTimeout(completionNotifRef.current);
-    };
-  }, []);
-
-  const handleMouseMove = () => {
-      setShowControls(true);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
-  }
-
-  const handleTouchInteraction = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 4000);
-  };
-
-  const handleVideoTap = (e: React.MouseEvent | React.TouchEvent) => {
-    setShowQualityMenu(false);
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const clientX = 'touches' in e ? e.changedTouches[0].clientX : e.clientX;
-    const tapX = clientX - rect.left;
-    const isLeftHalf = tapX < rect.width / 2;
-    const now = Date.now();
-
-    if (lastTapRef.current && now - lastTapRef.current.time < 300) {
-      // Double-tap detected
-      if (doubleTapTimeoutRef.current) clearTimeout(doubleTapTimeoutRef.current);
-      if (videoRef.current) {
-        if (isLeftHalf) {
-          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-          setDoubleTapIndicator({ side: 'left', key: now });
-        } else {
-          videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10);
-          setDoubleTapIndicator({ side: 'right', key: now });
-        }
-        setTimeout(() => setDoubleTapIndicator(null), 600);
-      }
-      lastTapRef.current = null;
-      return;
-    }
-
-    lastTapRef.current = { time: now, x: tapX };
-    doubleTapTimeoutRef.current = setTimeout(() => {
-      // Single tap → toggle play/pause
-      handlePlayPause();
-      lastTapRef.current = null;
-    }, 300);
-  };
-
-  const togglePiP = async () => {
-    if (videoRef.current) {
-      await videoRef.current.requestPiP();
+    if (activeChapterIndex < modules.length - 1) {
+      setActiveChapterId(modules[activeChapterIndex + 1].id);
+      setIsPlaying(false);
     }
   };
-
-  const handleSeekHover = (e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const percent = (clientX - rect.left) / rect.width;
-    const time = percent * (duration || 0);
-    setSeekPreviewTime(time);
-    setSeekPreviewX(clientX - rect.left);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!videoRef.current) return;
-    switch (e.key) {
-      case ' ':
-      case 'k':
-        e.preventDefault();
-        handlePlayPause();
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        videoRef.current.currentTime = Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + 10);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        { const newVol = Math.min(1, (videoRef.current.volume || 0) + 0.1);
-          videoRef.current.volume = newVol;
-          setVolume(newVol);
-          setIsMuted(newVol === 0); }
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        { const newVol = Math.max(0, (videoRef.current.volume || 0) - 0.1);
-          videoRef.current.volume = newVol;
-          setVolume(newVol);
-          setIsMuted(newVol === 0); }
-        break;
-      case 'f':
-        e.preventDefault();
-        toggleFullScreen();
-        break;
-      case 'm':
-        e.preventDefault();
-        toggleMute();
-        break;
-      case '<':
-        e.preventDefault();
-        adjustSpeed('down');
-        break;
-      case '>':
-        e.preventDefault();
-        adjustSpeed('up');
-        break;
-      case 'q':
-        e.preventDefault();
-        setShowQualityMenu(prev => !prev);
-        break;
-    }
-  };
-
-  const handleVideoError = (error: string) => {
-    setVideoError(error);
-    showToast(error, 'error', 5000);
-    setIsPlaying(false);
-  }
-
-  const retryVideo = async () => {
-    setVideoError(null);
-    if (videoRef.current) {
-      await videoRef.current.refreshUrl();
-      videoRef.current.load();
-    }
-  }
-
-  const handleQualityChange = useCallback((quality: string) => {
-    setHlsQuality(quality);
-  }, []);
-
-  const handleLevelsLoaded = useCallback((levels: QualityLevel[]) => {
-    setQualityLevels(levels);
-  }, []);
-
-  const handleSelectQuality = useCallback((index: number) => {
-    setSelectedQuality(index);
-    setShowQualityMenu(false);
-    if (videoRef.current) {
-      videoRef.current.setQualityLevel(index);
-    }
-  }, []);
 
   // Loading course data
   if (isLoadingCourse || isCheckingAccess) {
@@ -667,7 +313,7 @@ export const Learn: React.FC = () => {
         <div
             className="relative w-full aspect-video bg-black group flex-shrink-0 outline-none select-none"
             onMouseMove={handleMouseMove}
-            onMouseLeave={() => setShowControls(false)}
+            onMouseLeave={() => setShowQualityMenu(false)}
             onTouchStart={handleTouchInteraction}
             onKeyDown={handleKeyDown}
             onContextMenu={(e) => e.preventDefault()}
@@ -685,13 +331,22 @@ export const Learn: React.FC = () => {
                 onError={handleVideoError}
                 onQualityChange={handleQualityChange}
                 onLevelsLoaded={handleLevelsLoaded}
+                onLoadedMetadata={() => {
+                  if (videoRef.current) {
+                    setDuration(videoRef.current.duration);
+                    if (pendingResumeRef.current > 0) {
+                      videoRef.current.currentTime = pendingResumeRef.current;
+                      logger.debug(`[Progress] Resumed at ${pendingResumeRef.current}s (onLoadedMetadata)`);
+                      pendingResumeRef.current = 0;
+                    }
+                  }
+                }}
             />
 
             {/* Tap overlay for play/pause + double-tap skip */}
             <div
               className="absolute inset-0 z-10"
               onClick={handleVideoTap}
-              onTouchEnd={handleVideoTap}
             />
 
             {/* Double-tap skip indicators */}
@@ -776,7 +431,7 @@ export const Learn: React.FC = () => {
                                     onChange={(e) => {
                                         const v = Number(e.target.value);
                                         setVolume(v);
-                                        if(videoRef.current) videoRef.current.volume = v;
+                                        if(videoRef.current) {videoRef.current.volume = v;}
                                         setIsMuted(v === 0);
                                     }}
                                     className="w-20 h-1 accent-white"
@@ -802,9 +457,9 @@ export const Learn: React.FC = () => {
                           {playbackRate}x
                         </button>
 
-                        {/* Quality Selector — hidden on mobile and Safari (native HLS) */}
+                        {/* Quality Selector */}
                         {qualityLevels.length > 0 && (
-                          <div className="hidden sm:block relative">
+                          <div className="relative">
                             <button
                               onClick={() => setShowQualityMenu(prev => !prev)}
                               className="text-[10px] sm:text-xs font-bold px-2 py-1 rounded hover:bg-white/20 transition min-w-[3rem]"

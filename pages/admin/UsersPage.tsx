@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+
 import { useAdmin } from './AdminContext';
-import { useDebounce } from './hooks/useDebounce';
-import { usePagination } from './hooks/usePagination';
+import { AdminModal } from './components/AdminModal';
 import { DataTable } from './components/DataTable';
 import { StatusBadge } from './components/StatusBadge';
-import { AdminModal } from './components/AdminModal';
+import { useDebounce } from './hooks/useDebounce';
+import { usePagination } from './hooks/usePagination';
+
 import type { AdminUser } from '../../types';
 
 export const UsersPage: React.FC = () => {

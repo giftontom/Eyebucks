@@ -1,5 +1,3 @@
-import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   BookOpen,
@@ -11,6 +9,8 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },

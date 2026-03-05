@@ -2,9 +2,9 @@
  * Site Content API - CRUD for dynamic CMS content (FAQs, testimonials, showcase)
  */
 import { supabase } from '../supabase';
+
 import type { SiteContentItem } from '../../types';
-import type { SiteContentRow, SiteContentUpdate } from '../../types/supabase';
-import type { Json } from '../../types/supabase';
+import type { SiteContentRow, SiteContentUpdate , Json } from '../../types/supabase';
 
 function mapRow(row: SiteContentRow): SiteContentItem {
   return {
@@ -29,7 +29,7 @@ export const siteContentApi = {
       .eq('is_active', true)
       .order('order_index', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return (data || []).map(mapRow);
   },
 
@@ -45,7 +45,7 @@ export const siteContentApi = {
       .order('order_index', { ascending: true })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return {
       items: (data || []).map(mapRow),
       total: count || 0,
@@ -73,7 +73,7 @@ export const siteContentApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return mapRow(data);
   },
 
@@ -85,11 +85,11 @@ export const siteContentApi = {
     isActive?: boolean;
   }): Promise<SiteContentItem> {
     const update: SiteContentUpdate = {};
-    if (updates.title !== undefined) update.title = updates.title;
-    if (updates.body !== undefined) update.body = updates.body;
-    if (updates.metadata !== undefined) update.metadata = updates.metadata as Json;
-    if (updates.orderIndex !== undefined) update.order_index = updates.orderIndex;
-    if (updates.isActive !== undefined) update.is_active = updates.isActive;
+    if (updates.title !== undefined) {update.title = updates.title;}
+    if (updates.body !== undefined) {update.body = updates.body;}
+    if (updates.metadata !== undefined) {update.metadata = updates.metadata as Json;}
+    if (updates.orderIndex !== undefined) {update.order_index = updates.orderIndex;}
+    if (updates.isActive !== undefined) {update.is_active = updates.isActive;}
 
     const { data, error } = await supabase
       .from('site_content')
@@ -98,7 +98,7 @@ export const siteContentApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return mapRow(data);
   },
 
@@ -108,7 +108,7 @@ export const siteContentApi = {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
   },
 
   async reorder(ids: string[]): Promise<void> {

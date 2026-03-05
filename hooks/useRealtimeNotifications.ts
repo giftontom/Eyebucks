@@ -3,9 +3,11 @@
  * Subscribes to new notifications for the current user
  */
 import { useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+
 import { useAuth } from '../context/AuthContext';
 import { mapNotification } from '../services/api/notifications.api';
+import { supabase } from '../services/supabase';
+
 import type { Notification } from '../services/api/notifications.api';
 import type { NotificationRow } from '../types/supabase';
 
@@ -52,7 +54,7 @@ export const useRealtimeNotifications = (): UseRealtimeNotificationsResult => {
   useEffect(() => {
     fetchNotifications();
 
-    if (!userId) return;
+    if (!userId) {return;}
 
     // Subscribe to new notifications
     const channel = supabase
@@ -92,7 +94,7 @@ export const useRealtimeNotifications = (): UseRealtimeNotificationsResult => {
   };
 
   const markAllAsRead = async () => {
-    if (!userId) return;
+    if (!userId) {return;}
 
     await supabase
       .from('notifications')

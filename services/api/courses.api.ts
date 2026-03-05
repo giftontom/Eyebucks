@@ -3,6 +3,7 @@
  * Replaces: apiClient.getCourses(), getCourse(), getCourseModules()
  */
 import { supabase } from '../supabase';
+
 import type { Course, Module } from '../../types';
 import type { CourseRow, ModuleRow } from '../../types/supabase';
 
@@ -112,7 +113,7 @@ export const coursesApi = {
       .eq('status', 'PUBLISHED')
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     const courses = (data || []).map(mapCourse);
 
@@ -177,8 +178,8 @@ export const coursesApi = {
 
     const { data, error } = await query.single();
 
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error('Course not found');
+    if (error) {throw new Error(error.message);}
+    if (!data) {throw new Error('Course not found');}
 
     // Sort modules by order_index
     if (data.modules) {
@@ -223,7 +224,7 @@ export const coursesApi = {
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     // Check access - RLS handles visibility, but we check enrollment for video URLs
     const { data: { user } } = await supabase.auth.getUser();
@@ -266,14 +267,14 @@ export const coursesApi = {
    * Get courses by IDs (for dashboard enrolled course display)
    */
   async getCoursesByIds(ids: string[]): Promise<{ id: string; title: string; thumbnail: string; type: string; description: string }[]> {
-    if (ids.length === 0) return [];
+    if (ids.length === 0) {return [];}
 
     const { data, error } = await supabase
       .from('courses')
       .select('id, title, thumbnail, type, description')
       .in('id', ids);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return data || [];
   },
 };

@@ -76,32 +76,33 @@ INSERT INTO bundle_courses (bundle_id, course_id, order_index) VALUES
 -- ============================================
 
 -- Course 1: Complete Masterclass (7 modules)
-INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_url, order_index) VALUES
-('m1', 'c1-masterclass', 'Module 1: Selecting Niche & Creating Visual Identity', '45:00', 2700, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 1),
-('m2', 'c1-masterclass', 'Module 2: Selecting Content & Creating Engaging Scripts', '55:00', 3300, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 2),
-('m3', 'c1-masterclass', 'Module 3: Shooting (Fundamentals of Cinematography)', '60:00', 3600, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 3),
-('m4', 'c1-masterclass', 'Module 4: Creator Focused Editing Workflow', '90:00', 5400, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 4),
-('m5', 'c1-masterclass', 'Module 5: Posting & Marketing Strategy', '40:00', 2400, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 5),
-('m6', 'c1-masterclass', 'Module 6: Ways to Monetise', '35:00', 2100, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 6),
-('m7', 'c1-masterclass', 'Module 7: Equipment Suggestions for Creators', '25:00', 1500, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 7);
+-- Distributes all 3 Bunny videos across modules
+INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_id, video_url, order_index) VALUES
+('m1', 'c1-masterclass', 'Module 1: Selecting Niche & Creating Visual Identity', '45:00', 2700, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 1),
+('m2', 'c1-masterclass', 'Module 2: Selecting Content & Creating Engaging Scripts', '55:00', 3300, 'd2c1dc81-18fe-42de-9f2b-07933f654663', 'https://vz-fec6a02b-81b.b-cdn.net/d2c1dc81-18fe-42de-9f2b-07933f654663/playlist.m3u8', 2),
+('m3', 'c1-masterclass', 'Module 3: Shooting (Fundamentals of Cinematography)', '60:00', 3600, '88580fa8-29c4-4f53-83f8-f93962f58536', 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 3),
+('m4', 'c1-masterclass', 'Module 4: Creator Focused Editing Workflow', '90:00', 5400, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 4),
+('m5', 'c1-masterclass', 'Module 5: Posting & Marketing Strategy', '40:00', 2400, 'd2c1dc81-18fe-42de-9f2b-07933f654663', 'https://vz-fec6a02b-81b.b-cdn.net/d2c1dc81-18fe-42de-9f2b-07933f654663/playlist.m3u8', 5),
+('m6', 'c1-masterclass', 'Module 6: Ways to Monetise', '35:00', 2100, '88580fa8-29c4-4f53-83f8-f93962f58536', 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 6),
+('m7', 'c1-masterclass', 'Module 7: Equipment Suggestions for Creators', '25:00', 1500, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 7);
 
 -- Course 2: Scripting (4 modules)
-INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_url, order_index) VALUES
-('sc1', 'c2-scripting', 'Finding Your Content Pillars', '15:00', 900, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 1),
-('sc2', 'c2-scripting', 'The Psychology of a Hook', '12:30', 750, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 2),
-('sc3', 'c2-scripting', 'Scripting Frameworks (Edu vs Ent)', '20:00', 1200, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 3),
-('sc4', 'c2-scripting', 'Using AI for Ideation', '10:00', 600, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 4);
+INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_id, video_url, order_index) VALUES
+('sc1', 'c2-scripting', 'Finding Your Content Pillars', '15:00', 900, 'd2c1dc81-18fe-42de-9f2b-07933f654663', 'https://vz-fec6a02b-81b.b-cdn.net/d2c1dc81-18fe-42de-9f2b-07933f654663/playlist.m3u8', 1),
+('sc2', 'c2-scripting', 'The Psychology of a Hook', '12:30', 750, '88580fa8-29c4-4f53-83f8-f93962f58536', 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 2),
+('sc3', 'c2-scripting', 'Scripting Frameworks (Edu vs Ent)', '20:00', 1200, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 3),
+('sc4', 'c2-scripting', 'Using AI for Ideation', '10:00', 600, 'd2c1dc81-18fe-42de-9f2b-07933f654663', 'https://vz-fec6a02b-81b.b-cdn.net/d2c1dc81-18fe-42de-9f2b-07933f654663/playlist.m3u8', 4);
 
 -- Course 3: Cinematography (4 modules)
-INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_url, order_index) VALUES
-('sh1', 'c3-cinematography', 'Exposure Triangle Explained', '18:00', 1080, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 1),
-('sh2', 'c3-cinematography', 'Composition: Rule of Thirds & Depth', '14:00', 840, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 2),
-('sh3', 'c3-cinematography', 'Lighting: Key, Fill, Back', '22:00', 1320, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 3),
-('sh4', 'c3-cinematography', 'Audio: The 50% Rule', '12:00', 720, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 4);
+INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_id, video_url, order_index) VALUES
+('sh1', 'c3-cinematography', 'Exposure Triangle Explained', '18:00', 1080, '88580fa8-29c4-4f53-83f8-f93962f58536', 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 1),
+('sh2', 'c3-cinematography', 'Composition: Rule of Thirds & Depth', '14:00', 840, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 2),
+('sh3', 'c3-cinematography', 'Lighting: Key, Fill, Back', '22:00', 1320, 'd2c1dc81-18fe-42de-9f2b-07933f654663', 'https://vz-fec6a02b-81b.b-cdn.net/d2c1dc81-18fe-42de-9f2b-07933f654663/playlist.m3u8', 3),
+('sh4', 'c3-cinematography', 'Audio: The 50% Rule', '12:00', 720, '88580fa8-29c4-4f53-83f8-f93962f58536', 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 4);
 
 -- Course 4: Editing (4 modules)
-INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_url, order_index) VALUES
-('ed1', 'c4-editing', 'Project Organization & Binning', '10:00', 600, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 1),
-('ed2', 'c4-editing', 'The J-Cut and L-Cut Technique', '08:00', 480, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 2),
-('ed3', 'c4-editing', 'Pacing for Retention', '15:00', 900, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 3),
-('ed4', 'c4-editing', 'Export Settings for Social Media', '08:00', 480, 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 4);
+INSERT INTO modules (id, course_id, title, duration, duration_seconds, video_id, video_url, order_index) VALUES
+('ed1', 'c4-editing', 'Project Organization & Binning', '10:00', 600, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 1),
+('ed2', 'c4-editing', 'The J-Cut and L-Cut Technique', '08:00', 480, 'd2c1dc81-18fe-42de-9f2b-07933f654663', 'https://vz-fec6a02b-81b.b-cdn.net/d2c1dc81-18fe-42de-9f2b-07933f654663/playlist.m3u8', 2),
+('ed3', 'c4-editing', 'Pacing for Retention', '15:00', 900, '88580fa8-29c4-4f53-83f8-f93962f58536', 'https://vz-fec6a02b-81b.b-cdn.net/88580fa8-29c4-4f53-83f8-f93962f58536/playlist.m3u8', 3),
+('ed4', 'c4-editing', 'Export Settings for Social Media', '08:00', 480, '4fb1041c-656e-4c68-b196-7edb43e815a9', 'https://vz-fec6a02b-81b.b-cdn.net/4fb1041c-656e-4c68-b196-7edb43e815a9/playlist.m3u8', 4);

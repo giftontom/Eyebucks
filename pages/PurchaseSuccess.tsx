@@ -1,10 +1,12 @@
+import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2 } from 'lucide-react';
-import { coursesApi, paymentsApi } from '../services/api';
-import type { Payment } from '../services/api/payments.api';
+
 import { useAuth } from '../context/AuthContext';
+import { coursesApi, paymentsApi } from '../services/api';
 import { logger } from '../utils/logger';
+
+import type { Payment } from '../services/api/payments.api';
 import type { Course } from '../types';
 
 export const PurchaseSuccess: React.FC = () => {
@@ -33,9 +35,9 @@ export const PurchaseSuccess: React.FC = () => {
   }, [courseId]);
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId) {return;}
     paymentsApi.getPaymentByOrder(orderId)
-      .then(p => { if (p) setPayment(p); })
+      .then(p => { if (p) {setPayment(p);} })
       .catch((err) => logger.error('[PurchaseSuccess] Failed to load payment:', err));
   }, [orderId]);
 

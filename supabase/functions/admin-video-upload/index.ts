@@ -3,10 +3,11 @@
 // Phase 2 (client-side): Direct TUS upload to Bunny CDN, bypassing Supabase body limit
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { getCorsHeaders } from '../_shared/cors.ts';
-import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+
 import { verifyAuth, verifyAdmin } from '../_shared/auth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 const BUNNY_API_BASE = 'https://video.bunnycdn.com';
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
@@ -21,7 +22,7 @@ serve(async (req) => {
   try {
     // Verify authenticated user
     const auth = await verifyAuth(req, corsHeaders);
-    if ('errorResponse' in auth) return auth.errorResponse;
+    if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
     // Verify admin role

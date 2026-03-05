@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Film } from 'lucide-react';
+import React, { useRef, useEffect, forwardRef, useImperativeHandle, useCallback, useState } from 'react';
+
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { logger } from '../utils/logger';
 
@@ -165,26 +166,58 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       },
       get buffered() {
         const video = videoRef.current;
-        if (!video || video.buffered.length === 0) return 0;
+        if (!video || video.buffered.length === 0) {return 0;}
         return video.buffered.end(video.buffered.length - 1);
       }
     }));
 
+    // Track previous HLS URL to detect in-place refreshes vs module changes
+    const prevHlsUrlRef = useRef<string | null>(null);
+    const prevModuleIdRef = useRef<string | null | undefined>(null);
+
     // Setup HLS streaming
     useEffect(() => {
-      if (!videoRef.current) return;
+      if (!videoRef.current) {return;}
       let destroyed = false;
 
       const video = videoRef.current;
       let networkRetryCount = 0;
+      let mediaRetryCount = 0;
       const MAX_NETWORK_RETRIES = 3;
+      const MAX_MEDIA_RETRIES = 3;
+
+      const isModuleChange = prevModuleIdRef.current !== moduleId;
+      const isUrlRefreshOnly = !isModuleChange && prevHlsUrlRef.current !== null && hlsUrl !== prevHlsUrlRef.current;
+      prevHlsUrlRef.current = hlsUrl;
+      prevModuleIdRef.current = moduleId;
 
       // If HLS URL is available and browser supports it
       if (hlsUrl && Hls.isSupported()) {
+        // VP-1: URL refresh (same module, new signed URL) → swap source in-place
+        if (isUrlRefreshOnly && hlsRef.current) {
+          const savedTime = video.currentTime;
+          const wasPaused = video.paused;
+          hlsRef.current.loadSource(hlsUrl);
+          // Restore playback position after manifest re-parses
+          const restoreTime = () => {
+            if (destroyed) {return;}
+            video.currentTime = savedTime;
+            if (!wasPaused) {video.play().catch(() => {});}
+            hlsRef.current?.off(Hls.Events.MANIFEST_PARSED, restoreTime);
+          };
+          hlsRef.current.on(Hls.Events.MANIFEST_PARSED, restoreTime);
+          logger.debug('[HLS] URL refreshed in-place, preserving playback at', savedTime);
+          return; // No cleanup needed — reusing existing HLS instance
+        }
+
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
-          backBufferLength: 90
+          backBufferLength: 90,
+          xhrSetup: (xhr) => {
+            // Ensure Referer header is sent (Bunny CDN uses referrer-based access control)
+            xhr.withCredentials = false;
+          },
         });
 
         // Assign ref immediately so cleanup always references the correct instance
@@ -194,7 +227,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (destroyed) return;
+          if (destroyed) {return;}
           logger.debug('[HLS] Manifest parsed, ready to play');
           if (onLevelsLoadedRef.current && hls.levels.length > 0) {
             const levels: QualityLevel[] = hls.levels.map((level, i) => ({
@@ -207,7 +240,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         });
 
         hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
-          if (destroyed) return;
+          if (destroyed) {return;}
           const level = hls.levels[data.level];
           if (level && onQualityChangeRef.current) {
             onQualityChangeRef.current(`${level.height}p`);
@@ -215,7 +248,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         });
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (destroyed) return;
+          if (destroyed) {return;}
           logger.error('[HLS] Error:', data);
           if (data.fatal) {
             switch (data.type) {
@@ -233,8 +266,17 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                 }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                logger.debug('[HLS] Media error, trying to recover');
-                hls.recoverMediaError();
+                mediaRetryCount++;
+                if (mediaRetryCount <= MAX_MEDIA_RETRIES) {
+                  logger.debug(`[HLS] Media error, recovery attempt ${mediaRetryCount}/${MAX_MEDIA_RETRIES}`);
+                  hls.recoverMediaError();
+                } else {
+                  logger.debug('[HLS] Media error, max retries reached');
+                  hls.destroy();
+                  if (!destroyed && onErrorRef.current) {
+                    onErrorRef.current('Video playback error. Please try refreshing the page.');
+                  }
+                }
                 break;
               default:
                 logger.debug('[HLS] Fatal error, destroying HLS');
@@ -279,7 +321,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       return () => {
         destroyed = true;
       };
-    }, [hlsUrl, videoUrl]);
+    }, [hlsUrl, videoUrl, moduleId]);
 
     // Track fetch errors so video element onError can check
     const fetchErrorRef = useRef<string | null>(null);
@@ -340,7 +382,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           }
         }}
         playsInline
-        crossOrigin="anonymous"
         preload="metadata"
       />
     );

@@ -20,7 +20,7 @@ export async function hmacSha256(message: string, secret: string): Promise<strin
  * Timing-safe string comparison to prevent timing attacks.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
+  if (a.length !== b.length) {return false;}
   const encoder = new TextEncoder();
   const aBuf = encoder.encode(a);
   const bBuf = encoder.encode(b);

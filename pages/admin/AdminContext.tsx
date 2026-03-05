@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
 import { useToast } from '../../components/Toast';
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+
 import type { AdminCourse, AdminUser } from '../../types';
 
 interface AdminContextValue {
@@ -18,7 +20,7 @@ const AdminCtx = createContext<AdminContextValue | null>(null);
 
 export const useAdmin = () => {
   const ctx = useContext(AdminCtx);
-  if (!ctx) throw new Error('useAdmin must be used within AdminProvider');
+  if (!ctx) {throw new Error('useAdmin must be used within AdminProvider');}
   return ctx;
 };
 

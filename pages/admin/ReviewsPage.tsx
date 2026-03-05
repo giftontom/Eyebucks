@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
 import { Search, Star, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
 import { adminApi } from '../../services/api/admin.api';
-import type { AdminReview } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+
 import { useAdmin } from './AdminContext';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { DataTable } from './components/DataTable';
 import { useDebounce } from './hooks/useDebounce';
 import { usePagination } from './hooks/usePagination';
-import { DataTable } from './components/DataTable';
-import { ConfirmDialog } from './components/ConfirmDialog';
+
+import type { AdminReview } from '../../services/api/admin.api';
 
 export const ReviewsPage: React.FC = () => {
   const { showToast } = useAdmin();
@@ -40,7 +43,7 @@ export const ReviewsPage: React.FC = () => {
   useEffect(() => { fetchReviews(); }, [pagination.page, debouncedSearch]);
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
     try {
       await adminApi.deleteReview(deleteTarget.id);
       showToast('Review deleted', 'success');

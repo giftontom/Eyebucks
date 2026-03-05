@@ -1,13 +1,16 @@
+import { Plus, Eye, EyeOff, BarChart3 } from 'lucide-react';
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Eye, EyeOff, BarChart3 } from 'lucide-react';
+
 import { adminApi } from '../../services/api/admin.api';
+
 import { useAdmin } from './AdminContext';
+import { AdminModal } from './components/AdminModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { DataTable } from './components/DataTable';
 import { StatusBadge } from './components/StatusBadge';
-import { ConfirmDialog } from './components/ConfirmDialog';
-import { AdminModal } from './components/AdminModal';
 import { useAdminData } from './hooks/useAdminData';
+
 import type { AdminCourse, CourseAnalytics } from '../../types';
 
 export const CoursesPage: React.FC = () => {
@@ -20,6 +23,10 @@ export const CoursesPage: React.FC = () => {
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+
+  // Publish/restore confirm
+  const [publishTarget, setPublishTarget] = useState<{ course: AdminCourse; action: string } | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<AdminCourse | null>(null);
 
   // Analytics modal
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -34,12 +41,12 @@ export const CoursesPage: React.FC = () => {
   const { data: courses, loading, refetch } = useAdminData<AdminCourse[]>({ fetchFn: fetchCourses });
 
   const filteredCourses = (courses || []).filter(c =>
-    showArchived ? !!(c as any).deleted_at : !(c as any).deleted_at
+    showArchived ? !!c.deletedAt : !c.deletedAt
   );
 
   // Sort
   const sortedCourses = [...filteredCourses].sort((a, b) => {
-    if (!sortColumn) return 0;
+    if (!sortColumn) {return 0;}
     let aVal: any, bVal: any;
     switch (sortColumn) {
       case 'title': aVal = a.title.toLowerCase(); bVal = b.title.toLowerCase(); break;
@@ -48,8 +55,8 @@ export const CoursesPage: React.FC = () => {
       case 'status': aVal = a.status; bVal = b.status; break;
       default: return 0;
     }
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    if (aVal < bVal) {return sortDirection === 'asc' ? -1 : 1;}
+    if (aVal > bVal) {return sortDirection === 'asc' ? 1 : -1;}
     return 0;
   });
 
@@ -62,11 +69,17 @@ export const CoursesPage: React.FC = () => {
     }
   };
 
-  const handlePublishToggle = async (course: AdminCourse) => {
+  const handlePublishToggle = (course: AdminCourse) => {
     const newStatus = course.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
     const action = newStatus === 'PUBLISHED' ? 'publish' : 'unpublish';
-    if (!confirm(`Are you sure you want to ${action} "${course.title}"?`)) return;
+    setPublishTarget({ course, action });
+  };
 
+  const confirmPublishToggle = async () => {
+    if (!publishTarget) {return;}
+    const { course, action } = publishTarget;
+    const newStatus = course.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
+    setPublishTarget(null);
     setOperationLoading(true);
     try {
       await adminApi.publishCourse(course.id, newStatus);
@@ -81,7 +94,7 @@ export const CoursesPage: React.FC = () => {
   };
 
   const handleArchive = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {return;}
     try {
       await adminApi.deleteCourse(deleteTarget.id);
       showToast('Course archived!', 'success');
@@ -93,11 +106,16 @@ export const CoursesPage: React.FC = () => {
     }
   };
 
-  const handleRestore = async (course: AdminCourse) => {
-    if (!confirm(`Restore "${course.title}"?`)) return;
+  const handleRestore = (course: AdminCourse) => {
+    setRestoreTarget(course);
+  };
+
+  const confirmRestore = async () => {
+    if (!restoreTarget) {return;}
+    setRestoreTarget(null);
     setOperationLoading(true);
     try {
-      await adminApi.restoreCourse(course.id);
+      await adminApi.restoreCourse(restoreTarget.id);
       showToast('Course restored!', 'success');
       refetch();
       refreshCourses();
@@ -156,7 +174,7 @@ export const CoursesPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-900">{c.title}</span>
                   <StatusBadge status={c.type} />
-                  {(c as any).deleted_at && <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Archived</span>}
+                  {c.deletedAt && <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Archived</span>}
                 </div>
               ),
             },
@@ -180,7 +198,7 @@ export const CoursesPage: React.FC = () => {
                   </button>
                   <button onClick={() => openAnalytics(c)} className="text-blue-600 hover:text-blue-700 font-medium text-sm">Stats</button>
                   <button onClick={() => navigate(`/admin/courses/${c.id}`)} className="text-brand-600 hover:text-brand-700 font-medium text-sm">Edit</button>
-                  {(c as any).deleted_at ? (
+                  {c.deletedAt ? (
                     <button onClick={() => handleRestore(c)} className="text-green-600 hover:text-green-700 font-medium text-sm">Restore</button>
                   ) : (
                     <button onClick={() => setDeleteTarget({ id: c.id, title: c.title })} className="text-red-600 hover:text-red-700 text-sm">Archive</button>
@@ -194,7 +212,7 @@ export const CoursesPage: React.FC = () => {
           emptyMessage="No courses found"
           loadingMessage="Loading courses..."
           rowKey={(c) => c.id}
-          rowClassName={(c) => (c as any).deleted_at ? 'opacity-60' : ''}
+          rowClassName={(c) => c.deletedAt ? 'opacity-60' : ''}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           onSort={handleSort}
@@ -212,6 +230,32 @@ export const CoursesPage: React.FC = () => {
         }
         warning="The course will be hidden from students but can be restored later from the archived filter."
         confirmLabel="Archive Course"
+      />
+
+      {/* Publish/Unpublish Confirm */}
+      <ConfirmDialog
+        open={!!publishTarget}
+        onClose={() => setPublishTarget(null)}
+        onConfirm={confirmPublishToggle}
+        title={`${publishTarget?.action === 'publish' ? 'Publish' : 'Unpublish'} Course`}
+        message={
+          <p>Are you sure you want to {publishTarget?.action} <span className="font-bold text-slate-900">"{publishTarget?.course.title}"</span>?</p>
+        }
+        confirmLabel={publishTarget?.action === 'publish' ? 'Publish' : 'Unpublish'}
+        confirmColor={publishTarget?.action === 'publish' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}
+      />
+
+      {/* Restore Confirm */}
+      <ConfirmDialog
+        open={!!restoreTarget}
+        onClose={() => setRestoreTarget(null)}
+        onConfirm={confirmRestore}
+        title="Restore Course"
+        message={
+          <p>Restore <span className="font-bold text-slate-900">"{restoreTarget?.title}"</span>?</p>
+        }
+        confirmLabel="Restore"
+        confirmColor="bg-green-600 hover:bg-green-700"
       />
 
       {/* Course Analytics Modal */}

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { mockSupabase } = vi.hoisted(() => {
   const mockSupabase = {
@@ -122,6 +122,12 @@ describe('useVideoUrl', () => {
   });
 
   it('should show session expired when refresh fails', async () => {
+    // First call returns 401 auth error
+    mockSupabase.functions.invoke.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Edge Function returned a non-2xx status code', context: new Response('', { status: 401 }) },
+    });
+    // Refresh session fails
     mockSupabase.auth.refreshSession.mockResolvedValue({
       data: { session: null },
       error: { message: 'Invalid Refresh Token' },
@@ -137,7 +143,6 @@ describe('useVideoUrl', () => {
 
     expect(result.current.error).toBe('Your session has expired. Please log in again.');
     expect(result.current.videoUrl).toBe('fallback.mp4');
-    expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
   });
 
   it('should send request without moduleId when null', async () => {

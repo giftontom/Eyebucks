@@ -2,12 +2,13 @@
 // Replaces: POST /api/checkout/verify
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { getCorsHeaders } from '../_shared/cors.ts';
-import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+
 import { verifyAuth } from '../_shared/auth.ts';
-import { jsonResponse, errorResponse } from '../_shared/response.ts';
-import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/email.ts';
+import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
+import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -19,7 +20,7 @@ serve(async (req) => {
   try {
     // Verify authenticated user
     const auth = await verifyAuth(req, corsHeaders);
-    if ('errorResponse' in auth) return auth.errorResponse;
+    if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
     const supabaseAdmin = createAdminClient();
@@ -151,7 +152,7 @@ serve(async (req) => {
       status: 'captured',
       receipt_number: receiptNumber,
     }).then(({ error: payError }) => {
-      if (payError) console.error('[Checkout] Payment record error:', payError);
+      if (payError) {console.error('[Checkout] Payment record error:', payError);}
     });
 
     // Get user profile for email

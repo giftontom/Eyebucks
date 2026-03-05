@@ -16,7 +16,7 @@
 export function isEdgeFnAuthError(fnError: unknown): boolean {
   const err = fnError as { context?: unknown; message?: string } | null;
   const ctx = err?.context;
-  if (ctx instanceof Response && ctx.status === 401) return true;
+  if (ctx instanceof Response && ctx.status === 401) {return true;}
 
   const msg = (err?.message || '').toLowerCase();
   return ['invalid jwt', 'jwt expired', 'unauthorized', 'token is expired'].some(

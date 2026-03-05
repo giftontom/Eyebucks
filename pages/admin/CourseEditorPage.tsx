@@ -1,12 +1,16 @@
+import { ArrowLeft } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+
 import { adminApi } from '../../services/api/admin.api';
-import type { CourseType } from '../../types';
+import { translateAdminError } from '../../utils/adminErrors';
+
 import { useAdmin } from './AdminContext';
+import { BundleCoursePicker } from './components/BundleCoursePicker';
 import { CourseForm } from './components/CourseForm';
 import { ModuleManager } from './components/ModuleManager';
-import { BundleCoursePicker } from './components/BundleCoursePicker';
+
+import type { CourseType } from '../../types';
 
 export const CourseEditorPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -26,13 +30,14 @@ export const CourseEditorPage: React.FC = () => {
     thumbnail: '',
     type: 'MODULE' as CourseType,
     features: [''],
+    heroVideoId: undefined as string | undefined,
   });
 
   const [bundledCourseIds, setBundledCourseIds] = useState<string[]>([]);
 
   // Load existing course data
   useEffect(() => {
-    if (!isEditing) return;
+    if (!isEditing) {return;}
 
     const loadCourse = async () => {
       try {
@@ -55,6 +60,7 @@ export const CourseEditorPage: React.FC = () => {
           thumbnail: course.thumbnail || '',
           type: course.type as CourseType,
           features: course.features.length > 0 ? course.features : [''],
+          heroVideoId: (course as any).heroVideoId || undefined,
         });
         setCourseType(course.type as CourseType);
 
@@ -74,7 +80,7 @@ export const CourseEditorPage: React.FC = () => {
     };
 
     loadCourse();
-  }, [courseId, isEditing]);
+  }, [courseId, isEditing, courses]);
 
   const handleFormChange = (data: typeof formData) => {
     setFormData(data);
@@ -84,6 +90,10 @@ export const CourseEditorPage: React.FC = () => {
   const handleSave = async () => {
     if (!formData.title || !formData.slug || !formData.description || !formData.price || !formData.type) {
       showToast('Please fill in all required fields', 'error');
+      return;
+    }
+    if (Number(formData.price) <= 0 || isNaN(Number(formData.price))) {
+      showToast('Price must be a positive number', 'error');
       return;
     }
     if (formData.type === 'BUNDLE' && bundledCourseIds.length === 0) {
@@ -101,6 +111,7 @@ export const CourseEditorPage: React.FC = () => {
         thumbnail: formData.thumbnail || undefined,
         type: formData.type,
         features: formData.features.filter(f => f.trim()),
+        heroVideoId: formData.heroVideoId || undefined,
       };
 
       if (isEditing && courseId) {
@@ -122,8 +133,8 @@ export const CourseEditorPage: React.FC = () => {
         }
       }
       refreshCourses();
-    } catch (err: any) {
-      showToast(err.message || `Failed to ${isEditing ? 'update' : 'create'} course`, 'error');
+    } catch (err: unknown) {
+      showToast(translateAdminError(err), 'error');
     } finally {
       setSaving(false);
     }

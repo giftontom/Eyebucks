@@ -1,7 +1,7 @@
-import { getCorsHeaders } from '../_shared/cors.ts';
 import { verifyAuth } from '../_shared/auth.ts';
-import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

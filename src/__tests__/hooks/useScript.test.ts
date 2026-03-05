@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
 import { useScript } from '../../../hooks/useScript';
 
 describe('useScript', () => {

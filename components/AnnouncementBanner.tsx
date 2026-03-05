@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
 import { siteContentApi } from '../services/api/siteContent.api';
-import type { SiteContentItem } from '../types';
 import { logger } from '../utils/logger';
+
+import type { SiteContentItem } from '../types';
 
 export const AnnouncementBanner: React.FC = () => {
   const [banner, setBanner] = useState<SiteContentItem | null>(null);
@@ -24,7 +26,7 @@ export const AnnouncementBanner: React.FC = () => {
     });
   }, []);
 
-  if (!banner || dismissed) return null;
+  if (!banner || dismissed) {return null;}
 
   const meta = banner.metadata || {};
   const bgColor = (meta.bgColor as string) || '#1e293b';

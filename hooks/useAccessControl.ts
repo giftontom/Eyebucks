@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { useAuth } from '../context/AuthContext';
 import { enrollmentsApi } from '../services/api';
 import { logger } from '../utils/logger';

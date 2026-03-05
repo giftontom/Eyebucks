@@ -3,6 +3,7 @@
  * Replaces: apiClient notification methods
  */
 import { supabase } from '../supabase';
+
 import type { NotificationRow } from '../../types/supabase';
 
 export interface Notification {
@@ -40,7 +41,7 @@ export const notificationsApi = {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return (data || []).map(mapNotification);
   },
 
@@ -53,7 +54,7 @@ export const notificationsApi = {
       .select('*', { count: 'exact', head: true })
       .eq('read', false);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return count || 0;
   },
 
@@ -72,7 +73,7 @@ export const notificationsApi = {
    */
   async markAllAsRead(): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {return;}
 
     await supabase
       .from('notifications')

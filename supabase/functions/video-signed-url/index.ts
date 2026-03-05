@@ -1,13 +1,14 @@
 // Eyebuckz LMS: Video Signed URL Generator
 // Generates Bunny.net CDN token-authenticated HLS URLs
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { crypto } from 'https://deno.land/std@0.168.0/crypto/mod.ts';
 import { encode as base64Encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
-import { getCorsHeaders } from '../_shared/cors.ts';
-import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+
 import { verifyAuth, verifyAdmin } from '../_shared/auth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 async function generateSignedUrlAsync(
   videoId: string,
@@ -44,7 +45,7 @@ serve(async (req) => {
 
   try {
     const auth = await verifyAuth(req, corsHeaders);
-    if ('errorResponse' in auth) return auth.errorResponse;
+    if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
     const { videoId, moduleId } = await req.json();

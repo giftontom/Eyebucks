@@ -1,9 +1,10 @@
+import * as Sentry from '@sentry/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import * as Sentry from '@sentry/react';
+
 import App from './App';
-import { logger } from './utils/logger';
 import { supabase } from './services/supabase';
+import { logger } from './utils/logger';
 import './index.css';
 
 // Initialize Sentry if configured

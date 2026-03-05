@@ -1,11 +1,13 @@
+import { User, Mail, Phone, Award, CreditCard, Download, Check, Edit2, Loader2 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Mail, Phone, Award, CreditCard, Download, Check, Edit2, Loader2 } from 'lucide-react';
+
 import { useAuth } from '../context/AuthContext';
 import { certificatesApi } from '../services/api/certificates.api';
 import { paymentsApi } from '../services/api/payments.api';
-import type { Certificate } from '../types';
+
 import type { Payment } from '../services/api/payments.api';
+import type { Certificate } from '../types';
 
 export const Profile: React.FC = () => {
   const { user, updatePhoneNumber, updateProfile } = useAuth();

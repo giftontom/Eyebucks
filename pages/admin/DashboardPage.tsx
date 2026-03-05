@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, BookOpen, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
+import { useToast } from '../../components/Toast';
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
-import { useToast } from '../../components/Toast';
-import { StatsCard } from './components/StatsCard';
-import { SalesChart } from './components/SalesChart';
+
 import { ActivityFeed } from './components/ActivityFeed';
 import { QuickActions } from './components/QuickActions';
+import { SalesChart } from './components/SalesChart';
+import { StatsCard } from './components/StatsCard';
+import { VideoCleanup } from './components/VideoCleanup';
+
 import type { AdminStats, SalesDataPoint, RecentActivity } from '../../types';
 
 export const DashboardPage: React.FC = () => {
@@ -98,6 +102,9 @@ export const DashboardPage: React.FC = () => {
 
       {/* Quick Actions */}
       <QuickActions />
+
+      {/* Video Cleanup */}
+      <VideoCleanup showToast={showToast} />
 
       {/* Recent Activity */}
       {!loading && recentActivity && <ActivityFeed activity={recentActivity} />}

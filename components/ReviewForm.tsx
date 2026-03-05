@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+
 import { StarRating } from './StarRating';
 
 interface ReviewFormProps {

@@ -1,9 +1,10 @@
 /**
  * Payments API - Transaction history, receipts, and refund processing
  */
-import { supabase } from '../supabase';
-import type { PaymentRow } from '../../types/supabase';
 import { extractEdgeFnError } from '../../utils/edgeFunctionError';
+import { supabase } from '../supabase';
+
+import type { PaymentRow } from '../../types/supabase';
 
 export interface Payment {
   id: string;
@@ -74,7 +75,7 @@ export const paymentsApi = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return {
       payments: (data || []).map(mapRow),
       total: count || 0,
@@ -88,8 +89,8 @@ export const paymentsApi = {
       .eq('razorpay_order_id', orderId)
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
-    return data ? mapRow(data) : null;
+    if (error) {throw new Error(error.message);}
+    return data ? mapRow(data as unknown as PaymentQueryRow) : null;
   },
 
   async getAdminPayments(params?: {
@@ -119,9 +120,9 @@ export const paymentsApi = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return {
-      payments: (data || []).map(mapRow),
+      payments: ((data || []) as unknown as PaymentQueryRow[]).map(mapRow),
       total: count || 0,
     };
   },
@@ -131,8 +132,8 @@ export const paymentsApi = {
       body: { paymentId, reason },
     });
 
-    if (error) throw new Error(await extractEdgeFnError(error, 'Refund failed'));
-    if (!data?.success) throw new Error(data?.error || 'Refund failed');
+    if (error) {throw new Error(await extractEdgeFnError(error, 'Refund failed'));}
+    if (!data?.success) {throw new Error(data?.error || 'Refund failed');}
     return { refundId: data.refundId, amount: data.amount, message: `Refund processed (ID: ${data.refundId})` };
   },
 };

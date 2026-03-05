@@ -3,6 +3,7 @@
  * Replaces: enrollmentService + apiClient enrollment methods
  */
 import { supabase } from '../supabase';
+
 import type { Enrollment, EnrollmentWithCourse } from '../../types';
 import type { EnrollmentRow, EnrollmentUpdate } from '../../types/supabase';
 
@@ -39,7 +40,7 @@ export const enrollmentsApi = {
    */
   async getUserEnrollments(): Promise<EnrollmentWithCourse[]> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) {return [];}
 
     const { data, error } = await supabase
       .from('enrollments')
@@ -51,7 +52,7 @@ export const enrollmentsApi = {
       .eq('status', 'ACTIVE')
       .order('enrolled_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     return (data || []).map(row => ({
       ...mapEnrollment(row),
@@ -80,7 +81,7 @@ export const enrollmentsApi = {
    */
   async checkAccess(courseId: string): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
+    if (!user) {return false;}
 
     // Check admin first
     const { data: profile } = await supabase
@@ -89,7 +90,7 @@ export const enrollmentsApi = {
       .eq('id', user.id)
       .single();
 
-    if (profile?.role === 'ADMIN') return true;
+    if (profile?.role === 'ADMIN') {return true;}
 
     const { data } = await supabase
       .from('enrollments')
@@ -107,7 +108,7 @@ export const enrollmentsApi = {
    */
   async getEnrollment(courseId: string): Promise<Enrollment | null> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) {return null;}
 
     const { data, error } = await supabase
       .from('enrollments')
@@ -117,7 +118,7 @@ export const enrollmentsApi = {
       .eq('status', 'ACTIVE')
       .maybeSingle();
 
-    if (error || !data) return null;
+    if (error || !data) {return null;}
     return mapEnrollment(data);
   },
 
@@ -141,10 +142,10 @@ export const enrollmentsApi = {
     totalWatchTime?: number;
   }): Promise<void> {
     const update: EnrollmentUpdate = {};
-    if (data.completedModules !== undefined) update.completed_modules = data.completedModules;
-    if (data.currentModule !== undefined) update.current_module = data.currentModule;
-    if (data.overallPercent !== undefined) update.overall_percent = data.overallPercent;
-    if (data.totalWatchTime !== undefined) update.total_watch_time = data.totalWatchTime;
+    if (data.completedModules !== undefined) {update.completed_modules = data.completedModules;}
+    if (data.currentModule !== undefined) {update.current_module = data.currentModule;}
+    if (data.overallPercent !== undefined) {update.overall_percent = data.overallPercent;}
+    if (data.totalWatchTime !== undefined) {update.total_watch_time = data.totalWatchTime;}
 
     await supabase
       .from('enrollments')

@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabase';
-import type { User } from '../types';
-import type { Session } from '@supabase/supabase-js';
-import type { UserUpdate } from '../types/supabase';
+
 import { mapUserProfile } from '../services/api/users.api';
+import { supabase } from '../services/supabase';
 import { logger } from '../utils/logger';
+
+import type { User } from '../types';
+import type { UserUpdate } from '../types/supabase';
+import type { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -180,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePhoneNumber = async (phone: string) => {
-    if (!user) return;
+    if (!user) {return;}
 
     // Validate E.164 format
     const e164Regex = /^\+[1-9]\d{1,14}$/;
@@ -193,23 +195,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .update({ phone_e164: phone })
       .eq('id', user.id);
 
-    if (error) throw new Error('Failed to update phone number');
+    if (error) {throw new Error('Failed to update phone number');}
 
     setUser({ ...user, phone_e164: phone });
   };
 
   const updateProfile = async (data: { name?: string }) => {
-    if (!user) return;
+    if (!user) {return;}
 
     const update: UserUpdate = {};
-    if (data.name !== undefined) update.name = data.name;
+    if (data.name !== undefined) {update.name = data.name;}
 
     const { error } = await supabase
       .from('users')
       .update(update)
       .eq('id', user.id);
 
-    if (error) throw new Error('Failed to update profile');
+    if (error) {throw new Error('Failed to update profile');}
 
     setUser({ ...user, ...data });
   };

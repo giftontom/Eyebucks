@@ -1,6 +1,6 @@
 import { render, RenderOptions } from '@testing-library/react';
-import { HashRouter } from 'react-router-dom';
 import { ReactElement, ReactNode } from 'react';
+import { HashRouter } from 'react-router-dom';
 
 interface WrapperProps {
   children: ReactNode;

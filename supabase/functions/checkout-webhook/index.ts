@@ -3,8 +3,9 @@
 // Note: verify_jwt is disabled for this function (webhooks from Razorpay)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+
 import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 serve(async (req) => {
   if (req.method !== 'POST') {
@@ -82,7 +83,7 @@ serve(async (req) => {
             method: payment.method || null,
             receipt_number: receiptNumber,
           }).then(({ error: payError }) => {
-            if (payError) console.error('[Webhook] Payment record error:', payError);
+            if (payError) {console.error('[Webhook] Payment record error:', payError);}
           });
 
           // Create notification
@@ -121,7 +122,7 @@ serve(async (req) => {
           status: 'failed',
           method: payment.method || null,
         }).then(({ error: payError }) => {
-          if (payError) console.error('[Webhook] Failed payment record error:', payError);
+          if (payError) {console.error('[Webhook] Failed payment record error:', payError);}
         });
 
         // Send failure notification

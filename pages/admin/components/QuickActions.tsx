@@ -1,6 +1,6 @@
+import { Plus, Users, Award, FileText } from 'lucide-react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, Award, FileText } from 'lucide-react';
 
 export const QuickActions: React.FC = () => {
   const navigate = useNavigate();

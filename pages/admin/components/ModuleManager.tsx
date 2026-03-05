@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { adminApi } from '../../../services/api/admin.api';
-import { logger } from '../../../utils/logger';
-import { AdminModal } from './AdminModal';
+import React, { useState, useEffect } from 'react';
+
 import { VideoUploader } from '../../../components/VideoUploader';
+import { adminApi } from '../../../services/api/admin.api';
+import { translateAdminError } from '../../../utils/adminErrors';
+import { logger } from '../../../utils/logger';
+
+import { AdminModal } from './AdminModal';
+import { ConfirmDialog } from './ConfirmDialog';
+
+
 import type { Module } from '../../../types';
 
 interface ModuleManagerProps {
@@ -82,16 +88,20 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
       setShowModal(false);
       setEditingModuleId(null);
       fetchModules();
-    } catch (err: any) {
-      showToast(err.message || `Failed to ${editingModuleId ? 'update' : 'create'} module`, 'error');
+    } catch (err: unknown) {
+      showToast(translateAdminError(err), 'error');
     }
   };
 
-  const handleDelete = async (module: Module) => {
-    if (!confirm(`Delete module "${module.title}"?`)) return;
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<Module | null>(null);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) {return;}
     try {
-      await adminApi.deleteModule(courseId, module.id);
+      await adminApi.deleteModule(courseId, deleteTarget.id);
       showToast('Module deleted!', 'success');
+      setDeleteTarget(null);
       fetchModules();
     } catch (err: any) {
       showToast(err.message || 'Failed to delete module', 'error');
@@ -100,7 +110,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
 
   const handleReorder = async (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= modules.length) return;
+    if (targetIndex < 0 || targetIndex >= modules.length) {return;}
 
     const newOrder = [...modules];
     [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
@@ -175,7 +185,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               </div>
               <div className="flex gap-2 mt-3 pt-3 border-t border-slate-300">
                 <button onClick={() => openEdit(module)} className="text-sm text-brand-600 hover:text-brand-700 font-medium">Edit</button>
-                <button onClick={() => handleDelete(module)} className="text-sm text-red-600 hover:text-red-700 font-medium">Delete</button>
+                <button onClick={() => setDeleteTarget(module)} className="text-sm text-red-600 hover:text-red-700 font-medium">Delete</button>
               </div>
             </div>
           ))}
@@ -247,12 +257,15 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
                 onUploadComplete={(videoData) => {
                   const minutes = Math.floor(videoData.duration / 60);
                   const seconds = Math.floor(videoData.duration % 60);
-                  setFormData({
-                    ...formData,
+                  setFormData(prev => ({
+                    ...prev,
                     videoUrl: videoData.secureUrl,
                     videoId: videoData.publicId,
-                    duration: `${minutes}:${seconds.toString().padStart(2, '0')}`,
-                  });
+                    duration: videoData.duration > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : prev.duration,
+                  }));
+                }}
+                onRemove={() => {
+                  setFormData(prev => ({ ...prev, videoUrl: '', videoId: '' }));
                 }}
               />
             )}
@@ -285,6 +298,18 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
           </button>
         </div>
       </AdminModal>
+
+      {/* Delete Module Confirm */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Module"
+        message={
+          <p>Are you sure you want to delete <span className="font-bold text-slate-900">"{deleteTarget?.title}"</span>? This cannot be undone.</p>
+        }
+        confirmLabel="Delete Module"
+      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
 import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
+import React, { useCallback } from 'react';
 
 interface ToastProps {
   message: string;

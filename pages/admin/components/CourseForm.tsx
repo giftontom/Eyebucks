@@ -1,15 +1,16 @@
-import React from 'react';
-import { BundleCoursePicker } from './BundleCoursePicker';
-import type { AdminCourse, CourseType } from '../../../types';
+import React, { useRef } from 'react';
 
-interface CourseFormData {
-  title: string;
-  slug: string;
-  description: string;
-  price: string;
-  thumbnail: string;
-  type: CourseType;
-  features: string[];
+import { BundleCoursePicker } from './BundleCoursePicker';
+
+import type { AdminCourse, CourseFormData, CourseType } from '../../../types';
+
+const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 interface CourseFormProps {
@@ -28,6 +29,20 @@ export const CourseForm: React.FC<CourseFormProps> = ({
   courses,
 }) => {
   const update = (partial: Partial<CourseFormData>) => onChange({ ...formData, ...partial });
+  // Track the auto-generated slug so we only auto-update when slug matches it
+  const autoSlugRef = useRef<string>('');
+
+  const handleTitleChange = (title: string) => {
+    const newAutoSlug = slugify(title);
+    const shouldAutoUpdate = !formData.slug || formData.slug === autoSlugRef.current;
+    autoSlugRef.current = newAutoSlug;
+    update({
+      title,
+      ...(shouldAutoUpdate ? { slug: newAutoSlug } : {}),
+    });
+  };
+
+  const isSlugValid = !formData.slug || SLUG_PATTERN.test(formData.slug);
 
   return (
     <div className="space-y-4">
@@ -36,7 +51,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         <input
           type="text"
           value={formData.title}
-          onChange={(e) => update({ title: e.target.value })}
+          onChange={(e) => handleTitleChange(e.target.value)}
           className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
           placeholder="Course title"
         />
@@ -47,9 +62,14 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           type="text"
           value={formData.slug}
           onChange={(e) => update({ slug: e.target.value })}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+          className={`w-full bg-slate-50 border rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 ${
+            !isSlugValid ? 'border-red-400 focus:ring-red-400' : 'border-slate-200'
+          }`}
           placeholder="course-slug"
         />
+        {!isSlugValid && (
+          <p className="text-xs text-red-500 mt-1">Slug must be lowercase letters, numbers, and hyphens only (e.g. "my-course-1")</p>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">Description *</label>
@@ -66,6 +86,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         <input
           type="number"
           step="0.01"
+          min="0"
           value={formData.price}
           onChange={(e) => update({ price: e.target.value })}
           className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
@@ -83,13 +104,24 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         />
       </div>
       <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Hero Video ID</label>
+        <input
+          type="text"
+          value={formData.heroVideoId || ''}
+          onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
+          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+          placeholder="Bunny Stream video GUID (optional)"
+        />
+        <p className="text-xs text-slate-400 mt-1">Used as the hero/preview video on the course page</p>
+      </div>
+      <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">Type *</label>
         <select
           value={formData.type}
           onChange={(e) => {
             const newType = e.target.value as CourseType;
             update({ type: newType });
-            if (newType !== 'BUNDLE') onBundledCourseIdsChange([]);
+            if (newType !== 'BUNDLE') {onBundledCourseIdsChange([]);}
           }}
           className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
         >

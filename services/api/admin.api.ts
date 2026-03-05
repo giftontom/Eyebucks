@@ -2,18 +2,20 @@
  * Admin API - Supabase queries + Edge Functions for admin operations
  * Replaces: apiClient admin methods
  */
+import { extractEdgeFnError, isEdgeFnAuthError } from '../../utils/edgeFunctionError';
 import { supabase } from '../supabase';
+
+import { paymentsApi } from './payments.api';
+
+import type { Payment } from './payments.api';
 import type {
   AdminStats, SalesDataPoint, Module, CourseAnalytics,
   SiteContentItem, AdminCourse, AdminUser, AdminCertificate, RecentActivity,
 } from '../../types';
-import type { Payment } from './payments.api';
-import { paymentsApi } from './payments.api';
 import type {
   CourseRow, ModuleRow, UserRow, CourseUpdate, UserUpdate, SiteContentUpdate,
   SiteContentRow, ModuleUpdate, EnrollmentRow, CertificateRow, Json,
 } from '../../types/supabase';
-import { extractEdgeFnError, isEdgeFnAuthError } from '../../utils/edgeFunctionError';
 
 // Query result types for joined queries
 type UserWithEnrollments = UserRow & { enrollments: { id: string }[] };
@@ -37,7 +39,7 @@ type PaymentWithJoins = {
 };
 type ReviewWithJoins = {
   id: string; user_id: string; course_id: string; rating: number;
-  comment: string | null; helpful?: number; helpful_count: number; created_at: string;
+  comment: string | null; helpful: number; created_at: string;
   users: { name: string; email: string; avatar: string | null } | null;
   courses: { title: string } | null;
 };
@@ -50,13 +52,13 @@ export const adminApi = {
 
   async getStats(): Promise<{ success: boolean; stats: AdminStats }> {
     const { data, error } = await supabase.rpc('get_admin_stats');
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, stats: data as unknown as AdminStats };
   },
 
   async getSales(days: number = 30): Promise<{ success: boolean; sales: SalesDataPoint[] }> {
     const { data, error } = await supabase.rpc('get_sales_data', { p_days: days });
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return {
       success: true,
       sales: (data || []).map((d: SalesRow) => ({ date: d.date, amount: Number(d.amount) })),
@@ -65,7 +67,7 @@ export const adminApi = {
 
   async getRecentActivity(limit: number = 10): Promise<{ success: boolean; activity: RecentActivity }> {
     const { data, error } = await supabase.rpc('get_recent_activity', { p_limit: limit });
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, activity: data as unknown as RecentActivity };
   },
 
@@ -97,7 +99,7 @@ export const adminApi = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     const users: AdminUser[] = (data || []).map((u: UserWithEnrollments) => ({
       id: u.id,
@@ -133,7 +135,7 @@ export const adminApi = {
       .eq('id', userId)
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, user: data };
   },
 
@@ -143,8 +145,8 @@ export const adminApi = {
     user: UserRow;
   }> {
     const update: UserUpdate = {};
-    if (updates.isActive !== undefined) update.is_active = updates.isActive;
-    if (updates.role) update.role = updates.role as 'USER' | 'ADMIN';
+    if (updates.isActive !== undefined) {update.is_active = updates.isActive;}
+    if (updates.role) {update.role = updates.role as 'USER' | 'ADMIN';}
 
     const { data, error } = await supabase
       .from('users')
@@ -153,7 +155,7 @@ export const adminApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'User updated', user: data };
   },
 
@@ -176,7 +178,7 @@ export const adminApi = {
       .single();
 
     if (error) {
-      if (error.code === '23505') throw new Error('User is already enrolled');
+      if (error.code === '23505') {throw new Error('User is already enrolled');}
       throw new Error(error.message);
     }
     return { success: true, message: 'User enrolled', enrollment: data };
@@ -192,7 +194,7 @@ export const adminApi = {
       .select('*, modules(id), enrollments(id)')
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     const courses: AdminCourse[] = (data || []).map((c: CourseWithJoins) => ({
       id: c.id,
@@ -247,7 +249,7 @@ export const adminApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Course created', course: data };
   },
 
@@ -261,15 +263,15 @@ export const adminApi = {
     course: CourseRow;
   }> {
     const update: CourseUpdate = {};
-    if (courseData.title !== undefined) update.title = courseData.title;
-    if (courseData.slug !== undefined) update.slug = courseData.slug;
-    if (courseData.description !== undefined) update.description = courseData.description;
-    if (courseData.price !== undefined) update.price = courseData.price;
-    if (courseData.thumbnail !== undefined) update.thumbnail = courseData.thumbnail;
-    if (courseData.type !== undefined) update.type = courseData.type as 'BUNDLE' | 'MODULE';
-    if (courseData.features !== undefined) update.features = courseData.features;
-    if (courseData.heroVideoId !== undefined) update.hero_video_id = courseData.heroVideoId;
-    if (courseData.status !== undefined) update.status = courseData.status as 'PUBLISHED' | 'DRAFT';
+    if (courseData.title !== undefined) {update.title = courseData.title;}
+    if (courseData.slug !== undefined) {update.slug = courseData.slug;}
+    if (courseData.description !== undefined) {update.description = courseData.description;}
+    if (courseData.price !== undefined) {update.price = courseData.price;}
+    if (courseData.thumbnail !== undefined) {update.thumbnail = courseData.thumbnail;}
+    if (courseData.type !== undefined) {update.type = courseData.type as 'BUNDLE' | 'MODULE';}
+    if (courseData.features !== undefined) {update.features = courseData.features;}
+    if (courseData.heroVideoId !== undefined) {update.hero_video_id = courseData.heroVideoId;}
+    if (courseData.status !== undefined) {update.status = courseData.status as 'PUBLISHED' | 'DRAFT';}
 
     const { data, error } = await supabase
       .from('courses')
@@ -278,7 +280,7 @@ export const adminApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Course updated', course: data };
   },
 
@@ -289,7 +291,7 @@ export const adminApi = {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', courseId);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Course archived' };
   },
 
@@ -299,7 +301,7 @@ export const adminApi = {
       .update({ deleted_at: null })
       .eq('id', courseId);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Course restored' };
   },
 
@@ -309,7 +311,7 @@ export const adminApi = {
     course: CourseRow;
   }> {
     const update: CourseUpdate = { status };
-    if (status === 'PUBLISHED') update.published_at = new Date().toISOString();
+    if (status === 'PUBLISHED') {update.published_at = new Date().toISOString();}
 
     const { data, error } = await supabase
       .from('courses')
@@ -318,7 +320,7 @@ export const adminApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: `Course ${status.toLowerCase()}`, course: data };
   },
 
@@ -333,7 +335,7 @@ export const adminApi = {
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     return {
       success: true,
@@ -356,6 +358,7 @@ export const adminApi = {
     title: string;
     duration: string;
     videoUrl: string;
+    videoId?: string;
     isFreePreview?: boolean;
   }): Promise<{ success: boolean; message: string; module: ModuleRow }> {
     // Get current max order_index
@@ -374,21 +377,24 @@ export const adminApi = {
       ? parseInt(durationParts[0]) * 60 + parseInt(durationParts[1])
       : parseInt(durationParts[0]) || 0;
 
+    const insertData = {
+      course_id: courseId,
+      title: moduleData.title,
+      duration: moduleData.duration,
+      duration_seconds: durationSeconds,
+      video_url: moduleData.videoUrl,
+      is_free_preview: moduleData.isFreePreview || false,
+      order_index: nextOrder,
+      ...(moduleData.videoId ? { video_id: moduleData.videoId } : {}),
+    } as any;
+
     const { data, error } = await supabase
       .from('modules')
-      .insert({
-        course_id: courseId,
-        title: moduleData.title,
-        duration: moduleData.duration,
-        duration_seconds: durationSeconds,
-        video_url: moduleData.videoUrl,
-        is_free_preview: moduleData.isFreePreview || false,
-        order_index: nextOrder,
-      })
+      .insert(insertData)
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Module created', module: data };
   },
 
@@ -396,42 +402,64 @@ export const adminApi = {
     title?: string;
     duration?: string;
     videoUrl?: string;
+    videoId?: string;
     isFreePreview?: boolean;
     orderIndex?: number;
   }): Promise<{ success: boolean; message: string; module: ModuleRow }> {
-    const update: ModuleUpdate = {};
-    if (moduleData.title !== undefined) update.title = moduleData.title;
+    const updateFields: ModuleUpdate & { video_id?: string } = {};
+    if (moduleData.title !== undefined) {updateFields.title = moduleData.title;}
     if (moduleData.duration !== undefined) {
-      update.duration = moduleData.duration;
+      updateFields.duration = moduleData.duration;
       const parts = moduleData.duration.split(':');
-      update.duration_seconds = parts.length === 2
+      updateFields.duration_seconds = parts.length === 2
         ? parseInt(parts[0]) * 60 + parseInt(parts[1])
         : parseInt(parts[0]) || 0;
     }
-    if (moduleData.videoUrl !== undefined) update.video_url = moduleData.videoUrl;
-    if (moduleData.isFreePreview !== undefined) update.is_free_preview = moduleData.isFreePreview;
-    if (moduleData.orderIndex !== undefined) update.order_index = moduleData.orderIndex;
+    if (moduleData.videoUrl !== undefined) {updateFields.video_url = moduleData.videoUrl;}
+    if (moduleData.videoId !== undefined) {updateFields.video_id = moduleData.videoId;}
+    if (moduleData.isFreePreview !== undefined) {updateFields.is_free_preview = moduleData.isFreePreview;}
+    if (moduleData.orderIndex !== undefined) {updateFields.order_index = moduleData.orderIndex;}
 
     const { data, error } = await supabase
       .from('modules')
-      .update(update)
+      .update(updateFields as ModuleUpdate)
       .eq('id', moduleId)
       .eq('course_id', courseId)
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Module updated', module: data };
   },
 
   async deleteModule(courseId: string, moduleId: string): Promise<{ success: boolean; message: string }> {
+    // Query video_id before deleting the module (video_id added in migration 014)
+    const { data: moduleData } = await supabase
+      .from('modules')
+      .select('video_id' as any)
+      .eq('id', moduleId)
+      .eq('course_id', courseId)
+      .maybeSingle();
+
+    const videoGuid = (moduleData as any)?.video_id as string | undefined;
+
     const { error } = await supabase
       .from('modules')
       .delete()
       .eq('id', moduleId)
       .eq('course_id', courseId);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
+
+    // Fire-and-forget: delete the Bunny video if it had one
+    if (videoGuid) {
+      supabase.functions.invoke('video-cleanup', {
+        body: { deleteVideoId: videoGuid },
+      }).catch(err => {
+        console.error('[Admin] Failed to cleanup Bunny video:', err);
+      });
+    }
+
     return { success: true, message: 'Module deleted' };
   },
 
@@ -439,16 +467,24 @@ export const adminApi = {
     success: boolean;
     message: string;
   }> {
-    // Update each module's order_index
-    const updates = moduleIds.map((id, index) =>
-      supabase
-        .from('modules')
-        .update({ order_index: index + 1 })
-        .eq('id', id)
-        .eq('course_id', courseId)
-    );
+    // Use atomic RPC, fallback to sequential updates if RPC not available
+    const { error: rpcError } = await (supabase.rpc as any)('reorder_modules', {
+      p_course_id: courseId,
+      p_module_ids: moduleIds,
+    });
 
-    await Promise.all(updates);
+    if (rpcError) {
+      // Fallback: sequential updates
+      const updates = moduleIds.map((id, index) =>
+        supabase
+          .from('modules')
+          .update({ order_index: index + 1 })
+          .eq('id', id)
+          .eq('course_id', courseId)
+      );
+      await Promise.all(updates);
+    }
+
     return { success: true, message: 'Modules reordered' };
   },
 
@@ -463,32 +499,39 @@ export const adminApi = {
       .eq('bundle_id', bundleId)
       .order('order_index', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, courseIds: (data || []).map(r => r.course_id) };
   },
 
   async setBundleCourses(bundleId: string, courseIds: string[]): Promise<{ success: boolean; message: string }> {
-    // Delete existing associations
-    const { error: deleteError } = await supabase
-      .from('bundle_courses')
-      .delete()
-      .eq('bundle_id', bundleId);
+    // Use atomic RPC, fallback to delete+insert if RPC not available
+    const { error: rpcError } = await (supabase.rpc as any)('set_bundle_courses', {
+      p_bundle_id: bundleId,
+      p_course_ids: courseIds,
+    });
 
-    if (deleteError) throw new Error(deleteError.message);
-
-    // Insert new associations
-    if (courseIds.length > 0) {
-      const rows = courseIds.map((courseId, index) => ({
-        bundle_id: bundleId,
-        course_id: courseId,
-        order_index: index,
-      }));
-
-      const { error: insertError } = await supabase
+    if (rpcError) {
+      // Fallback: delete + insert
+      const { error: deleteError } = await supabase
         .from('bundle_courses')
-        .insert(rows);
+        .delete()
+        .eq('bundle_id', bundleId);
 
-      if (insertError) throw new Error(insertError.message);
+      if (deleteError) {throw new Error(deleteError.message);}
+
+      if (courseIds.length > 0) {
+        const rows = courseIds.map((courseId, index) => ({
+          bundle_id: bundleId,
+          course_id: courseId,
+          order_index: index,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('bundle_courses')
+          .insert(rows);
+
+        if (insertError) {throw new Error(insertError.message);}
+      }
     }
 
     return { success: true, message: 'Bundle courses updated' };
@@ -513,7 +556,7 @@ export const adminApi = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     return {
       success: true,
@@ -566,7 +609,7 @@ export const adminApi = {
       }
     }
 
-    if (!data?.success) throw new Error(data?.error || 'Failed to issue certificate');
+    if (!data?.success) {throw new Error(data?.error || 'Failed to issue certificate');}
     return { success: true, message: 'Certificate issued', certificate: data.certificate };
   },
 
@@ -586,7 +629,7 @@ export const adminApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Certificate revoked', certificate: data };
   },
 
@@ -600,7 +643,7 @@ export const adminApi = {
       .update({ status: 'REVOKED' })
       .eq('id', enrollmentId);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Enrollment revoked' };
   },
 
@@ -615,7 +658,7 @@ export const adminApi = {
       .order('section')
       .order('order_index', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return {
       success: true,
       items: (data || []).map((r: SiteContentRow) => ({
@@ -651,7 +694,7 @@ export const adminApi = {
         is_active: item.isActive ?? true,
       });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Content created' };
   },
 
@@ -663,18 +706,18 @@ export const adminApi = {
     isActive?: boolean;
   }): Promise<{ success: boolean; message: string }> {
     const update: SiteContentUpdate = {};
-    if (updates.title !== undefined) update.title = updates.title;
-    if (updates.body !== undefined) update.body = updates.body;
-    if (updates.metadata !== undefined) update.metadata = updates.metadata as Json;
-    if (updates.orderIndex !== undefined) update.order_index = updates.orderIndex;
-    if (updates.isActive !== undefined) update.is_active = updates.isActive;
+    if (updates.title !== undefined) {update.title = updates.title;}
+    if (updates.body !== undefined) {update.body = updates.body;}
+    if (updates.metadata !== undefined) {update.metadata = updates.metadata as Json;}
+    if (updates.orderIndex !== undefined) {update.order_index = updates.orderIndex;}
+    if (updates.isActive !== undefined) {update.is_active = updates.isActive;}
 
     const { error } = await supabase
       .from('site_content')
       .update(update)
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Content updated' };
   },
 
@@ -684,7 +727,7 @@ export const adminApi = {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, message: 'Content deleted' };
   },
 
@@ -715,10 +758,10 @@ export const adminApi = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return {
       success: true,
-      payments: (data || []).map((r: PaymentWithJoins) => ({
+      payments: ((data || []) as unknown as PaymentWithJoins[]).map((r) => ({
         id: r.id,
         userId: r.user_id,
         courseId: r.course_id,
@@ -756,7 +799,7 @@ export const adminApi = {
 
   async getCourseAnalytics(courseId: string): Promise<{ success: boolean; analytics: CourseAnalytics }> {
     const { data, error } = await supabase.rpc('get_course_analytics', { p_course_id: courseId });
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, analytics: data as unknown as CourseAnalytics };
   },
 
@@ -785,16 +828,16 @@ export const adminApi = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     return {
-      reviews: (data || []).map((r: ReviewWithJoins) => ({
+      reviews: ((data || []) as ReviewWithJoins[]).map((r) => ({
         id: r.id,
         userId: r.user_id,
         courseId: r.course_id,
         rating: r.rating,
         comment: r.comment || '',
-        helpful: r.helpful_count || 0,
+        helpful: r.helpful || 0,
         createdAt: r.created_at,
         userName: r.users?.name || 'Unknown',
         userEmail: r.users?.email || '',
@@ -810,7 +853,33 @@ export const adminApi = {
       .delete()
       .eq('id', reviewId);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
+  },
+
+  // ============================================
+  // VIDEO CLEANUP (Orphaned Bunny Videos)
+  // ============================================
+
+  async cleanupOrphanedVideos(dryRun: boolean = true): Promise<{
+    success: boolean;
+    dryRun: boolean;
+    totalBunnyVideos: number;
+    referencedInDb: number;
+    orphanedCount: number;
+    orphanedVideos: Array<{ guid: string; title: string; dateUploaded: string }>;
+    deletedCount?: number;
+    failedCount?: number;
+  }> {
+    const { data, error } = await supabase.functions.invoke('video-cleanup', {
+      body: { dryRun },
+    });
+
+    if (error) {
+      throw new Error(await extractEdgeFnError(error, 'Failed to run video cleanup'));
+    }
+
+    if (!data?.success) {throw new Error(data?.error || 'Video cleanup failed');}
+    return data;
   },
 };
 

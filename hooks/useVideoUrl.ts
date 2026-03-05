@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+
 import { supabase } from '../services/supabase';
-import { logger } from '../utils/logger';
 import { isEdgeFnAuthError, extractEdgeFnError } from '../utils/edgeFunctionError';
+import { logger } from '../utils/logger';
 
 interface UseVideoUrlResult {
   videoUrl: string | null;
@@ -11,6 +12,14 @@ interface UseVideoUrlResult {
   refreshUrl: () => Promise<void>;
 }
 
+/**
+ * Resolves a playable video URL for a Bunny.net Stream video.
+ *
+ * Strategy:
+ * 1. Immediately set the direct CDN URL (works via Referer-based access control)
+ * 2. In the background, try the Edge Function for a signed URL (when token auth is enabled)
+ * 3. If the Edge Function fails, the direct URL is already loaded — error is reported
+ */
 export const useVideoUrl = (
   videoId: string | null | undefined,
   moduleId: string | null | undefined,
@@ -25,100 +34,123 @@ export const useVideoUrl = (
   const refreshRetryRef = useRef(0);
 
   const fetchSignedUrl = useCallback(async (isRefresh = false) => {
+    // No videoId — use fallback directly
     if (!videoId) {
-      setVideoUrl(fallbackUrl);
-      setHlsUrl(null);
+      const url = fallbackUrl || null;
+      setVideoUrl(url);
+      setHlsUrl(url && url.includes('.m3u8') ? url : null);
       return;
     }
 
-    // Only show loading spinner on initial fetch, not refreshes
     if (!isRefresh) {
-      setIsLoading(true);
       setError(null);
+      setIsLoading(true);
     }
 
+    // Immediately set the direct CDN URL so video can start loading
+    const directUrl = fallbackUrl || null;
+    const directHlsUrl = directUrl && directUrl.includes('.m3u8') ? directUrl : null;
+
+    if (!isRefresh) {
+      setVideoUrl(directUrl);
+      setHlsUrl(directHlsUrl);
+    }
+
+    // Try to get a signed URL from the Edge Function (enhances security when token auth is enabled)
     try {
       const body: Record<string, string> = { videoId };
-      if (moduleId) body.moduleId = moduleId;
-
-      // Proactively refresh auth to ensure a valid JWT before calling Edge Function.
-      // Prevents 401s from expired tokens (common after idle tabs or long sessions).
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError || !refreshData.session) {
-        throw new Error('Your session has expired. Please log in again.');
-      }
+      if (moduleId) {body.moduleId = moduleId;}
 
       let { data, error: fnError } = await supabase.functions.invoke('video-signed-url', {
         body,
       });
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {return;}
 
       if (fnError) {
-        // If it's an auth/JWT error, try refreshing the session once and retry
         if (isEdgeFnAuthError(fnError)) {
           const { data: retryRefresh, error: retryRefreshError } = await supabase.auth.refreshSession();
           if (retryRefreshError || !retryRefresh.session) {
-            throw new Error('Your session has expired. Please log in again.');
+            logger.error('[Video] Session expired, using direct URL');
+            if (mountedRef.current) {
+              setError('Your session has expired. Please log in again.');
+              setIsLoading(false);
+            }
+            return;
           }
-          // Retry the Edge Function call with the refreshed session
           const { data: retryData, error: retryError } = await supabase.functions.invoke('video-signed-url', {
             body,
           });
-          if (!mountedRef.current) return;
+          if (!mountedRef.current) {return;}
           if (retryError) {
-            throw new Error(await extractEdgeFnError(retryError, retryError.message));
+            logger.error('[Video] Signed URL retry failed, using direct URL');
+            if (mountedRef.current) {
+              setError(retryError.message || 'Failed to load video');
+              setIsLoading(false);
+            }
+            return;
           }
-          if (!retryData?.success) throw new Error(retryData?.error || 'Failed to get video URL');
-          // Use retry data instead — jump to success handling below
+          if (!retryData?.success) {
+            logger.error('[Video] Signed URL retry returned error:', retryData?.error);
+            if (mountedRef.current) {
+              setError(retryData?.error || 'Failed to load video');
+              setIsLoading(false);
+            }
+            return;
+          }
           data = retryData;
         } else {
-          throw new Error(await extractEdgeFnError(fnError, fnError.message));
+          logger.error('[Video] Edge Function error, using direct URL:', fnError);
+          if (mountedRef.current) {
+            setError(fnError.message || 'Failed to load video');
+            setIsLoading(false);
+          }
+          return;
         }
       }
-      if (!data?.success) throw new Error(data?.error || 'Failed to get video URL');
 
-      setVideoUrl(data.signedUrl);
-      setHlsUrl(data.hlsUrl || null);
-      refreshRetryRef.current = 0;
-      if (isRefresh) setError(null);
+      if (!data?.success) {
+        logger.error('[Video] Edge Function returned error:', data?.error);
+        if (mountedRef.current) {
+          setError(data?.error || 'Failed to load video');
+          setIsLoading(false);
+        }
+        return;
+      }
 
-      // Schedule URL refresh before expiration (5 minutes before expiry)
-      if (data.expiresAt) {
-        const now = Date.now();
-        const expiresAt = data.expiresAt * 1000;
-        const refreshTime = expiresAt - now - (5 * 60 * 1000);
+      // Upgrade to signed URL (better security when token auth is enabled on CDN)
+      if (mountedRef.current) {
+        setVideoUrl(data.signedUrl);
+        setHlsUrl(data.hlsUrl || data.signedUrl);
+        setError(null);
+        setIsLoading(false);
+        refreshRetryRef.current = 0;
 
-        if (refreshTime > 0) {
-          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-          refreshTimerRef.current = setTimeout(() => {
-            if (mountedRef.current) fetchSignedUrl(true);
-          }, refreshTime);
+        // Schedule refresh before expiration
+        if (data.expiresAt) {
+          const now = Date.now();
+          const expiresAt = data.expiresAt * 1000;
+          const refreshTime = expiresAt - now - (5 * 60 * 1000);
+
+          if (refreshTime > 0) {
+            if (refreshTimerRef.current) {clearTimeout(refreshTimerRef.current);}
+            refreshTimerRef.current = setTimeout(() => {
+              // eslint-disable-next-line react-hooks/immutability
+              if (mountedRef.current) {fetchSignedUrl(true);}
+            }, refreshTime);
+          }
         }
       }
     } catch (err: any) {
-      if (!mountedRef.current) return;
-      logger.error('Failed to fetch signed video URL:', err);
-      if (!isRefresh) {
-        setError(err.message || 'Failed to load video');
-        setVideoUrl(fallbackUrl);
-        setHlsUrl(fallbackUrl.includes('.m3u8') ? fallbackUrl : null);
-      } else if (refreshRetryRef.current < 2) {
-        // Silent retry — video is still playing with existing URL
+      if (!mountedRef.current) {return;}
+      logger.error('[Video] Failed to fetch signed URL, using direct URL:', err.message);
+      setIsLoading(false);
+      if (isRefresh && refreshRetryRef.current < 2) {
         refreshRetryRef.current++;
-        logger.error(`[Video] Background refresh failed (attempt ${refreshRetryRef.current}/2), retrying in 30s`);
-        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        if (refreshTimerRef.current) {clearTimeout(refreshTimerRef.current);}
         refreshTimerRef.current = setTimeout(() => {
-          if (mountedRef.current) fetchSignedUrl(true);
+          if (mountedRef.current) {fetchSignedUrl(true);}
         }, 30_000);
-      } else {
-        // All retries exhausted — show real error
-        refreshRetryRef.current = 0;
-        setError(err.message || 'Video session expired. Please retry.');
-      }
-    } finally {
-      if (!isRefresh && mountedRef.current) {
-        setIsLoading(false);
       }
     }
   }, [videoId, moduleId, fallbackUrl]);

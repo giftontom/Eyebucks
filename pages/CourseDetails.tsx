@@ -1,12 +1,14 @@
+import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
+
+import { ReviewList } from '../components/ReviewList';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi } from '../services/api';
-import { ReviewList } from '../components/ReviewList';
 import { CourseType } from '../types';
+
 import type { Course } from '../types';
 
 const FALLBACK_VIDEO = 'https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4';
@@ -61,8 +63,8 @@ export const CourseDetails: React.FC = () => {
     };
   }, []);
 
-  if (isLoadingCourse) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand-600" size={48} /></div>;
-  if (loadError) return (
+  if (isLoadingCourse) {return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand-600" size={48} /></div>;}
+  if (loadError) {return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center max-w-md">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -73,15 +75,15 @@ export const CourseDetails: React.FC = () => {
         <button onClick={fetchCourse} className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg transition">Try Again</button>
       </div>
     </div>
-  );
-  if (!course) return (
+  );}
+  if (!course) {return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">Course not found</h2>
         <Link to="/" className="text-brand-600 hover:text-brand-700 font-bold">Back to Catalog</Link>
       </div>
     </div>
-  );
+  );}
 
   const handleCTA = async () => {
     // If user has access (enrolled or admin), go to course

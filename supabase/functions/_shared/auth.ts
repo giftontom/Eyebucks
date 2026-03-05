@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 import { createAdminClient } from './supabaseAdmin.ts';
 
 type AuthSuccess = { user: { id: string; email?: string } };

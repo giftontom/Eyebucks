@@ -1,4 +1,5 @@
 import React from 'react';
+
 import type { AdminCourse } from '../../../types';
 
 interface BundleCoursePickerProps {

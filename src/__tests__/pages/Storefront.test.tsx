@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+
 import { createMockCourse } from '../helpers/mockProviders';
 
 // Mock useAuth

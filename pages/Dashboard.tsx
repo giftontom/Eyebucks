@@ -1,11 +1,12 @@
+import { PlayCircle, UserCircle, Layers } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PlayCircle, UserCircle, Layers } from 'lucide-react';
+
+import { DashboardSkeleton } from '../components/CourseCardSkeleton';
 import { useAuth } from '../context/AuthContext';
 import { enrollmentsApi, coursesApi } from '../services/api';
-import { DashboardSkeleton } from '../components/CourseCardSkeleton';
-import { logger } from '../utils/logger';
 import { CourseType } from '../types';
+import { logger } from '../utils/logger';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -42,7 +43,7 @@ export const Dashboard: React.FC = () => {
       const courses = enrollments
         .map(enrollment => {
           const course = courseMap.get(enrollment.courseId);
-          if (!course) return null;
+          if (!course) {return null;}
           return {
             id: course.id,
             title: course.title,

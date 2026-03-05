@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
 import { MessageSquare, ThumbsUp, Edit2, Trash2, Loader2, Star } from 'lucide-react';
-import { StarRating } from './StarRating';
-import { ReviewForm } from './ReviewForm';
+import React, { useState, useEffect } from 'react';
+
 import { useAuth } from '../context/AuthContext';
 import { reviewsApi } from '../services/api';
 import { logger } from '../utils/logger';
+
+import { ReviewForm } from './ReviewForm';
+import { StarRating } from './StarRating';
+
 import type { Review, ReviewSummary } from '../services/api/reviews.api';
 
 interface ReviewListProps {

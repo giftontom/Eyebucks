@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 // Component that throws an error

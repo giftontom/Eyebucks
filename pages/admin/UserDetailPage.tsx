@@ -1,11 +1,13 @@
+import { ArrowLeft } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+
 import { useAdmin } from './AdminContext';
-import { StatusBadge } from './components/StatusBadge';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { StatusBadge } from './components/StatusBadge';
 
 interface UserDetail {
   id: string;
@@ -43,7 +45,7 @@ export const UserDetailPage: React.FC = () => {
   const [revoking, setRevoking] = useState(false);
 
   const fetchUser = async () => {
-    if (!userId) return;
+    if (!userId) {return;}
     try {
       setLoading(true);
       const res = await adminApi.getUserDetails(userId);
@@ -59,7 +61,7 @@ export const UserDetailPage: React.FC = () => {
   useEffect(() => { fetchUser(); }, [userId]);
 
   const handleRevoke = async () => {
-    if (!revokeTarget) return;
+    if (!revokeTarget) {return;}
     setRevoking(true);
     try {
       await adminApi.revokeEnrollment(revokeTarget.id);

@@ -90,6 +90,7 @@ export interface Module {
   duration: string;
   durationSeconds: number;
   videoUrl: string;
+  videoId?: string;
   isFreePreview: boolean;
   orderIndex: number;
   createdAt: Date;

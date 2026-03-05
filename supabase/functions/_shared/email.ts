@@ -7,7 +7,7 @@ const INITIAL_BACKOFF_MS = 1000;
  */
 export function sendEmail(to: string, subject: string, html: string): void {
   const resendApiKey = Deno.env.get('RESEND_API_KEY');
-  if (!resendApiKey || !to) return;
+  if (!resendApiKey || !to) {return;}
 
   const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'noreply@eyebuckz.com';
 
@@ -36,7 +36,7 @@ async function sendWithRetry(
         body: JSON.stringify({ from, to, subject, html }),
       });
 
-      if (res.ok) return;
+      if (res.ok) {return;}
 
       // 4xx errors (except 429) are not retryable
       if (res.status >= 400 && res.status < 500 && res.status !== 429) {

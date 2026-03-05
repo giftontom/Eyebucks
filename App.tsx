@@ -1,13 +1,14 @@
 import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { Storefront } from './pages/Storefront';
+import { AuthProvider } from './context/AuthContext';
 import { CourseDetails } from './pages/CourseDetails';
 import { Login } from './pages/Login';
 import { Privacy } from './pages/Privacy';
+import { Storefront } from './pages/Storefront';
 import { Terms } from './pages/Terms';
 
 // Lazy-loaded routes (code splitting)

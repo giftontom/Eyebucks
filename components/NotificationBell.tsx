@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, BookOpen, Award, CreditCard, Megaphone } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -12,11 +13,11 @@ const iconMap: Record<string, React.ReactNode> = {
 
 function timeAgo(dateStr: string): string {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) {return 'just now';}
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) {return `${minutes}m ago`;}
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {return `${hours}h ago`;}
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
@@ -34,7 +35,7 @@ export const NotificationBell: React.FC = () => {
         setIsOpen(false);
       }
     };
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    if (isOpen) {document.addEventListener('mousedown', handleClickOutside);}
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 

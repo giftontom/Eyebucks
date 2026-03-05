@@ -1,12 +1,14 @@
-import React, { useState, useRef, useEffect, DragEvent } from 'react';
 import { Upload, X, Film, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect, DragEvent } from 'react';
 import * as tus from 'tus-js-client';
+
 import { supabase } from '../services/supabase';
-import { logger } from '../utils/logger';
 import { isEdgeFnAuthError, extractEdgeFnError } from '../utils/edgeFunctionError';
+import { logger } from '../utils/logger';
 
 interface VideoUploaderProps {
   onUploadComplete: (videoData: {publicId: string; secureUrl: string; duration: number; thumbnail: string}) => void;
+  onRemove?: () => void;
   initialVideoUrl?: string;
   disabled?: boolean;
 }
@@ -23,6 +25,7 @@ interface TusCredentials {
 
 export const VideoUploader: React.FC<VideoUploaderProps> = ({
   onUploadComplete,
+  onRemove,
   initialVideoUrl,
   disabled = false
 }) => {
@@ -39,9 +42,13 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
   const ALLOWED_FORMATS = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
 
-  // Cleanup object URL on unmount
+  // Cleanup object URL and abort TUS upload on unmount
   useEffect(() => {
     return () => {
+      if (tusUploadRef.current) {
+        tusUploadRef.current.abort();
+        tusUploadRef.current = null;
+      }
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = null;
@@ -76,6 +83,28 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     }
   };
 
+  // Extract duration from a local video file before uploading
+  const extractDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        const dur = video.duration;
+        URL.revokeObjectURL(url);
+        resolve(isFinite(dur) ? dur : 0);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(0);
+      };
+      video.src = url;
+    });
+  };
+
+  // Store extracted duration for use after upload
+  const fileDurationRef = useRef<number>(0);
+
   const handleFile = async (file: File) => {
     setError(null);
 
@@ -96,6 +125,9 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       URL.revokeObjectURL(objectUrlRef.current);
     }
 
+    // Extract duration from local file before upload
+    fileDurationRef.current = await extractDuration(file);
+
     // Create preview
     const previewUrl = URL.createObjectURL(file);
     objectUrlRef.current = previewUrl;
@@ -112,7 +144,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     try {
       // Phase 1: Get TUS credentials from Edge Function
       let { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
-        body: { title: file.name },
+        body: { title: file.name, fileSizeBytes: file.size, mimeType: file.type },
       });
 
       if (fnError) {
@@ -123,7 +155,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             throw new Error('Your session has expired. Please log in again.');
           }
           const retry = await supabase.functions.invoke('admin-video-upload', {
-            body: { title: file.name },
+            body: { title: file.name, fileSizeBytes: file.size, mimeType: file.type },
           });
           data = retry.data;
           if (retry.error) {
@@ -178,7 +210,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       onUploadComplete({
         publicId: creds.videoId,
         secureUrl: creds.hlsUrl,
-        duration: 0,
+        duration: fileDurationRef.current,
         thumbnail: creds.thumbnailUrl,
       });
 
@@ -213,6 +245,8 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    // Notify parent to clear video data
+    onRemove?.();
   };
 
   return (
@@ -329,11 +363,21 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             </button>
           </div>
 
-          <video
-            src={videoPreview}
-            controls
-            className="w-full rounded-lg max-h-64"
-          />
+          {videoPreview.includes('.m3u8') ? (
+            <div className="w-full rounded-lg bg-slate-100 p-4 flex items-center gap-3">
+              <Film className="w-8 h-8 text-brand-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-slate-700">Existing HLS video</p>
+                <p className="text-xs text-slate-400 truncate max-w-md">{videoPreview}</p>
+              </div>
+            </div>
+          ) : (
+            <video
+              src={videoPreview}
+              controls
+              className="w-full rounded-lg max-h-64"
+            />
+          )}
         </div>
       )}
 

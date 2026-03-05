@@ -28,7 +28,7 @@
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | Next number: 013 |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | Next number: 017 |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -70,8 +70,8 @@ supabase functions deploy  # Deploy Edge Functions
 - `App.tsx` - Routes + providers (HashRouter)
 - `services/supabase.ts` - Supabase client singleton
 - `context/AuthContext.tsx` - Auth state management
-- `supabase/migrations/` - 12 sequential SQL migrations (001-012)
-- `supabase/functions/` - 8 Edge Functions: `admin-video-upload`, `certificate-generate`, `checkout-create-order`, `checkout-verify`, `checkout-webhook`, `progress-complete`, `refund-process`, `video-signed-url`
+- `supabase/migrations/` - 14 sequential SQL migrations (001-014)
+- `supabase/functions/` - 9 Edge Functions: `admin-video-upload`, `certificate-generate`, `checkout-create-order`, `checkout-verify`, `checkout-webhook`, `progress-complete`, `refund-process`, `video-cleanup`, `video-signed-url`
 
 ## API Modules
 
@@ -88,3 +88,41 @@ supabase functions deploy  # Deploy Edge Functions
 | `siteContent.api.ts` | CMS content |
 | `reviews.api.ts` | Course reviews CRUD |
 | `users.api.ts` | User profile operations |
+
+## Slash Commands (Skills)
+
+14 custom skills in `.claude/skills/` for the full dev lifecycle. Type `/` in Claude Code to invoke.
+
+### Scaffolding
+| Command | Purpose |
+|---------|---------|
+| `/new-component <Name>` | React component + barrel export + type-check |
+| `/new-page <Name> [--public] [--admin] [--path /x]` | Page + lazy route registration |
+| `/new-api-service <domain>` | Supabase API service module + barrel export |
+| `/new-edge-function <name> [--no-auth] [--admin-only]` | Edge Function with shared helpers |
+| `/new-migration <description>` | Auto-numbered SQL migration |
+
+### Quality & Testing
+| Command | Purpose |
+|---------|---------|
+| `/run-tests [file-or-pattern]` | Smart test runner with failure analysis |
+| `/pre-commit` | Full CI pipeline: lint -> type-check -> test -> build |
+
+### Database
+| Command | Purpose |
+|---------|---------|
+| `/gen-db-types` | Regenerate `types/supabase.ts` from live schema |
+| `/inspect-rls <table>` | Audit RLS policies with access matrix |
+
+### Deployment
+| Command | Purpose |
+|---------|---------|
+| `/deploy-frontend [--dev]` | Validate + build + deploy to Cloudflare Pages |
+| `/deploy-edge-functions [name \| --all]` | Deploy Edge Functions to Supabase |
+| `/deploy-all [--dev]` | Full pipeline: DB -> functions -> frontend |
+
+### Debugging
+| Command | Purpose |
+|---------|---------|
+| `/debug-trace <component-or-error>` | Trace data flow: UI -> API -> Supabase -> RLS |
+| `/audit-security [scope]` | Security audit (rls, auth, edge-functions, input, all) |

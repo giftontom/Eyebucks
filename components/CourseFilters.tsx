@@ -1,5 +1,5 @@
-import React from 'react';
 import { X, Filter } from 'lucide-react';
+import React from 'react';
 
 export interface CourseFiltersState {
   type?: 'BUNDLE' | 'MODULE';

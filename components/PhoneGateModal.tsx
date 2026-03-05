@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
 import { Phone, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+
 import { useAuth } from '../context/AuthContext';
 
 const E164_REGEX = /^\+[1-9]\d{1,14}$/;

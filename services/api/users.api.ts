@@ -2,6 +2,7 @@
  * Users API - User profile operations
  */
 import { supabase } from '../supabase';
+
 import type { User } from '../../types';
 import type { UserRow } from '../../types/supabase';
 
@@ -24,7 +25,7 @@ export function mapUserProfile(profile: UserRow): User {
 export const usersApi = {
   async getCurrentUser(): Promise<User | null> {
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) return null;
+    if (!authUser) {return null;}
 
     const { data: profile, error } = await supabase
       .from('users')
@@ -32,7 +33,7 @@ export const usersApi = {
       .eq('id', authUser.id)
       .single();
 
-    if (error || !profile) return null;
+    if (error || !profile) {return null;}
 
     return mapUserProfile(profile);
   },
@@ -44,7 +45,7 @@ export const usersApi = {
       .eq('id', userId)
       .single();
 
-    if (error || !profile) return null;
+    if (error || !profile) {return null;}
     return {
       id: profile.id,
       name: profile.name,
@@ -66,18 +67,18 @@ export const usersApi = {
       .update({ phone_e164: phone, phone_verified: true })
       .eq('id', userId);
 
-    if (error) throw new Error('Failed to update phone number');
+    if (error) {throw new Error('Failed to update phone number');}
   },
 
   async updateProfile(userId: string, data: { name?: string }): Promise<void> {
     const update: Record<string, unknown> = {};
-    if (data.name !== undefined) update.name = data.name;
+    if (data.name !== undefined) {update.name = data.name;}
 
     const { error } = await supabase
       .from('users')
       .update(update)
       .eq('id', userId);
 
-    if (error) throw new Error('Failed to update profile');
+    if (error) {throw new Error('Failed to update profile');}
   },
 };

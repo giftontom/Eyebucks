@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
+
 import { Layout } from '../../../components/Layout';
 import { createMockUser, createMockAdmin } from '../helpers/mockProviders';
 

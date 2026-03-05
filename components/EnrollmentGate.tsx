@@ -1,6 +1,6 @@
+import { Lock, ArrowRight, CheckCircle2, Star, Users } from 'lucide-react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, ArrowRight, CheckCircle2, Star, Users } from 'lucide-react';
 
 interface EnrollmentGateProps {
   courseId: string;

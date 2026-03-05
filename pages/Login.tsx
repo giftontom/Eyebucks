@@ -1,7 +1,8 @@
+import { LogIn, ArrowRight, CheckCircle2, Shield, Zap, Star } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+
 import { useAuth } from '../context/AuthContext';
-import { LogIn, ArrowRight, CheckCircle2, Shield, Zap, Star } from 'lucide-react';
 import { logger } from '../utils/logger';
 
 export const Login: React.FC = () => {

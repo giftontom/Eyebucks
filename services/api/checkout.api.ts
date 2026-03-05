@@ -2,8 +2,8 @@
  * Checkout API - Edge Function invocations for Razorpay
  * Replaces: apiClient.createOrder(), verifyPayment(), checkOrderStatus()
  */
-import { supabase } from '../supabase';
 import { extractEdgeFnError } from '../../utils/edgeFunctionError';
+import { supabase } from '../supabase';
 
 export const checkoutApi = {
   /**
@@ -24,8 +24,8 @@ export const checkoutApi = {
       body: { courseId },
     });
 
-    if (error) throw new Error(await extractEdgeFnError(error, 'Failed to create order'));
-    if (!data?.success) throw new Error(data?.error || 'Failed to create order');
+    if (error) {throw new Error(await extractEdgeFnError(error, 'Failed to create order'));}
+    if (!data?.success) {throw new Error(data?.error || 'Failed to create order');}
     return data;
   },
 
@@ -50,8 +50,8 @@ export const checkoutApi = {
       body: params,
     });
 
-    if (error) throw new Error(await extractEdgeFnError(error, 'Payment verification failed'));
-    if (!data?.success) throw new Error(data?.error || 'Payment verification failed');
+    if (error) {throw new Error(await extractEdgeFnError(error, 'Payment verification failed'));}
+    if (!data?.success) {throw new Error(data?.error || 'Payment verification failed');}
     return data;
   },
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
 import type { SalesDataPoint } from '../../../types';
 
 interface SalesChartProps {
@@ -16,7 +17,7 @@ const periods = [
 export const SalesChart: React.FC<SalesChartProps> = ({ salesData, onPeriodChange }) => {
   const [activePeriod, setActivePeriod] = useState(30);
 
-  if (salesData.length === 0) return null;
+  if (salesData.length === 0) {return null;}
 
   return (
     <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-[400px]">

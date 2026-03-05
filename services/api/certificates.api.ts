@@ -2,6 +2,7 @@
  * Certificates API - User-facing certificate queries
  */
 import { supabase } from '../supabase';
+
 import type { Certificate } from '../../types';
 import type { CertificateRow } from '../../types/supabase';
 
@@ -26,7 +27,7 @@ function mapRow(row: CertificateRow): Certificate {
 export const certificatesApi = {
   async getUserCertificates(): Promise<Certificate[]> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    if (!user) {throw new Error('Not authenticated');}
 
     const { data, error } = await supabase
       .from('certificates')
@@ -35,7 +36,7 @@ export const certificatesApi = {
       .eq('status', 'ACTIVE')
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return (data || []).map(mapRow);
   },
 
@@ -46,7 +47,7 @@ export const certificatesApi = {
       .eq('id', id)
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return data ? mapRow(data) : null;
   },
 };

@@ -2,10 +2,11 @@
 // Replaces: POST /api/checkout/create-order
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { getCorsHeaders } from '../_shared/cors.ts';
-import { createAdminClient } from '../_shared/supabaseAdmin.ts';
+
 import { verifyAuth } from '../_shared/auth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
+import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -18,7 +19,7 @@ serve(async (req) => {
   try {
     // Verify authenticated user
     const auth = await verifyAuth(req, corsHeaders);
-    if ('errorResponse' in auth) return auth.errorResponse;
+    if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
     const supabaseAdmin = createAdminClient();

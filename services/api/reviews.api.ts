@@ -2,6 +2,7 @@
  * Reviews API - Course review CRUD operations
  */
 import { supabase } from '../supabase';
+
 import type { ReviewRow } from '../../types/supabase';
 
 // Query result type for review with user join
@@ -49,14 +50,14 @@ export const reviewsApi = {
     const { data: reviews, error, count } = await supabase
       .from('reviews')
       .select(`
-        id, user_id, rating, comment, helpful_count, created_at, updated_at,
+        id, user_id, rating, comment, helpful, created_at, updated_at,
         users:user_id (name, avatar)
       `, { count: 'exact' })
       .eq('course_id', courseId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
 
     const { data: allReviews } = await supabase
       .from('reviews')
@@ -81,7 +82,7 @@ export const reviewsApi = {
         userId: r.user_id,
         rating: r.rating,
         comment: r.comment || '',
-        helpful: r.helpful_count,
+        helpful: r.helpful,
         user: { name: r.users?.name || 'Anonymous', avatar: r.users?.avatar || '' },
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -97,7 +98,7 @@ export const reviewsApi = {
     comment: string
   ): Promise<{ success: boolean; review: ReviewRow }> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    if (!user) {throw new Error('Not authenticated');}
 
     const { data, error } = await supabase
       .from('reviews')
@@ -110,7 +111,7 @@ export const reviewsApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, review: data };
   },
 
@@ -126,7 +127,7 @@ export const reviewsApi = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true, review: data };
   },
 
@@ -136,7 +137,7 @@ export const reviewsApi = {
       .delete()
       .eq('id', reviewId);
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return { success: true };
   },
 };

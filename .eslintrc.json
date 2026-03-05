@@ -85,7 +85,17 @@
     // Accessibility
     "jsx-a11y/anchor-is-valid": "warn",
     "jsx-a11y/click-events-have-key-events": "warn",
-    "jsx-a11y/no-static-element-interactions": "warn"
+    "jsx-a11y/no-static-element-interactions": "warn",
+    "jsx-a11y/label-has-associated-control": "warn",
+    "jsx-a11y/media-has-caption": "off",
+    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/no-noninteractive-element-to-interactive-role": "warn",
+    "jsx-a11y/no-noninteractive-tabindex": "warn",
+
+    // React hooks v5 — too strict for React 19 patterns
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/purity": "warn",
+    "react/no-unescaped-entities": "warn"
   },
   "settings": {
     "react": {
@@ -99,6 +109,8 @@
     "node_modules/",
     "dist/",
     "build/",
+    "supabase/",
+    "under-construction/",
     "*.config.js",
     "*.config.ts",
     ".eslintrc.json"

@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+
 import { useAdmin } from './AdminContext';
-import { usePagination } from './hooks/usePagination';
+import { AdminModal } from './components/AdminModal';
 import { DataTable } from './components/DataTable';
 import { StatusBadge } from './components/StatusBadge';
-import { AdminModal } from './components/AdminModal';
+import { usePagination } from './hooks/usePagination';
+
 import type { AdminCertificate } from '../../types';
 
 export const CertificatesPage: React.FC = () => {
@@ -58,7 +61,7 @@ export const CertificatesPage: React.FC = () => {
   };
 
   const handleRevoke = async () => {
-    if (!certToRevoke) return;
+    if (!certToRevoke) {return;}
     try {
       const res = await adminApi.revokeCertificate(certToRevoke.id, revokeReason);
       showToast(res.message || 'Certificate revoked!', 'success');
@@ -72,7 +75,7 @@ export const CertificatesPage: React.FC = () => {
   };
 
   const openIssueModal = () => {
-    if (!usersLoaded) refreshUsers();
+    if (!usersLoaded) {refreshUsers();}
     setSelectedUserId('');
     setSelectedCourseId('');
     setShowIssueModal(true);

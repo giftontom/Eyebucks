@@ -1,10 +1,11 @@
+import { Loader2 } from 'lucide-react';
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { Outlet , Link } from 'react-router-dom';
+
 import { useAuth } from '../../context/AuthContext';
+
 import { AdminProvider } from './AdminContext';
 import { AdminSidebar } from './components/AdminSidebar';
-import { Loader2 } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
   const { user, isLoading } = useAuth();

@@ -1,11 +1,13 @@
+import { ShieldCheck, Loader2, CheckCircle2, Layers, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Loader2, CheckCircle2, Layers, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+
 import { useAuth } from '../context/AuthContext';
-import { coursesApi, enrollmentsApi, checkoutApi } from '../services/api';
 import { useScript } from '../hooks/useScript';
-import { logger } from '../utils/logger';
+import { coursesApi, enrollmentsApi, checkoutApi } from '../services/api';
 import { CourseType } from '../types';
+import { logger } from '../utils/logger';
+
 import type { Course } from '../types';
 
 // Razorpay SDK types
@@ -212,7 +214,7 @@ export const Checkout: React.FC = () => {
       return;
     }
 
-    if (!validateForm()) return;
+    if (!validateForm()) {return;}
 
     try {
       // Step 1: Create Order

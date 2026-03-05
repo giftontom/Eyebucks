@@ -3,8 +3,10 @@
  * Central Supabase client for all frontend operations
  */
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '../types/supabase';
+
 import { logger } from '../utils/logger';
+
+import type { Database } from '../types/supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;

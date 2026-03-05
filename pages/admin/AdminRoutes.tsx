@@ -1,15 +1,16 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+
 import { AdminLayout } from './AdminLayout';
-import { DashboardPage } from './DashboardPage';
-import { CoursesPage } from './CoursesPage';
-import { CourseEditorPage } from './CourseEditorPage';
-import { UsersPage } from './UsersPage';
-import { UserDetailPage } from './UserDetailPage';
 import { CertificatesPage } from './CertificatesPage';
 import { ContentPage } from './ContentPage';
+import { CourseEditorPage } from './CourseEditorPage';
+import { CoursesPage } from './CoursesPage';
+import { DashboardPage } from './DashboardPage';
 import { PaymentsPage } from './PaymentsPage';
 import { ReviewsPage } from './ReviewsPage';
+import { UserDetailPage } from './UserDetailPage';
+import { UsersPage } from './UsersPage';
 
 export const AdminRoutes: React.FC = () => (
   <Routes>

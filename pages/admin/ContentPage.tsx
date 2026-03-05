@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
 import { Plus, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
+
 import { useAdmin } from './AdminContext';
 import { AdminModal } from './components/AdminModal';
+
 import type { SiteContentItem } from '../../types';
 
 export const ContentPage: React.FC = () => {
@@ -94,7 +97,7 @@ export const ContentPage: React.FC = () => {
   };
 
   const handleDelete = async (item: SiteContentItem) => {
-    if (!confirm(`Delete "${item.title}"?`)) return;
+    if (!confirm(`Delete "${item.title}"?`)) {return;}
     try {
       await adminApi.deleteSiteContent(item.id);
       showToast('Content deleted', 'success');
@@ -125,7 +128,7 @@ export const ContentPage: React.FC = () => {
           <div className="divide-y divide-slate-200">
             {(['faq', 'testimonial', 'showcase', 'banner'] as const).map(section => {
               const items = siteContent.filter(c => c.section === section);
-              if (items.length === 0) return null;
+              if (items.length === 0) {return null;}
               return (
                 <div key={section} className="p-6">
                   <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">

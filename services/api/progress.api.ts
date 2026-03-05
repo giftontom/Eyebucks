@@ -3,6 +3,7 @@
  * Replaces: progressService + apiClient progress methods
  */
 import { supabase } from '../supabase';
+
 import type { Progress, ProgressStats } from '../../types';
 import type { ProgressRow } from '../../types/supabase';
 
@@ -40,7 +41,7 @@ export const progressApi = {
    */
   async saveProgress(courseId: string, moduleId: string, timestamp: number): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {return;}
 
     // Try update first (increment view_count atomically)
     const { data: existing } = await supabase
@@ -85,6 +86,22 @@ export const progressApi = {
   },
 
   /**
+   * Update progress timestamp without incrementing view_count
+   * Used for subsequent auto-saves within the same viewing session
+   */
+  async updateTimestamp(courseId: string, moduleId: string, timestamp: number): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {return;}
+
+    await supabase
+      .from('progress')
+      .update({ timestamp, last_updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .eq('module_id', moduleId);
+  },
+
+  /**
    * Mark a module as completed (calls Edge Function for atomic operation)
    */
   async markComplete(courseId: string, moduleId: string, currentTime?: number, duration?: number): Promise<{
@@ -96,7 +113,7 @@ export const progressApi = {
       body: { courseId, moduleId, currentTime, duration },
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {throw new Error(error.message);}
     return data;
   },
 
@@ -109,7 +126,7 @@ export const progressApi = {
     currentTime: number,
     duration: number
   ): Promise<boolean> {
-    if (duration === 0) return false;
+    if (duration === 0) {return false;}
     const watchPercent = currentTime / duration;
 
     if (watchPercent >= COMPLETION_THRESHOLD) {
@@ -127,7 +144,7 @@ export const progressApi = {
    */
   async getModuleProgress(courseId: string, moduleId: string): Promise<ModuleProgress | null> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) {return null;}
 
     const { data, error } = await supabase
       .from('progress')
@@ -137,7 +154,7 @@ export const progressApi = {
       .eq('module_id', moduleId)
       .maybeSingle();
 
-    if (error || !data) return null;
+    if (error || !data) {return null;}
 
     return {
       moduleId: data.module_id,
@@ -163,7 +180,7 @@ export const progressApi = {
    */
   async getProgress(courseId: string): Promise<ModuleProgress[]> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) {return [];}
 
     const { data, error } = await supabase
       .from('progress')
@@ -171,7 +188,7 @@ export const progressApi = {
       .eq('user_id', user.id)
       .eq('course_id', courseId);
 
-    if (error) return [];
+    if (error) {return [];}
 
     return (data || []).map(p => ({
       moduleId: p.module_id,
@@ -210,7 +227,7 @@ export const progressApi = {
    */
   async updateCurrentModule(courseId: string, moduleId: string): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {return;}
 
     await supabase
       .from('enrollments')
@@ -225,7 +242,7 @@ export const progressApi = {
    */
   async clearProgress(courseId: string): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {return;}
 
     await supabase
       .from('progress')

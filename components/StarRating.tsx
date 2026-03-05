@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
 import { Star } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface StarRatingProps {
   value: number;
