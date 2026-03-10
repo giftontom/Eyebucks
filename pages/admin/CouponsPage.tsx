@@ -77,27 +77,27 @@ export const CouponsPage: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+      <div className="t-card rounded-xl t-border border shadow-sm overflow-hidden">
+        <div className="p-6 border-b t-border flex justify-between items-center">
+          <h3 className="text-xl font-bold t-text flex items-center gap-2">
             <Tag size={20} /> Coupon Manager
           </h3>
           <button
             onClick={() => setShowModal(true)}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
+            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm transition"
           >
             <Plus size={16} /> New Coupon
           </button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-slate-400">Loading coupons...</div>
+          <div className="flex items-center justify-center py-20 t-text-2">Loading coupons...</div>
         ) : coupons.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-slate-400">No coupons yet.</div>
+          <div className="flex items-center justify-center py-20 t-text-2">No coupons yet.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+              <thead className="t-bg-alt t-text-2 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="p-4">Code</th>
                   <th className="p-4">Discount</th>
@@ -107,25 +107,25 @@ export const CouponsPage: React.FC = () => {
                   <th className="p-4">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y t-border">
                 {coupons.map(c => (
-                  <tr key={c.id} className="hover:bg-slate-50">
-                    <td className="p-4 font-mono font-bold text-slate-900">{c.code}</td>
-                    <td className="p-4 text-green-600 font-bold">{c.discount_pct}%</td>
-                    <td className="p-4 text-slate-600">
+                  <tr key={c.id} className="hover:bg-[var(--surface-hover)] transition">
+                    <td className="p-4 font-mono font-bold t-text">{c.code}</td>
+                    <td className="p-4 font-bold" style={{ color: 'var(--status-success-text)' }}>{c.discount_pct}%</td>
+                    <td className="p-4 t-text-2">
                       {c.use_count}{c.max_uses ? ` / ${c.max_uses}` : ''}
                     </td>
-                    <td className="p-4 text-slate-500">
+                    <td className="p-4 t-text-2">
                       {c.expires_at ? new Date(c.expires_at).toLocaleDateString('en-IN') : '—'}
                     </td>
                     <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.is_active ? 't-status-success' : 't-status-danger'}`}>
                         {c.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="p-4">
                       {c.is_active && (
-                        <button onClick={() => setDeactivateTarget(c)} className="text-red-600 hover:text-red-700 text-sm font-medium">
+                        <button onClick={() => setDeactivateTarget(c)} className="text-sm font-medium transition hover:opacity-70" style={{ color: 'var(--status-danger-text)' }}>
                           Deactivate
                         </button>
                       )}
@@ -142,57 +142,61 @@ export const CouponsPage: React.FC = () => {
       <AdminModal open={showModal} onClose={() => setShowModal(false)} title="New Coupon" maxWidth="max-w-md">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Code *</label>
+            <label htmlFor="coupon-code" className="block text-sm font-medium t-text-2 mb-1">Code *</label>
             <input
+              id="coupon-code"
               type="text"
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
               placeholder="SUMMER20"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 font-mono"
+              className="t-input w-full rounded-lg p-2.5 font-mono"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Discount % *</label>
+            <label htmlFor="coupon-discount" className="block text-sm font-medium t-text-2 mb-1">Discount % *</label>
             <input
+              id="coupon-discount"
               type="number"
               min={1}
               max={100}
               value={form.discount_pct}
               onChange={(e) => setForm({ ...form, discount_pct: parseInt(e.target.value) || 0 })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="t-input w-full rounded-lg p-2.5"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Max Uses (optional)</label>
+            <label htmlFor="coupon-max-uses" className="block text-sm font-medium t-text-2 mb-1">Max Uses (optional)</label>
             <input
+              id="coupon-max-uses"
               type="number"
               min={1}
               value={form.max_uses}
               onChange={(e) => setForm({ ...form, max_uses: e.target.value })}
               placeholder="Leave blank for unlimited"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="t-input w-full rounded-lg p-2.5"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Expires At (optional)</label>
+            <label htmlFor="coupon-expires" className="block text-sm font-medium t-text-2 mb-1">Expires At (optional)</label>
             <input
+              id="coupon-expires"
               type="datetime-local"
               value={form.expires_at}
               onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="t-input w-full rounded-lg p-2.5"
             />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => setShowModal(false)}
-            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+            className="flex-1 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2 rounded-lg font-medium transition"
           >
             Cancel
           </button>
           <button
             onClick={handleCreate}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded-lg font-medium transition"
+            className="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-2 rounded-lg font-medium transition"
           >
             Create
           </button>
