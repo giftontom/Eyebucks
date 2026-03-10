@@ -22,13 +22,22 @@ export const Login: React.FC = () => {
     }
   }, [user, navigate, returnTo]);
 
+  // Check for OAuth errors from sessionStorage
+  useEffect(() => {
+    const oauthError = sessionStorage.getItem('oauth_error');
+    if (oauthError) {
+      setError(oauthError);
+      sessionStorage.removeItem('oauth_error');
+    }
+  }, []);
+
   // Show loading during initial auth check
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-50 via-white to-neutral-100">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-neutral-600">Loading...</p>
+          <p className="t-text-2">Loading...</p>
         </div>
       </div>
     );
@@ -39,7 +48,6 @@ export const Login: React.FC = () => {
     setError('');
     try {
       await loginDev(isAdmin);
-      // Navigation will happen automatically via useEffect when user changes
     } catch (error) {
       logger.error('Login failed:', error);
       setError(error instanceof Error ? error.message : 'Login failed. Please try again.');
@@ -52,7 +60,6 @@ export const Login: React.FC = () => {
     setError('');
     try {
       await loginWithGoogle();
-      // Supabase handles redirect - user state updates via onAuthStateChange
     } catch (error) {
       logger.error('Google login failed:', error);
       setError(error instanceof Error ? error.message : 'Google login failed. Please try again.');
@@ -61,7 +68,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-100 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen t-bg flex items-center justify-center px-4 py-12">
       <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-12 items-center">
 
         {/* Left Side - Value Proposition */}
@@ -69,65 +76,62 @@ export const Login: React.FC = () => {
           <div className="space-y-8">
             <div>
               <Link to="/" className="inline-flex items-center gap-2 mb-6 group">
-                <div className="w-10 h-10 bg-black text-white rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform">
-                  <span className="font-bold text-xl">E</span>
-                </div>
-                <span className="text-2xl font-bold">Eyebuckz</span>
+                <img src="/logo_light.png" alt="Eyebuckz" className="h-7 w-auto invert dark:invert-0" />
               </Link>
-              <h1 className="text-5xl font-black text-neutral-900 mb-4 leading-tight">
+              <h1 className="text-5xl font-black t-text mb-4 leading-tight">
                 Welcome to Your<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-800">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">
                   Filmmaking Journey
                 </span>
               </h1>
-              <p className="text-lg text-neutral-600 leading-relaxed">
+              <p className="text-lg t-text-2 leading-relaxed">
                 Join thousands of creators mastering the art of visual storytelling.
               </p>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <CheckCircle2 className="text-green-600" size={24} />
+              <div className="flex items-start gap-4 p-4 rounded-xl t-card t-border border">
+                <div className="bg-green-500/10 p-2 rounded-lg">
+                  <CheckCircle2 className="text-green-400" size={24} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-neutral-900 mb-1">Track Your Progress</h3>
-                  <p className="text-sm text-neutral-600">Auto-save progress across all devices. Pick up where you left off.</p>
+                  <h3 className="font-bold t-text mb-1">Track Your Progress</h3>
+                  <p className="text-sm t-text-2">Auto-save progress across all devices. Pick up where you left off.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Zap className="text-blue-600" size={24} />
+              <div className="flex items-start gap-4 p-4 rounded-xl t-card t-border border">
+                <div className="bg-blue-500/10 p-2 rounded-lg">
+                  <Zap className="text-blue-400" size={24} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-neutral-900 mb-1">Instant Access</h3>
-                  <p className="text-sm text-neutral-600">Stream courses immediately after enrollment. No waiting.</p>
+                  <h3 className="font-bold t-text mb-1">Instant Access</h3>
+                  <p className="text-sm t-text-2">Stream courses immediately after enrollment. No waiting.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-white border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <Star className="text-purple-600" size={24} />
+              <div className="flex items-start gap-4 p-4 rounded-xl t-card t-border border">
+                <div className="bg-purple-500/10 p-2 rounded-lg">
+                  <Star className="text-purple-400" size={24} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-neutral-900 mb-1">Premium Content</h3>
-                  <p className="text-sm text-neutral-600">Learn from industry professionals with real-world experience.</p>
+                  <h3 className="font-bold t-text mb-1">Premium Content</h3>
+                  <p className="text-sm t-text-2">Learn from industry professionals with real-world experience.</p>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-4 pt-4">
               <div className="flex -space-x-2">
-                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100" className="w-10 h-10 rounded-full border-2 border-white object-cover" alt="Student 1" />
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" className="w-10 h-10 rounded-full border-2 border-white object-cover" alt="Student 2" />
-                <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100" className="w-10 h-10 rounded-full border-2 border-white object-cover" alt="Student 3" />
-                <div className="w-10 h-10 rounded-full border-2 border-white bg-brand-600 flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-10 h-10 rounded-full t-border border bg-brand-600/30 flex items-center justify-center t-text text-xs font-bold">M</div>
+                <div className="w-10 h-10 rounded-full t-border border bg-orange-600/30 flex items-center justify-center t-text text-xs font-bold">S</div>
+                <div className="w-10 h-10 rounded-full t-border border bg-purple-600/30 flex items-center justify-center t-text text-xs font-bold">D</div>
+                <div className="w-10 h-10 rounded-full t-border border t-card flex items-center justify-center t-text text-xs font-bold">
                   +10K
                 </div>
               </div>
-              <div className="text-sm text-neutral-600">
-                <span className="font-bold text-neutral-900">10,000+</span> students already learning
+              <div className="text-sm t-text-2">
+                <span className="font-bold t-text">10,000+</span> students already learning
               </div>
             </div>
           </div>
@@ -135,28 +139,25 @@ export const Login: React.FC = () => {
 
         {/* Right Side - Login Form */}
         <div className="w-full">
-          <div className="bg-white rounded-3xl shadow-2xl border border-neutral-200 p-8 md:p-12">
+          <div className="t-card rounded-3xl t-border border p-8 md:p-12 backdrop-blur-sm">
             {/* Mobile Logo */}
             <div className="lg:hidden mb-8">
               <Link to="/" className="inline-flex items-center gap-2 group">
-                <div className="w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform">
-                  <span className="font-bold">E</span>
-                </div>
-                <span className="text-xl font-bold">Eyebuckz</span>
+                <img src="/logo_light.png" alt="Eyebuckz" className="h-6 w-auto invert dark:invert-0" />
               </Link>
             </div>
 
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-neutral-900 mb-2">Sign in to continue</h2>
-              <p className="text-neutral-600">
-                {returnTo !== '/' && <span className="text-brand-600 font-medium">Login required to access this page</span>}
+              <h2 className="text-3xl font-bold t-text mb-2">Sign in to continue</h2>
+              <p className="t-text-2">
+                {returnTo !== '/' && <span className="text-brand-400 font-medium">Login required to access this page</span>}
                 {returnTo === '/' && 'Access your enrolled courses and track your progress'}
               </p>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+              <div role="alert" aria-live="polite" className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
                 {error}
               </div>
             )}
@@ -165,11 +166,11 @@ export const Login: React.FC = () => {
             <button
               onClick={handleGoogleLogin}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-neutral-50 text-neutral-900 py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-md border border-neutral-200 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group mb-4"
+              className="w-full bg-white hover:bg-gray-100 text-gray-900 py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group mb-4"
             >
               {isLoading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-neutral-300 border-t-neutral-900 rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
                   Signing in...
                 </>
               ) : (
@@ -191,17 +192,17 @@ export const Login: React.FC = () => {
               <>
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-neutral-200"></div>
+                    <div className="w-full border-t t-border"></div>
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-3 text-neutral-400 font-bold">Dev Mode</span>
+                    <span className="t-card px-3 t-text-3 font-bold">Dev Mode</span>
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleLogin(false)}
                   disabled={isLoading}
-                  className="w-full bg-black hover:bg-neutral-800 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group mb-3"
+                  className="w-full t-card hover:bg-[var(--surface-hover)] t-border border t-text py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group mb-3"
                 >
                   <LogIn size={24} />
                   Login as User (Dev)
@@ -210,7 +211,7 @@ export const Login: React.FC = () => {
                 <button
                   onClick={() => handleLogin(true)}
                   disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                   <Shield size={24} />
                   Login as Admin (Dev)
@@ -219,9 +220,9 @@ export const Login: React.FC = () => {
             )}
 
             {/* Security Badge */}
-            <div className="mt-8 pt-8 border-t border-neutral-200">
-              <div className="flex items-center justify-center gap-2 text-sm text-neutral-600">
-                <Shield size={16} className="text-green-600" />
+            <div className="mt-8 pt-8 border-t t-border">
+              <div className="flex items-center justify-center gap-2 text-sm t-text-3">
+                <Shield size={16} className="text-green-500" />
                 <span>Secure authentication powered by Supabase</span>
               </div>
             </div>
@@ -230,7 +231,7 @@ export const Login: React.FC = () => {
             <div className="mt-6 text-center">
               <Link
                 to="/"
-                className="text-sm text-neutral-500 hover:text-neutral-900 transition inline-flex items-center gap-1 group"
+                className="text-sm t-text-3 hover:t-text transition inline-flex items-center gap-1 group"
               >
                 <span>←</span>
                 <span className="group-hover:underline">Back to homepage</span>
@@ -239,11 +240,11 @@ export const Login: React.FC = () => {
           </div>
 
           {/* Terms */}
-          <p className="text-center text-xs text-neutral-500 mt-6 max-w-md mx-auto">
+          <p className="text-center text-xs t-text-3 mt-6 max-w-md mx-auto">
             By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-brand-600 hover:underline">Terms of Service</Link>
+            <Link to="/terms" className="text-brand-500 hover:underline">Terms of Service</Link>
             {' '}and{' '}
-            <Link to="/privacy" className="text-brand-600 hover:underline">Privacy Policy</Link>
+            <Link to="/privacy" className="text-brand-500 hover:underline">Privacy Policy</Link>
           </p>
         </div>
       </div>

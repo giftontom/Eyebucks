@@ -34,6 +34,13 @@
 </head>
   <body>
     <div id="root"></div>
+    <!-- Apply theme before React renders to prevent flash -->
+    <script>
+      (function() {
+        var theme = localStorage.getItem('theme');
+        if (theme !== 'light') { document.documentElement.classList.add('dark'); }
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

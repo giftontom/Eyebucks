@@ -26,6 +26,7 @@ const { mockEnrollmentsApi, mockCoursesApi } = vi.hoisted(() => {
   };
   const mockCoursesApi = {
     getCoursesByIds: vi.fn(),
+    getCourses: vi.fn(),
   };
   return { mockEnrollmentsApi, mockCoursesApi };
 });
@@ -75,6 +76,7 @@ describe('Dashboard', () => {
   it('should show empty state when no enrollments', async () => {
     mockEnrollmentsApi.getUserEnrollments.mockResolvedValueOnce([]);
     mockCoursesApi.getCoursesByIds.mockResolvedValueOnce([]);
+    mockCoursesApi.getCourses.mockResolvedValueOnce({ courses: [] });
 
     renderDashboard();
 

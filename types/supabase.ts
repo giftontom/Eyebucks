@@ -116,6 +116,88 @@ export type Database = {
           },
         ]
       }
+      coupon_uses: {
+        Row: {
+          coupon_id: string
+          course_id: string
+          discount_pct: number
+          id: string
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          coupon_id: string
+          course_id: string
+          discount_pct: number
+          id?: string
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string
+          course_id?: string
+          discount_pct?: number
+          id?: string
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_uses_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_uses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_uses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          discount_pct: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          use_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          discount_pct: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          use_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          discount_pct?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          use_count?: number
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           created_at: string | null
@@ -665,6 +747,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_coupon: {
+        Args: { p_code: string; p_course_id: string; p_user_id: string }
+        Returns: {
+          coupon_use_id: string
+          discount_pct: number
+        }[]
+      }
       complete_module: {
         Args: { p_course_id: string; p_module_id: string; p_user_id: string }
         Returns: Json

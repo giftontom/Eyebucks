@@ -5,6 +5,9 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { About } from './pages/About';
+import { Contact } from './pages/Contact';
 import { CourseDetails } from './pages/CourseDetails';
 import { Login } from './pages/Login';
 import { Privacy } from './pages/Privacy';
@@ -28,6 +31,7 @@ const PageLoader: React.FC = () => (
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
+      <ThemeProvider>
       <AuthProvider>
         <HashRouter>
           <Layout>
@@ -38,6 +42,8 @@ const App: React.FC = () => {
               <Route path="/course/:id" element={<CourseDetails />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
 
               {/* Protected Routes - Require Authentication (lazy-loaded) */}
               <Route
@@ -107,6 +113,7 @@ const App: React.FC = () => {
           </Layout>
         </HashRouter>
       </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 };

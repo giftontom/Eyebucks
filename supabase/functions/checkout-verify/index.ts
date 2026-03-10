@@ -59,21 +59,25 @@ serve(async (req) => {
       return errorResponse('Course not found', corsHeaders, 404);
     }
 
-    // Defense-in-depth: verify amount paid matches course price via Razorpay API
+    // Defense-in-depth: verify amount paid matches course price via Razorpay API (mandatory)
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID');
-    if (razorpayKeyId) {
-      const rzpResponse = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${razorpayKeyId}:${razorpaySecret}`),
-        },
-      });
-      if (rzpResponse.ok) {
-        const rzpOrder = await rzpResponse.json();
-        if (rzpOrder.amount !== course.price) {
-          console.error(`[Checkout] Amount mismatch: Razorpay order=${rzpOrder.amount}, course=${course.price}`);
-          return errorResponse('Payment amount mismatch', corsHeaders, 400);
-        }
-      }
+    if (!razorpayKeyId) {
+      console.error('[Checkout] RAZORPAY_KEY_ID not configured');
+      return errorResponse('Payment verification not configured', corsHeaders, 500);
+    }
+    const rzpResponse = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${razorpayKeyId}:${razorpaySecret}`),
+      },
+    });
+    if (!rzpResponse.ok) {
+      console.error('[Checkout] Failed to fetch Razorpay order:', rzpResponse.status, await rzpResponse.text());
+      return errorResponse('Payment gateway error — please contact support', corsHeaders, 503);
+    }
+    const rzpOrder = await rzpResponse.json();
+    if (rzpOrder.amount !== course.price) {
+      console.error(`[Checkout] Amount mismatch: Razorpay order=${rzpOrder.amount}, course=${course.price}`);
+      return errorResponse('Payment amount mismatch', corsHeaders, 400);
     }
 
     // Create enrollment (using service_role to bypass RLS)

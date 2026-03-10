@@ -1,5 +1,7 @@
 # Eyebuckz LMS - System Architecture Overview
 
+> Last updated: March 6, 2026
+
 > Target audience: new developers joining the project and architects evaluating the system design.
 
 ---
@@ -352,6 +354,10 @@ components/
   Layout.tsx           # App shell: sticky nav, mobile drawer, footer
   VideoPlayer.tsx      # HLS video player (hls.js integration)
   VideoUploader.tsx    # Admin video upload (Bunny.net TUS)
+  Badge.tsx            # Status/category pill with CSS token variants
+  Button.tsx           # Accessible button with loading state + icon slots
+  Input.tsx            # Labeled input with error/hint/icon pattern
+  Card.tsx             # Surface container with header/footer slots
   index.ts             # Barrel export
 
 hooks/
@@ -384,7 +390,7 @@ pages/
 
 ### Database Schema
 
-PostgreSQL managed by Supabase with 12 sequential migrations (`001` through `012`).
+PostgreSQL managed by Supabase with 17 sequential migrations (`001` through `017`).
 
 **Core tables (12):**
 
@@ -423,7 +429,7 @@ PostgreSQL managed by Supabase with 12 sequential migrations (`001` through `012
 
 ### Edge Functions
 
-8 Deno-runtime Edge Functions deployed to Supabase:
+10 Deno-runtime Edge Functions deployed to Supabase:
 
 | Function               | Auth Required | External API     | Purpose                            |
 | ---------------------- | ------------- | ---------------- | ---------------------------------- |
@@ -435,6 +441,8 @@ PostgreSQL managed by Supabase with 12 sequential migrations (`001` through `012
 | `certificate-generate` | Yes (JWT)     | --               | Generate + store PDF certificate   |
 | `progress-complete`    | Yes (JWT)     | Resend           | Mark module/course complete + email|
 | `refund-process`       | Yes (JWT+Admin)| Razorpay        | Process payment refunds            |
+| `session-enforce`      | Yes (JWT+Admin)| --              | Verify and enforce user session state |
+| `video-cleanup`        | Yes (JWT+Admin)| Bunny.net       | Delete unused video assets         |
 
 **Shared utilities** (`supabase/functions/_shared/`, 7 modules):
 - `cors.ts` - CORS header management
@@ -474,7 +482,7 @@ All frontend data access flows through typed API modules in `services/api/`:
 pages/components
        |
        v
-  services/api/*.api.ts    <-- 11 typed modules
+  services/api/*.api.ts    <-- 12 typed modules
        |
        v
   @supabase/supabase-js    <-- PostgREST client
@@ -498,6 +506,7 @@ pages/components
 | `siteContent.api.ts`    | CMS content blocks                   |
 | `reviews.api.ts`        | Course reviews CRUD                  |
 | `users.api.ts`          | User profile operations              |
+| `coupons.api.ts`        | Coupon validation                    |
 
 ### Security Model
 
@@ -617,15 +626,15 @@ Project ref: pdengtcdtszpvwhedzxn
 |   +-- admin/                   # Admin panel pages + components
 +-- services/
 |   +-- supabase.ts              # Supabase client singleton
-|   +-- api/                     # 11 typed API modules
+|   +-- api/                     # 12 typed API modules
 +-- types/
 |   +-- index.ts                 # Business types
 |   +-- api.ts                   # Request/response types
 |   +-- supabase.ts              # Auto-generated DB types
 +-- utils/                       # Utility functions
 +-- supabase/
-|   +-- migrations/              # 12 SQL migrations (001-012)
-|   +-- functions/               # 8 Edge Functions
+|   +-- migrations/              # 17 SQL migrations (001-017)
+|   +-- functions/               # 10 Edge Functions
 |   |   +-- _shared/             # 7 shared utilities
 |   +-- seed.sql                 # Seed data
 +-- public/                      # Static assets
@@ -642,6 +651,6 @@ Project ref: pdengtcdtszpvwhedzxn
 | New page            | `pages/{Name}.tsx`                 | Add route in `App.tsx`                     |
 | New admin page      | `pages/admin/{Name}Page.tsx`       | Add route in `AdminRoutes.tsx`             |
 | New Edge Function   | `supabase/functions/{kebab-name}/` | Use `_shared/` helpers                     |
-| New DB migration    | `supabase/migrations/{NNN}_{desc}.sql` | Next available number: 013            |
+| New DB migration    | `supabase/migrations/{NNN}_{desc}.sql` | Next available number: 018            |
 | New business type   | `types/index.ts`                   |                                            |
 | New API type        | `types/api.ts`                     |                                            |

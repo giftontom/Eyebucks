@@ -28,7 +28,7 @@
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | Next number: 017 |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | Next number: 018 |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -70,8 +70,8 @@ supabase functions deploy  # Deploy Edge Functions
 - `App.tsx` - Routes + providers (HashRouter)
 - `services/supabase.ts` - Supabase client singleton
 - `context/AuthContext.tsx` - Auth state management
-- `supabase/migrations/` - 14 sequential SQL migrations (001-014)
-- `supabase/functions/` - 9 Edge Functions: `admin-video-upload`, `certificate-generate`, `checkout-create-order`, `checkout-verify`, `checkout-webhook`, `progress-complete`, `refund-process`, `video-cleanup`, `video-signed-url`
+- `supabase/migrations/` - 17 sequential SQL migrations (001-017)
+- `supabase/functions/` - 10 Edge Functions: `admin-video-upload`, `certificate-generate`, `checkout-create-order`, `checkout-verify`, `checkout-webhook`, `progress-complete`, `refund-process`, `session-enforce`, `video-cleanup`, `video-signed-url`
 
 ## API Modules
 
@@ -88,6 +88,7 @@ supabase functions deploy  # Deploy Edge Functions
 | `siteContent.api.ts` | CMS content |
 | `reviews.api.ts` | Course reviews CRUD |
 | `users.api.ts` | User profile operations |
+| `coupons.api.ts` | Coupon validation |
 
 ## Slash Commands (Skills)
 

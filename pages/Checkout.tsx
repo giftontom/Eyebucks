@@ -2,9 +2,10 @@ import { ShieldCheck, Loader2, CheckCircle2, Layers, BookOpen, ChevronDown, Chev
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
+import { Button, Input } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useScript } from '../hooks/useScript';
-import { coursesApi, enrollmentsApi, checkoutApi } from '../services/api';
+import { coursesApi, enrollmentsApi, checkoutApi, couponsApi } from '../services/api';
 import { CourseType } from '../types';
 import { logger } from '../utils/logger';
 
@@ -43,22 +44,24 @@ declare global {
 const BundleIncludedCourses: React.FC<{ courses: NonNullable<Course['bundledCourses']> }> = ({ courses }) => {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="mb-4 bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <div className="mb-4 t-card t-border border rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition text-sm"
+        className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition text-sm"
+        aria-expanded={expanded}
+        aria-label="Toggle bundled courses list"
       >
-        <span className="flex items-center gap-2 font-medium text-slate-700">
-          <Layers size={14} className="text-brand-600" />
+        <span className="flex items-center gap-2 font-medium t-text">
+          <Layers size={14} className="text-brand-400" />
           Includes {courses.length} course{courses.length !== 1 ? 's' : ''}
         </span>
-        {expanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+        {expanded ? <ChevronUp size={16} className="t-text-3" /> : <ChevronDown size={16} className="t-text-3" />}
       </button>
       {expanded && (
-        <div className="border-t border-slate-100 px-3 py-2 space-y-2">
+        <div className="border-t t-border px-3 py-2 space-y-2">
           {courses.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 text-sm text-slate-600">
-              <BookOpen size={12} className="text-brand-500 flex-shrink-0" />
+            <div key={c.id} className="flex items-center gap-2 text-sm t-text-2">
+              <BookOpen size={12} className="text-brand-400 flex-shrink-0" />
               <span className="truncate">{c.title}</span>
             </div>
           ))}
@@ -102,6 +105,14 @@ export const Checkout: React.FC = () => {
   const [warningMessage, setWarningMessage] = useState<string>('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; phone?: string }>({});
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponUseId, setCouponUseId] = useState<string | undefined>(undefined);
+  const [couponError, setCouponError] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+
   // Check if user already owns this course
   useEffect(() => {
     const checkOwnership = async () => {
@@ -132,7 +143,7 @@ export const Checkout: React.FC = () => {
 
   if (isLoadingCourse) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <Loader2 className="animate-spin text-brand-600" size={48} />
       </div>
     );
@@ -140,10 +151,10 @@ export const Checkout: React.FC = () => {
 
   if (!course) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">Course not found</h2>
-          <Link to="/" className="text-brand-600 hover:text-brand-700 font-bold">
+          <h2 className="text-2xl font-bold t-text mb-4">Course not found</h2>
+          <Link to="/" className="text-brand-400 hover:text-brand-300 font-bold">
             Back to Catalog
           </Link>
         </div>
@@ -154,7 +165,7 @@ export const Checkout: React.FC = () => {
   // Loading ownership check
   if (isCheckingOwnership) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <Loader2 className="animate-spin text-brand-600" size={48} />
       </div>
     );
@@ -163,24 +174,24 @@ export const Checkout: React.FC = () => {
   // If already owned, show message
   if (alreadyOwned) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center bg-white p-8 rounded-xl border border-slate-200 shadow-lg">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 size={32} className="text-green-600" />
+      <div className="min-h-screen flex items-center justify-center p-4 t-bg">
+        <div className="max-w-md w-full text-center t-card p-8 rounded-xl t-border border">
+          <div className="w-16 h-16 t-status-success border rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 size={32} />
           </div>
-          <h2 className="text-2xl font-bold mb-4 text-slate-900">You already own this course!</h2>
-          <p className="text-slate-600 mb-6">
+          <h2 className="text-2xl font-bold mb-4 t-text">You already own this course!</h2>
+          <p className="t-text-2 mb-6">
             You have full access to all course materials.
           </p>
           <Link
             to={`/learn/${id}`}
-            className="block w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-lg transition mb-3"
+            className="block w-full bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 rounded-lg transition mb-3"
           >
             Go to Course
           </Link>
           <Link
             to="/dashboard"
-            className="block w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-medium py-3 rounded-lg transition"
+            className="block w-full t-card hover:bg-[var(--surface-hover)] t-text font-medium py-3 rounded-lg transition"
           >
             Back to Dashboard
           </Link>
@@ -188,6 +199,27 @@ export const Checkout: React.FC = () => {
       </div>
     );
   }
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim() || !course) { return; }
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const result = await couponsApi.applyCoupon(couponInput, course.id);
+      setCouponDiscount(result.discountPct);
+      setCouponUseId(result.couponUseId);
+      setCouponApplied(true);
+    } catch (err: any) {
+      setCouponError(err.message || 'Invalid coupon');
+      setCouponDiscount(0);
+      setCouponUseId(undefined);
+      setCouponApplied(false);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const discountedPrice = course ? Math.round(course.price * (1 - couponDiscount / 100)) : 0;
 
   const validateForm = (): boolean => {
     const errors: typeof fieldErrors = {};
@@ -220,7 +252,7 @@ export const Checkout: React.FC = () => {
       // Step 1: Create Order
       setStatus('CREATING_ORDER');
 
-      const orderResponse = await checkoutApi.createOrder(course.id);
+      const orderResponse = await checkoutApi.createOrder(course.id, couponUseId);
 
       logger.debug('[Checkout] Order created:', orderResponse);
 
@@ -325,134 +357,172 @@ export const Checkout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-0 bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xl">
+    <div className="min-h-screen t-bg flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-0 rounded-3xl overflow-hidden t-border border">
 
         {/* Left: Order Summary */}
-        <div className="p-8 bg-slate-50 flex flex-col justify-between relative overflow-hidden">
+        <div className="p-8 t-card flex flex-col justify-between relative overflow-hidden">
           <div className="relative z-10">
-            <h2 className="text-2xl font-bold mb-6 text-slate-900">Order Summary</h2>
+            <h2 className="text-2xl font-bold mb-6 t-text">Order Summary</h2>
             <div className="flex gap-4 mb-6">
-              <img src={course.thumbnail} className="w-24 h-16 object-cover rounded-lg border border-slate-200 shadow-sm" alt="Course" />
+              <img src={course.thumbnail} className="w-24 h-16 object-cover rounded-lg t-border border" alt="Course" />
               <div>
-                <h3 className="font-bold text-slate-900 leading-tight">{course.title}</h3>
-                <p className="text-sm text-slate-500 mt-1">{course.type === CourseType.BUNDLE ? `Bundle • ${course.bundledCourses?.length || 0} Courses` : course.type}</p>
+                <h3 className="font-bold t-text leading-tight">{course.title}</h3>
+                <p className="text-sm t-text-2 mt-1">{course.type === CourseType.BUNDLE ? `Bundle • ${course.bundledCourses?.length || 0} Courses` : course.type}</p>
               </div>
             </div>
             {course.type === CourseType.BUNDLE && course.bundledCourses && course.bundledCourses.length > 0 && (
               <BundleIncludedCourses courses={course.bundledCourses} />
             )}
-            <div className="border-t border-slate-200 pt-4 space-y-2">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal</span>
-                <span>₹{(course.price / 100).toLocaleString()}</span>
+            {/* Coupon Input */}
+            <div className="mb-4">
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponApplied(false); setCouponDiscount(0); setCouponError(''); }}
+                  placeholder="Coupon code"
+                  disabled={couponApplied}
+                  error={couponError}
+                  containerClassName="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={couponLoading}
+                  disabled={!couponInput.trim() || couponApplied}
+                  onClick={handleApplyCoupon}
+                >
+                  {couponApplied ? '✓' : 'Apply'}
+                </Button>
               </div>
-              <div className="flex justify-between text-green-600 text-sm">
-                <span>Discount</span>
-                <span>- ₹0</span>
-              </div>
-              <div className="flex justify-between text-xl font-bold text-slate-900 pt-2 border-t border-slate-200 mt-2">
+              {couponApplied && <p className="text-xs mt-1" style={{ color: 'var(--status-success-text)' }}>{couponDiscount}% discount applied!</p>}
+            </div>
+
+            <div className="border-t t-border pt-4 space-y-2">
+              {couponDiscount > 0 && (
+                <>
+                  <div className="flex justify-between t-text-2 text-sm">
+                    <span>Subtotal</span>
+                    <span>₹{(course.price / 100).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm" style={{ color: 'var(--status-success-text)' }}>
+                    <span>Discount ({couponDiscount}%)</span>
+                    <span>-₹{((course.price - discountedPrice) / 100).toLocaleString()}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between text-xl font-bold t-text pt-2">
                 <span>Total Due</span>
-                <span>₹{(course.price / 100).toLocaleString()}</span>
+                <span>₹{(discountedPrice / 100).toLocaleString()}</span>
               </div>
             </div>
           </div>
 
-          <div className="relative z-10 flex items-center gap-2 text-slate-500 text-sm mt-8 bg-white p-3 rounded-lg border border-slate-200">
-            <ShieldCheck size={16} className="text-green-500" />
+          <div className="relative z-10 flex items-center gap-2 t-text-2 text-sm mt-8 t-card p-3 rounded-lg t-border border">
+            <ShieldCheck size={16} style={{ color: 'var(--status-success-text)' }} />
             <span>SSL Secure Payment • 256-bit Encryption</span>
           </div>
         </div>
 
         {/* Right: Payment Form */}
-        <div className="p-8 relative">
+        <div className="p-8 relative t-bg">
           {status === 'SUCCESS' ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 animate-fade-in">
-              <CheckCircle2 size={64} className="text-green-500 mb-4" />
-              <h3 className="text-2xl font-bold text-slate-900">Payment Successful!</h3>
-              <p className="text-slate-500 mt-2">Redirecting to your studio...</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 animate-fade-in">
+              <CheckCircle2 size={64} className="text-green-400 mb-4" />
+              <h3 className="text-2xl font-bold text-white">Payment Successful!</h3>
+              <p className="text-gray-300 mt-2">Redirecting to your studio...</p>
             </div>
           ) : (
             <>
-              <h2 className="text-xl font-bold mb-6 text-slate-900">Secure Checkout</h2>
+              <h2 className="text-xl font-bold mb-6 t-text">Secure Checkout</h2>
 
               {errorMessage && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {errorMessage}
+                <div className="mb-4 p-3 t-status-danger border rounded-lg text-sm flex items-center justify-between gap-3">
+                  <span>{errorMessage}</span>
+                  <button
+                    onClick={() => { setErrorMessage(''); setStatus('IDLE'); }}
+                    className="text-xs font-bold underline shrink-0 opacity-80 hover:opacity-100"
+                  >
+                    Try Again
+                  </button>
                 </div>
               )}
 
               {warningMessage && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                <div className="mb-4 p-3 t-status-warning border rounded-lg text-sm">
                   <strong>⚠️ Development Mode:</strong> {warningMessage}
                 </div>
               )}
 
               {!razorpayLoaded && !warningMessage && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
+                <div className="mb-4 p-3 t-status-warning border rounded-lg text-sm">
                   Loading payment gateway...
                 </div>
               )}
 
               <form onSubmit={handlePayment} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-500 mb-1">Full Name</label>
-                  <input
-                    required
-                    type="text"
-                    className={`w-full bg-slate-50 border rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition ${fieldErrors.name ? 'border-red-400' : 'border-slate-200'}`}
-                    value={formData.name}
-                    onChange={(e) => { setFormData({...formData, name: e.target.value}); setFieldErrors(prev => ({ ...prev, name: undefined })); }}
-                  />
-                  {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-500 mb-1">Email Address</label>
-                  <input
-                    required
-                    type="email"
-                    className={`w-full bg-slate-50 border rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition ${fieldErrors.email ? 'border-red-400' : 'border-slate-200'}`}
-                    value={formData.email}
-                    onChange={(e) => { setFormData({...formData, email: e.target.value}); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
-                  />
-                  {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-500 mb-1">Phone Number</label>
-                  <input
-                    required
-                    type="tel"
-                    placeholder="+919876543210"
-                    className={`w-full bg-slate-50 border rounded-lg p-3 text-slate-900 focus:ring-2 focus:ring-slate-900 outline-none transition ${fieldErrors.phone ? 'border-red-400' : 'border-slate-200'}`}
-                    value={formData.phone}
-                    onChange={(e) => { setFormData({...formData, phone: e.target.value}); setFieldErrors(prev => ({ ...prev, phone: undefined })); }}
-                    readOnly={!!user?.phone_e164}
-                  />
-                  {fieldErrors.phone && <p className="text-red-500 text-xs mt-1">{fieldErrors.phone}</p>}
-                </div>
+                <Input
+                  label="Full Name"
+                  required
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => { setFormData({...formData, name: e.target.value}); setFieldErrors(prev => ({ ...prev, name: undefined })); }}
+                  error={fieldErrors.name}
+                  size="lg"
+                />
+                <Input
+                  label="Email Address"
+                  required
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => { setFormData({...formData, email: e.target.value}); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
+                  error={fieldErrors.email}
+                  size="lg"
+                />
+                <Input
+                  label="Phone Number"
+                  required
+                  type="tel"
+                  placeholder="+919876543210"
+                  value={formData.phone}
+                  onChange={(e) => { setFormData({...formData, phone: e.target.value}); setFieldErrors(prev => ({ ...prev, phone: undefined })); }}
+                  error={fieldErrors.phone}
+                  readOnly={!!user?.phone_e164}
+                  size="lg"
+                />
+                {user?.phone_e164 && (
+                  <Link to="/profile" className="text-xs text-brand-400 hover:text-brand-300 transition mt-1 block">
+                    Change →
+                  </Link>
+                )}
 
-                <button
+                <Button
                   type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={status !== 'IDLE'}
                   disabled={status !== 'IDLE' || (!razorpayLoaded && !user)}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-lg mt-4 transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="mt-4 py-4 shadow-lg shadow-brand-600/20"
                 >
-                  {status === 'IDLE' && `Pay ₹${(course.price / 100).toLocaleString()}`}
-                  {status === 'CREATING_ORDER' && <><Loader2 className="animate-spin" size={20} /> Creating Order...</>}
-                  {status === 'PAYING' && <><Loader2 className="animate-spin" size={20} /> Processing Payment...</>}
-                  {status === 'VERIFYING' && <><Loader2 className="animate-spin" size={20} /> Verifying Payment...</>}
-                </button>
+                  {status === 'IDLE' && `Pay ₹${(discountedPrice / 100).toLocaleString()}`}
+                  {status === 'CREATING_ORDER' && 'Creating Order...'}
+                  {status === 'PAYING' && 'Processing Payment...'}
+                  {status === 'VERIFYING' && 'Verifying Payment...'}
+                </Button>
               </form>
             </>
           )}
 
           {!user && (
-            <p className="text-xs text-center mt-4 text-slate-400">
+            <p className="text-xs text-center mt-4 t-text-3">
               You'll be asked to sign in with Google after clicking Pay.
             </p>
           )}
 
           {razorpayLoaded && status === 'IDLE' && (
-            <p className="text-xs text-center mt-4 text-slate-400">
+            <p className="text-xs text-center mt-4 t-text-3">
               Powered by Razorpay • Secure payments
             </p>
           )}

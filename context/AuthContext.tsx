@@ -78,6 +78,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(newSession);
 
         if (event === 'SIGNED_IN' && newSession?.user) {
+          // Enforce single-session: invalidate all other sessions for this user.
+          // Await with 3s timeout — network failure is lenient (log + continue),
+          // but a business-logic rejection signs the user out.
+          try {
+            const enforcePromise = supabase.functions.invoke('session-enforce');
+            const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) =>
+              setTimeout(() => resolve({ error: { message: 'timeout' } }), 3000)
+            );
+            const { error: enforceError } = await Promise.race([enforcePromise, timeoutPromise]) as { error?: { message?: string } };
+            if (enforceError) {
+              const msg = enforceError.message || '';
+              if (msg === 'timeout' || msg.toLowerCase().includes('network') || msg.toLowerCase().includes('fetch')) {
+                logger.warn('[AuthContext] Session enforce timed out — proceeding with caution');
+              } else {
+                logger.error('[AuthContext] Session enforce rejected login:', enforceError);
+                await supabase.auth.signOut();
+                return;
+              }
+            }
+          } catch (enforceErr) {
+            logger.error('[AuthContext] Session enforce threw:', enforceErr);
+          }
+
           // Retry with exponential backoff to wait for auth trigger to create profile
           const retryLoadProfile = async (userId: string, attempt = 0) => {
             const delays = [200, 400, 800, 1600, 3000];
@@ -87,11 +110,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           };
           retryLoadProfile(newSession.user.id);
-
-          // Invalidate all other sessions for this user (fire-and-forget)
-          supabase.functions.invoke('session-enforce').catch(err => {
-            logger.error('[AuthContext] Session enforce failed:', err);
-          });
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -122,10 +140,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /**
    * Development mode login (uses Supabase email/password as fallback)
+   * Only works in development builds — no-op in production.
    */
   const loginDev = async (isAdmin: boolean = false) => {
-    const email = isAdmin ? 'admin@eyebuckz.com' : 'test@example.com';
-    const password = 'dev-password-123';
+    if (!import.meta.env.DEV) { return; }
+    const email = isAdmin ? import.meta.env.VITE_DEV_ADMIN_EMAIL : import.meta.env.VITE_DEV_USER_EMAIL;
+    const password = import.meta.env.VITE_DEV_PASSWORD;
+    if (!email || !password) {
+      throw new Error('Dev credentials not configured. Set VITE_DEV_ADMIN_EMAIL, VITE_DEV_USER_EMAIL, VITE_DEV_PASSWORD in .env.local');
+    }
 
     // Try to sign in first
     let { data, error } = await supabase.auth.signInWithPassword({

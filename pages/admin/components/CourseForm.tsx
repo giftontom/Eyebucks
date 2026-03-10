@@ -1,5 +1,7 @@
 import React, { useRef } from 'react';
 
+import { Input } from '../../../components';
+
 import { BundleCoursePicker } from './BundleCoursePicker';
 
 import type { AdminCourse, CourseFormData, CourseType } from '../../../types';
@@ -29,7 +31,6 @@ export const CourseForm: React.FC<CourseFormProps> = ({
   courses,
 }) => {
   const update = (partial: Partial<CourseFormData>) => onChange({ ...formData, ...partial });
-  // Track the auto-generated slug so we only auto-update when slug matches it
   const autoSlugRef = useRef<string>('');
 
   const handleTitleChange = (title: string) => {
@@ -46,76 +47,57 @@ export const CourseForm: React.FC<CourseFormProps> = ({
 
   return (
     <div className="space-y-4">
+      <Input
+        label="Title *"
+        type="text"
+        value={formData.title}
+        onChange={(e) => handleTitleChange(e.target.value)}
+        placeholder="Course title"
+      />
+      <Input
+        label="Slug *"
+        type="text"
+        value={formData.slug}
+        onChange={(e) => update({ slug: e.target.value })}
+        placeholder="course-slug"
+        error={!isSlugValid ? 'Slug must be lowercase letters, numbers, and hyphens only (e.g. "my-course-1")' : undefined}
+      />
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Title *</label>
-        <input
-          type="text"
-          value={formData.title}
-          onChange={(e) => handleTitleChange(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
-          placeholder="Course title"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Slug *</label>
-        <input
-          type="text"
-          value={formData.slug}
-          onChange={(e) => update({ slug: e.target.value })}
-          className={`w-full bg-slate-50 border rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 ${
-            !isSlugValid ? 'border-red-400 focus:ring-red-400' : 'border-slate-200'
-          }`}
-          placeholder="course-slug"
-        />
-        {!isSlugValid && (
-          <p className="text-xs text-red-500 mt-1">Slug must be lowercase letters, numbers, and hyphens only (e.g. "my-course-1")</p>
-        )}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Description *</label>
+        <label className="block text-xs font-semibold t-text-2 mb-1.5">Description *</label>
         <textarea
           value={formData.description}
           onChange={(e) => update({ description: e.target.value })}
           rows={4}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full t-input-bg t-border border rounded-lg px-3.5 py-2.5 text-sm t-text placeholder:t-text-3 outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition duration-150"
           placeholder="Course description"
         />
       </div>
+      <Input
+        label="Price (₹ in rupees) *"
+        type="number"
+        step="0.01"
+        min="0"
+        value={formData.price}
+        onChange={(e) => update({ price: e.target.value })}
+        placeholder="1999"
+      />
+      <Input
+        label="Thumbnail URL"
+        type="url"
+        value={formData.thumbnail}
+        onChange={(e) => update({ thumbnail: e.target.value })}
+        placeholder="https://..."
+      />
+      <Input
+        label="Hero Video ID"
+        type="text"
+        value={formData.heroVideoId || ''}
+        onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
+        placeholder="Bunny Stream video GUID (optional)"
+        hint="Used as the hero/preview video on the course page"
+      />
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Price (₹ in rupees) *</label>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={formData.price}
-          onChange={(e) => update({ price: e.target.value })}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
-          placeholder="1999"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Thumbnail URL</label>
-        <input
-          type="url"
-          value={formData.thumbnail}
-          onChange={(e) => update({ thumbnail: e.target.value })}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
-          placeholder="https://..."
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Hero Video ID</label>
-        <input
-          type="text"
-          value={formData.heroVideoId || ''}
-          onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
-          placeholder="Bunny Stream video GUID (optional)"
-        />
-        <p className="text-xs text-slate-400 mt-1">Used as the hero/preview video on the course page</p>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Type *</label>
+        <label className="block text-xs font-semibold t-text-2 mb-1.5">Type *</label>
         <select
           value={formData.type}
           onChange={(e) => {
@@ -123,7 +105,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
             update({ type: newType });
             if (newType !== 'BUNDLE') {onBundledCourseIdsChange([]);}
           }}
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full t-input-bg t-border border rounded-lg px-3.5 py-2.5 text-sm t-text outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition duration-150"
         >
           <option value="MODULE">Module</option>
           <option value="BUNDLE">Bundle</option>
@@ -139,19 +121,18 @@ export const CourseForm: React.FC<CourseFormProps> = ({
       )}
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Features</label>
+        <label className="block text-xs font-semibold t-text-2 mb-1.5">Features</label>
         {formData.features.map((feature, index) => (
           <div key={index} className="flex gap-2 mb-2">
-            <input
-              type="text"
+            <Input
               value={feature}
               onChange={(e) => {
                 const newFeatures = [...formData.features];
                 newFeatures[index] = e.target.value;
                 update({ features: newFeatures });
               }}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="Feature description"
+              containerClassName="flex-1"
             />
             {formData.features.length > 1 && (
               <button

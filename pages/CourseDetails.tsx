@@ -2,6 +2,7 @@ import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
+import { Button, Badge } from '../components';
 import { ReviewList } from '../components/ReviewList';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
@@ -67,19 +68,19 @@ export const CourseDetails: React.FC = () => {
   if (loadError) {return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center max-w-md">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-red-600 text-2xl font-bold">!</span>
+        <div className="w-16 h-16 t-status-danger border rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl font-bold">!</span>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Failed to load course</h2>
-        <p className="text-slate-500 mb-6">{loadError}</p>
-        <button onClick={fetchCourse} className="bg-brand-600 hover:bg-brand-700 text-white font-medium px-6 py-2 rounded-lg transition">Try Again</button>
+        <h2 className="text-xl font-bold t-text mb-2">Failed to load course</h2>
+        <p className="t-text-2 mb-6">{loadError}</p>
+        <Button onClick={fetchCourse}>Try Again</Button>
       </div>
     </div>
   );}
   if (!course) {return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Course not found</h2>
+        <h2 className="text-2xl font-bold t-text mb-4">Course not found</h2>
         <Link to="/" className="text-brand-600 hover:text-brand-700 font-bold">Back to Catalog</Link>
       </div>
     </div>
@@ -119,7 +120,7 @@ export const CourseDetails: React.FC = () => {
   const ctaConfig = getCtaConfig();
 
   return (
-    <div className="pb-24 bg-white">
+    <div className="pb-24 t-bg">
       {/* Video Trailer Header */}
       <div className="relative h-[40vh] md:h-[60vh] bg-black group">
         <video
@@ -135,7 +136,7 @@ export const CourseDetails: React.FC = () => {
         <div className="absolute bottom-8 left-0 right-0 max-w-7xl mx-auto px-4 flex justify-between items-end">
            <div className="animate-fade-in-up w-3/4">
               <div className="flex items-center gap-2 mb-3">
-                 {course.rating && <div className="bg-yellow-500 text-black px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 shadow-lg"><Star size={12} fill="currentColor"/> {course.rating}</div>}
+                 {course.rating && <Badge variant="warning" className="shadow-lg"><Star size={12} fill="currentColor"/> {course.rating}</Badge>}
                  <span className="bg-white/20 backdrop-blur text-white px-3 py-0.5 rounded text-xs font-bold border border-white/20">{course.type}</span>
               </div>
               <h1 className="text-3xl md:text-6xl font-bold text-white mb-3 leading-tight">{course.title}</h1>
@@ -155,7 +156,7 @@ export const CourseDetails: React.FC = () => {
         <div className="lg:col-span-2">
             
           {/* Tabs Navigation */}
-          <div className="flex border-b border-slate-200 mb-8 overflow-x-auto no-scrollbar">
+          <div className="flex border-b t-border mb-8 overflow-x-auto no-scrollbar">
               {(() => {
                 const isBundle = course.type === CourseType.BUNDLE;
                 const tabs = isBundle
@@ -168,7 +169,7 @@ export const CourseDetails: React.FC = () => {
                     className={`px-6 py-4 font-bold text-sm transition border-b-2 whitespace-nowrap ${
                         activeTab === tab
                         ? 'border-brand-600 text-brand-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-900'
+                        : 'border-transparent t-text-2 hover:t-text'
                     }`}
                   >
                       {tab === 'COURSES' ? `INCLUDED COURSES (${course.bundledCourses?.length || 0})` : tab}
@@ -180,15 +181,15 @@ export const CourseDetails: React.FC = () => {
           <div className="min-h-[300px]">
             {activeTab === 'OVERVIEW' && (
                 <div className="space-y-6 animate-fade-in">
-                    <h2 className="text-2xl font-bold text-slate-900">Course Overview</h2>
-                    <p className="text-slate-600 leading-relaxed text-lg">
+                    <h2 className="text-2xl font-bold t-text">Course Overview</h2>
+                    <p className="t-text-2 leading-relaxed text-lg">
                     {course.description}. Designed for visual storytellers who want to master the craft. We cover everything from pre-production planning to post-production delivery.
                     </p>
                     
-                    <h3 className="text-xl font-bold text-slate-900 mt-8 mb-4">What you'll learn</h3>
+                    <h3 className="text-xl font-bold t-text mt-8 mb-4">What you'll learn</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {course.features.map((feat, i) => (
-                            <div key={i} className="flex items-start gap-3 text-slate-600">
+                            <div key={i} className="flex items-start gap-3 t-text-2">
                                 <Zap size={18} className="text-brand-600 mt-1 flex-shrink-0" />
                                 <span>{feat}</span>
                             </div>
@@ -197,15 +198,17 @@ export const CourseDetails: React.FC = () => {
 
                     {/* Mobile Enroll Button (Main CTA) */}
                     <div className="mt-8 lg:hidden">
-                       <button
+                       <Button
                           ref={mainCtaRef}
                           onClick={handleCTA}
                           disabled={ctaConfig.disabled}
-                          className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition"
+                          variant="primary"
+                          size="lg"
+                          fullWidth
+                          rightIcon={ctaConfig.icon}
                         >
-                          {ctaConfig.icon}
                           {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ₹${(course.price / 100).toLocaleString()}`}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
@@ -213,27 +216,36 @@ export const CourseDetails: React.FC = () => {
             {activeTab === 'CURRICULUM' && (
                 <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-slate-900">Course Content</h2>
-                        <span className="text-slate-500 text-sm">{(course.chapters?.length || 0)} Chapters</span>
+                        <h2 className="text-2xl font-bold t-text">Course Content</h2>
+                        <span className="t-text-2 text-sm">{(course.chapters?.length || 0)} Chapters</span>
                     </div>
                     {(course.chapters || []).map((chapter, index) => (
-                        <div key={chapter.id} className="border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
-                            <button 
+                        <div key={chapter.id} className="border t-border rounded-xl t-bg-alt overflow-hidden">
+                            <button
                             onClick={() => setOpenChapter(openChapter === chapter.id ? null : chapter.id)}
-                            className="w-full flex items-center justify-between p-5 hover:bg-slate-100 transition"
+                            className="w-full flex items-center justify-between p-5 hover:bg-[var(--surface-hover)] transition"
                             >
                             <div className="flex items-center gap-4">
-                                <span className="text-slate-400 font-mono font-bold">0{index + 1}</span>
-                                <span className="font-bold text-slate-800 text-left">{chapter.title}</span>
+                                <span className="t-text-2 font-mono font-bold">0{index + 1}</span>
+                                <span className="font-bold t-text text-left">{chapter.title}</span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <span className="text-sm text-slate-500">{chapter.duration}</span>
-                                {openChapter === chapter.id ? <ChevronUp size={20} className="text-brand-600" /> : <ChevronDown size={20} className="text-slate-400" />}
+                                <span className="text-sm t-text-2">{chapter.duration}</span>
+                                {openChapter === chapter.id ? <ChevronUp size={20} className="text-brand-600" /> : <ChevronDown size={20} className="t-text-2" />}
                             </div>
                             </button>
                             {openChapter === chapter.id && (
-                            <div className="p-5 bg-white text-sm text-slate-500 border-t border-slate-200 flex items-center gap-2">
-                                <Lock size={14} /> Content locked. Enroll to access video and resources.
+                            <div className="p-4 t-bg border-t t-border">
+                              {hasAccess ? (
+                                <div className="text-sm t-text-2 flex items-center gap-2">
+                                  <Play size={14} className="text-brand-400" />
+                                  <Link to={`/learn/${course.id}`} className="text-brand-400 hover:text-brand-300 font-medium">Continue to course</Link>
+                                </div>
+                              ) : (
+                                <div className="text-sm t-text-2 flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-2"><Lock size={14} /> {chapter.duration} of content • Enroll to unlock</span>
+                                </div>
+                              )}
                             </div>
                             )}
                         </div>
@@ -244,29 +256,29 @@ export const CourseDetails: React.FC = () => {
             {activeTab === 'COURSES' && course.type === CourseType.BUNDLE && (
                 <div className="space-y-6 animate-fade-in">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-slate-900">What's Included</h2>
-                        <span className="text-slate-500 text-sm">{course.bundledCourses?.length || 0} Courses</span>
+                        <h2 className="text-2xl font-bold t-text">What's Included</h2>
+                        <span className="t-text-2 text-sm">{course.bundledCourses?.length || 0} Courses</span>
                     </div>
-                    <p className="text-slate-500 text-sm mb-6">This bundle includes full access to the following courses:</p>
+                    <p className="t-text-2 text-sm mb-6">This bundle includes full access to the following courses:</p>
                     <div className="space-y-4">
                         {(course.bundledCourses || []).map((bc, index) => (
                             <div
                                 key={bc.id}
                                 onClick={() => navigate(`/course/${bc.id}`)}
-                                className="flex gap-4 p-4 border border-slate-200 rounded-xl hover:border-brand-500/30 hover:shadow-md transition cursor-pointer group bg-white"
+                                className="flex gap-4 p-4 border t-border rounded-xl hover:border-brand-500/30 hover:shadow-md transition cursor-pointer group t-bg"
                             >
-                                <div className="w-24 h-24 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                                <div className="w-24 h-24 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                                     {bc.thumbnail ? (
                                         <img src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                        <div className="w-full h-full flex items-center justify-center t-text-2">
                                             <BookOpen size={24} />
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-xs font-bold text-slate-400">COURSE {index + 1}</span>
+                                        <span className="text-xs font-bold t-text-2">COURSE {index + 1}</span>
                                         {bc.rating && (
                                             <div className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
                                                 <Star size={10} fill="currentColor" />
@@ -274,15 +286,15 @@ export const CourseDetails: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <h4 className="font-bold text-slate-900 group-hover:text-brand-600 transition-colors truncate">{bc.title}</h4>
-                                    <p className="text-sm text-slate-500 line-clamp-1 mt-1">{bc.description}</p>
-                                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                                    <h4 className="font-bold t-text group-hover:text-brand-600 transition-colors truncate">{bc.title}</h4>
+                                    <p className="text-sm t-text-2 line-clamp-1 mt-1">{bc.description}</p>
+                                    <div className="flex items-center gap-4 mt-2 text-xs t-text-2">
                                         <span className="flex items-center gap-1"><Layers size={12} /> {bc.moduleCount} Lessons</span>
                                         <span className="flex items-center gap-1"><User size={12} /> {bc.totalStudents} Students</span>
                                         {bc.price > 0 && <span className="line-through">₹{(bc.price / 100).toLocaleString()}</span>}
                                     </div>
                                 </div>
-                                <div className="hidden md:flex items-center text-slate-400 group-hover:text-brand-600 transition-colors">
+                                <div className="hidden md:flex items-center t-text-2 group-hover:text-brand-600 transition-colors">
                                     <ArrowRight size={20} />
                                 </div>
                             </div>
@@ -315,39 +327,42 @@ export const CourseDetails: React.FC = () => {
 
         {/* Desktop Sidebar (Always Visible) */}
         <div className="hidden lg:block">
-          <div className="sticky top-24 bg-white border border-slate-200 rounded-2xl p-6 shadow-xl shadow-slate-200/50">
+          <div className="sticky top-24 t-card border t-border rounded-2xl p-6 shadow-xl shadow-black/10">
             {!hasAccess && (
               <>
-                <h3 className="text-4xl font-bold text-slate-900 mb-2">₹{(course.price / 100).toLocaleString()}</h3>
-                <p className="text-slate-500 text-sm mb-8">One-time payment. Lifetime access.</p>
+                <h3 className="text-4xl font-bold t-text mb-2">₹{(course.price / 100).toLocaleString()}</h3>
+                <p className="t-text-2 text-sm mb-8">One-time payment. Lifetime access.</p>
               </>
             )}
             {hasAccess && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                <p className="text-green-800 font-bold text-sm flex items-center gap-2">
-                  <Zap size={16} className="text-green-600" />
+              <div className="t-status-success border rounded-xl p-4 mb-6">
+                <p className="font-bold text-sm flex items-center gap-2">
+                  <Zap size={16} />
                   You're enrolled in this course
                 </p>
               </div>
             )}
 
-            <button
+            <Button
               onClick={handleCTA}
               disabled={ctaConfig.disabled}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition transform hover:-translate-y-1 mb-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              size="lg"
+              fullWidth
+              rightIcon={ctaConfig.icon}
+              className="mb-4 hover:-translate-y-1"
             >
-              {ctaConfig.icon}
               {ctaConfig.text}
-            </button>
+            </Button>
             
             {course.type === CourseType.BUNDLE && course.bundledCourses && course.bundledCourses.length > 0 && (
-              <div className="mt-6 border-t border-slate-100 pt-6">
-                <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <div className="mt-6 border-t t-border pt-6">
+                <h4 className="text-sm font-bold t-text mb-3 flex items-center gap-2">
                   <Layers size={16} className="text-brand-600" /> Includes {course.bundledCourses.length} Courses
                 </h4>
                 <div className="space-y-2">
                   {course.bundledCourses.map((bc) => (
-                    <div key={bc.id} className="flex items-center gap-2 text-sm text-slate-600">
+                    <div key={bc.id} className="flex items-center gap-2 text-sm t-text-2">
                       <BookOpen size={14} className="text-brand-500 flex-shrink-0" />
                       <span className="truncate">{bc.title}</span>
                     </div>
@@ -356,16 +371,16 @@ export const CourseDetails: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-4 mt-8 border-t border-slate-100 pt-6">
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+            <div className="space-y-4 mt-8 border-t t-border pt-6">
+                <div className="flex items-center gap-3 text-sm t-text-2">
                     <User size={18} className="text-brand-600" />
                     <span>Beginner to Advanced</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-3 text-sm t-text-2">
                     <Zap size={18} className="text-brand-600" />
                     <span>Instant Access</span>
                 </div>
-                 <div className="flex items-center gap-3 text-sm text-slate-600">
+                 <div className="flex items-center gap-3 text-sm t-text-2">
                     <Lock size={18} className="text-brand-600" />
                     <span>Secure Payment</span>
                 </div>
@@ -375,30 +390,33 @@ export const CourseDetails: React.FC = () => {
       </div>
 
       {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
-      <div className={`fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 lg:hidden z-40 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.1)] safe-pb transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.15)] safe-pb transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
         {!hasAccess ? (
           <>
             <div>
-              <p className="text-xs text-slate-500">Total Price</p>
-              <p className="text-xl font-bold text-slate-900">₹{(course.price / 100).toLocaleString()}</p>
+              <p className="text-xs t-text-2">Total Price</p>
+              <p className="text-xl font-bold t-text">₹{(course.price / 100).toLocaleString()}</p>
             </div>
-            <button
+            <Button
               onClick={handleCTA}
               disabled={ctaConfig.disabled}
-              className="bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition disabled:opacity-50"
+              variant="primary"
+              size="lg"
             >
               {ctaConfig.text}
-            </button>
+            </Button>
           </>
         ) : (
-          <button
+          <Button
             onClick={handleCTA}
             disabled={ctaConfig.disabled}
-            className="w-full bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition flex items-center justify-center gap-2"
+            variant="primary"
+            size="lg"
+            fullWidth
+            rightIcon={ctaConfig.icon}
           >
-            {ctaConfig.icon}
             {ctaConfig.text}
-          </button>
+          </Button>
         )}
       </div>
     </div>

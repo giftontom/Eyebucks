@@ -6,6 +6,7 @@ import {
   FileText,
   CreditCard,
   Star,
+  Tag,
   Menu,
   X,
 } from 'lucide-react';
@@ -20,16 +21,17 @@ const navItems = [
   { to: '/admin/content', label: 'Content', icon: FileText },
   { to: '/admin/payments', label: 'Payments', icon: CreditCard },
   { to: '/admin/reviews', label: 'Reviews', icon: Star },
+  { to: '/admin/coupons', label: 'Coupons', icon: Tag },
 ];
 
 export const AdminSidebar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
+    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 outline-none ${
       isActive
-        ? 'bg-slate-900 text-white'
-        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        ? 'bg-brand-600 text-white'
+        : 't-text-2 hover:t-card hover:t-text'
     }`;
 
   const nav = (
@@ -54,7 +56,7 @@ export const AdminSidebar: React.FC = () => {
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"
+        className="lg:hidden fixed top-4 left-4 z-40 p-2 t-bg t-border border rounded-lg shadow-sm t-text"
         aria-label="Open menu"
       >
         <Menu size={20} />
@@ -64,14 +66,14 @@ export const AdminSidebar: React.FC = () => {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-slate-900/40"
+            className="absolute inset-0 t-overlay"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 shadow-xl">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200">
-              <span className="font-bold text-slate-900">Admin</span>
+          <div className="absolute left-0 top-0 bottom-0 w-64 t-bg t-border border-r shadow-xl">
+            <div className="flex items-center justify-between px-4 py-4 border-b t-border">
+              <span className="font-bold t-text">Admin</span>
               <button onClick={() => setMobileOpen(false)} aria-label="Close menu">
-                <X size={20} className="text-slate-500" />
+                <X size={20} className="t-text-2" />
               </button>
             </div>
             {nav}
@@ -80,10 +82,10 @@ export const AdminSidebar: React.FC = () => {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-60 shrink-0 border-r border-slate-200 bg-white min-h-screen">
-        <div className="px-4 py-5 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900">Admin Portal</h2>
-          <p className="text-xs text-slate-500">Platform Management</p>
+      <aside className="hidden lg:block w-60 shrink-0 t-border border-r t-bg min-h-screen">
+        <div className="px-4 py-5 border-b t-border">
+          <h2 className="text-lg font-bold t-text">Admin Portal</h2>
+          <p className="text-xs t-text-2">Platform Management</p>
         </div>
         {nav}
       </aside>

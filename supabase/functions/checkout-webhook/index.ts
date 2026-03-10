@@ -49,32 +49,31 @@ serve(async (req) => {
       const { courseId, userId } = payment.notes || {};
 
       if (courseId && userId) {
-        // Check if enrollment already exists (idempotency)
-        const { data: existing } = await supabaseAdmin
+        // Idempotent upsert — safe to call multiple times for the same payment
+        const { data: newEnrollment } = await supabaseAdmin
           .from('enrollments')
+          .upsert(
+            {
+              user_id: userId,
+              course_id: courseId,
+              status: 'ACTIVE',
+              payment_id: payment.id,
+              order_id: payment.order_id,
+              amount: payment.amount,
+              enrolled_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+          )
           .select('id')
-          .eq('user_id', userId)
-          .eq('course_id', courseId)
           .maybeSingle();
 
-        if (!existing) {
-          // Create enrollment
-          const { data: newEnrollment } = await supabaseAdmin.from('enrollments').insert({
-            user_id: userId,
-            course_id: courseId,
-            status: 'ACTIVE',
-            payment_id: payment.id,
-            order_id: payment.order_id,
-            amount: payment.amount,
-            enrolled_at: new Date().toISOString(),
-          }).select('id').single();
-
-          // Insert payment record
+        // Only insert payment record if a new enrollment was created
+        if (newEnrollment) {
           const receiptNumber = `EYB-${Date.now().toString(36).toUpperCase()}`;
           await supabaseAdmin.from('payments').insert({
             user_id: userId,
             course_id: courseId,
-            enrollment_id: newEnrollment?.id,
+            enrollment_id: newEnrollment.id,
             razorpay_order_id: payment.order_id,
             razorpay_payment_id: payment.id,
             amount: payment.amount,
@@ -104,6 +103,8 @@ serve(async (req) => {
           }
 
           console.log('[Webhook] Enrollment created for payment:', payment.id);
+        } else {
+          console.log('[Webhook] Duplicate webhook — enrollment already exists for payment:', payment.id);
         }
       }
     } else if (eventType === 'payment.failed') {

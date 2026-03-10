@@ -33,8 +33,8 @@ Documentation for the frontend service layer and Supabase Edge Functions.
 
 | Document | Description |
 |----------|-------------|
-| [Service Modules](api/SERVICE_MODULES.md) | All 11 API service modules (courses, enrollments, progress, checkout, admin, notifications, payments, certificates, siteContent, reviews, users) |
-| [Edge Functions](api/EDGE_FUNCTIONS.md) | All 8 Edge Functions and shared utilities (checkout, video signing, uploads, certificates, progress, refunds) |
+| [Service Modules](api/SERVICE_MODULES.md) | All 12 API service modules (courses, enrollments, progress, checkout, admin, notifications, payments, certificates, siteContent, reviews, users, coupons) |
+| [Edge Functions](api/EDGE_FUNCTIONS.md) | All 10 Edge Functions and shared utilities (checkout, video signing, uploads, certificates, progress, refunds, session-enforce) |
 
 ### Guides
 
@@ -55,6 +55,7 @@ Component catalog, hooks reference, and user flow diagrams.
 | Document | Description |
 |----------|-------------|
 | [Components](reference/COMPONENTS.md) | All shared and admin components with props and usage |
+| [Design System](reference/DESIGN_SYSTEM.md) | CSS token reference and UI primitive components (Badge, Button, Input, Card) |
 | [Hooks](reference/HOOKS.md) | All shared and admin hooks with signatures and examples |
 | [User Flows](reference/USER_FLOWS.md) | End-to-end user journey diagrams (enrollment, checkout, learning, certification) |
 
@@ -82,4 +83,4 @@ The following documents describe the **pre-Supabase architecture** (Express + Pr
 
 ---
 
-*Last updated: March 3, 2026*
+*Last updated: March 6, 2026*

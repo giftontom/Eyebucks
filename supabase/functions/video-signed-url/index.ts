@@ -73,15 +73,18 @@ serve(async (req) => {
         return errorResponse('Module not found', corsHeaders, 404);
       }
 
-      // Validate that the requested videoId matches this module's video
-      if (!isAdmin && module.video_url && !module.video_url.includes(videoId)) {
+      // Validate that the requested videoId exactly matches this module's video GUID
+      const extractGuid = (url: string) =>
+        url.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i)?.[1] ?? null;
+      const storedGuid = module.video_url ? extractGuid(module.video_url) : null;
+      if (!isAdmin && storedGuid !== videoId) {
         return errorResponse('Video does not belong to this module', corsHeaders, 403);
       }
 
       if (!module.is_free_preview && !isAdmin) {
         const { data: enrollment } = await supabaseAdmin
           .from('enrollments')
-          .select('id')
+          .select('id, expires_at')
           .eq('user_id', user.id)
           .eq('course_id', module.course_id)
           .eq('status', 'ACTIVE')
@@ -89,6 +92,11 @@ serve(async (req) => {
 
         if (!enrollment) {
           return errorResponse('Not enrolled in this course', corsHeaders, 403);
+        }
+
+        // Real-time expiry check (pg_cron runs once daily; enforce here immediately)
+        if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
+          return errorResponse('Enrollment has expired', corsHeaders, 403);
         }
       }
     }

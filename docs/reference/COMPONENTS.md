@@ -1,6 +1,8 @@
 # Components Reference
 
-This document covers all shared components (15) and admin components (12) in the Eyebuckz LMS frontend.
+> Last updated: March 6, 2026
+
+This document covers all shared components (19) and admin components (12) in the Eyebuckz LMS frontend.
 
 ---
 
@@ -368,6 +370,108 @@ interface StarRatingProps {
 
 ---
 
+### 15. Badge
+
+Color-coded pill label for status, categories, and counts. See [Design System](DESIGN_SYSTEM.md) for full token reference.
+
+```tsx
+import { Badge, statusToVariant } from '../components';
+import type { BadgeVariant, BadgeSize } from '../components/Badge';
+
+interface BadgeProps {
+  variant?: BadgeVariant; // 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'default' | 'outline'
+  size?: BadgeSize;       // 'sm' (default) | 'md'
+  dot?: boolean;          // render a coloured dot before the label
+  className?: string;
+  children: ReactNode;
+}
+```
+
+**Behavior:**
+- Renders a pill (`rounded-full`) with variant-specific background, text, and border colours via CSS token utilities.
+- `dot` renders a small filled circle coloured to match the variant.
+- `statusToVariant(status)` helper maps DB status strings (e.g., `'PUBLISHED'`, `'captured'`) to the correct variant.
+
+---
+
+### 16. Button
+
+Accessible button with loading state, icon slots, and multiple variants. Forwards a ref.
+
+```tsx
+import { Button } from '../components';
+import type { ButtonVariant, ButtonSize } from '../components/Button';
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant; // 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline'
+  size?: ButtonSize;       // 'sm' | 'md' (default) | 'lg' | 'icon'
+  loading?: boolean;       // shows Loader2 spinner; disables the button
+  leftIcon?: ReactNode;
+  rightIcon?: ReactNode;   // hidden while loading
+  fullWidth?: boolean;
+}
+```
+
+**Behavior:**
+- `loading` replaces `leftIcon` with an animated `Loader2` spinner and sets `disabled`.
+- Size `'icon'` is square (`p-2 rounded-lg`) for icon-only toolbar buttons — always provide `aria-label`.
+- Includes `focus-visible:ring-2 ring-brand-500` for keyboard accessibility.
+
+---
+
+### 17. Input
+
+Labeled form input with error, hint, and leading/trailing icon slots. Forwards a ref.
+
+```tsx
+import { Input } from '../components';
+import type { InputProps } from '../components/Input';
+
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  label?: string;
+  error?: string;           // renders red message below; applies danger border
+  hint?: string;            // renders muted message below (only when no error)
+  leadingIcon?: ReactNode;
+  trailingIcon?: ReactNode;
+  size?: 'sm' | 'md' | 'lg'; // default: 'md'
+  containerClassName?: string;
+}
+```
+
+**Behavior:**
+- When `error` is set, the border changes to `--status-danger-border` and a red message renders below.
+- When `hint` is set (and no error), a muted `t-text-3` message renders below.
+- Icons are absolutely positioned inside the input and do not affect padding — the input automatically adds `pl-10` / `pr-10` when icons are present.
+
+---
+
+### 18. Card
+
+Surface container with optional bordered header and footer slots.
+
+```tsx
+import { Card } from '../components';
+import type { CardProps } from '../components/Card';
+
+interface CardProps {
+  variant?: 'default' | 'glass'; // default: 'default'
+  radius?: 'lg' | 'xl' | '2xl' | '3xl'; // default: '2xl'
+  padding?: 'none' | 'sm' | 'md' | 'lg'; // default: 'md'
+  header?: ReactNode; // rendered in a px-6 py-4 bordered header strip
+  footer?: ReactNode; // rendered in a px-6 py-4 bordered footer strip
+  className?: string;
+  children: ReactNode;
+}
+```
+
+**Behavior:**
+- `default` variant uses `--surface` background and `--border` border (adapts to dark mode).
+- `glass` variant uses `bg-white/5 border-white/10 backdrop-blur-sm` for dark hero sections.
+- `padding="none"` renders `children` directly (no wrapper div) — useful for full-bleed images.
+- `header` and `footer` are separated from the body by a `t-border border-b / border-t`.
+
+---
+
 ## Admin Components (`pages/admin/components/`)
 
 These components are used exclusively within the admin panel. All admin components use **default exports**.
@@ -441,7 +545,7 @@ interface DataTableProps<T> {
 
 ### 3. StatusBadge
 
-Color-coded badge for displaying entity status.
+Color-coded badge for displaying entity status. Delegates to the shared `Badge` component using `statusToVariant()`.
 
 ```tsx
 import StatusBadge from '../components/StatusBadge';
@@ -452,22 +556,10 @@ interface StatusBadgeProps {
 }
 ```
 
-**Supported Status Values and Colors:**
-| Status | Color |
-|--------|-------|
-| `PUBLISHED` | Green |
-| `DRAFT` | Yellow |
-| `ACTIVE` | Green |
-| `REVOKED` | Red |
-| `EXPIRED` | Gray |
-| `PENDING` | Yellow |
-| `captured` | Green |
-| `refunded` | Blue |
-| `failed` | Red |
-| `USER` | Blue |
-| `ADMIN` | Purple |
-| `MODULE` | Blue |
-| `BUNDLE` | Indigo |
+**Behavior:**
+- Calls `statusToVariant(status)` from `components/Badge.tsx` to resolve the correct `Badge` variant.
+- All colours are driven by CSS token utilities (`t-status-*`), so they automatically adapt to dark mode.
+- For the full status-to-variant mapping, see [statusToVariant() Reference](DESIGN_SYSTEM.md#statustovariant-reference).
 
 ---
 
@@ -512,16 +604,14 @@ interface ConfirmDialogProps {
   message: string;
   warning?: string;
   confirmLabel?: string;   // default: 'Confirm'
-  confirmColor?: string;   // Tailwind color class
   loading?: boolean;
 }
 ```
 
 **Behavior:**
 - Displays a modal with `title`, `message`, and optional `warning` text.
-- Two buttons: Cancel (calls `onClose`) and Confirm (calls `onConfirm`).
+- Two buttons: Cancel (`Button secondary`, calls `onClose`) and Confirm (`Button danger`, calls `onConfirm`).
 - Confirm button shows a spinner when `loading` is true.
-- `confirmColor` controls the confirm button styling (e.g., `'red'` for delete actions).
 
 ---
 

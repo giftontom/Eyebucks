@@ -1,7 +1,7 @@
 # Coding Standards - Eyebuckz LMS
 
 **Version:** 2.0.0
-**Last Updated:** February 27, 2026
+**Last Updated:** March 6, 2026
 
 ---
 
@@ -143,6 +143,21 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, onEnroll }) => {
 // Either/or
 {user ? <Dashboard /> : <LoginPrompt />}
 ```
+
+---
+
+## UI Primitives (Design System)
+
+Prefer the shared primitive components over raw HTML elements. This enforces consistent styling, light/dark mode support, loading states, and accessible label/error patterns.
+
+| Instead of... | Use... | Import |
+|---------------|--------|--------|
+| `<button className="bg-brand-...">` | `<Button variant="primary" size="md">` | `import { Button } from '../components'` |
+| `<label>...<input className="...">` | `<Input label="..." error={err}>` | `import { Input } from '../components'` |
+| Inline status class logic | `<Badge variant={statusToVariant(s)}>` | `import { Badge, statusToVariant } from '../components'` |
+| `<div className="bg-white/5 ...">` | `<Card variant="glass" radius="2xl">` | `import { Card } from '../components'` |
+
+For full variant/prop reference, see [Design System](docs/reference/DESIGN_SYSTEM.md).
 
 ---
 
@@ -383,4 +398,4 @@ import type { Course, Module } from '../types';
 
 ---
 
-**Last Updated:** February 27, 2026
+**Last Updated:** March 6, 2026

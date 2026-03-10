@@ -7,9 +7,10 @@ import { supabase } from '../supabase';
 
 export const checkoutApi = {
   /**
-   * Create a Razorpay order via Edge Function
+   * Create a Razorpay order via Edge Function.
+   * Pass couponUseId (from coupon-apply) to have the discount reflected in the order.
    */
-  async createOrder(courseId: string): Promise<{
+  async createOrder(courseId: string, couponUseId?: string): Promise<{
     success: boolean;
     orderId: string;
     amount: number;
@@ -21,7 +22,7 @@ export const checkoutApi = {
     warning?: string;
   }> {
     const { data, error } = await supabase.functions.invoke('checkout-create-order', {
-      body: { courseId },
+      body: { courseId, couponUseId },
     });
 
     if (error) {throw new Error(await extractEdgeFnError(error, 'Failed to create order'));}

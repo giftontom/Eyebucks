@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
 import { CertificatesPage } from './CertificatesPage';
 import { ContentPage } from './ContentPage';
+import { CouponsPage } from './CouponsPage';
 import { CourseEditorPage } from './CourseEditorPage';
 import { CoursesPage } from './CoursesPage';
 import { DashboardPage } from './DashboardPage';
@@ -25,6 +26,7 @@ export const AdminRoutes: React.FC = () => (
       <Route path="content" element={<ContentPage />} />
       <Route path="payments" element={<PaymentsPage />} />
       <Route path="reviews" element={<ReviewsPage />} />
+      <Route path="coupons" element={<CouponsPage />} />
     </Route>
   </Routes>
 );

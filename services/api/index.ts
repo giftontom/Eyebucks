@@ -18,3 +18,5 @@ export { certificatesApi } from './certificates.api';
 export { reviewsApi } from './reviews.api';
 export type { Review, ReviewSummary, ReviewsResponse } from './reviews.api';
 export { usersApi, mapUserProfile } from './users.api';
+export { couponsApi } from './coupons.api';
+export type { Coupon } from './coupons.api';

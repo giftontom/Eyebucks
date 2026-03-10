@@ -24,7 +24,7 @@ serve(async (req) => {
 
     const supabaseAdmin = createAdminClient();
 
-    const { courseId } = await req.json();
+    const { courseId, couponUseId } = await req.json();
     if (!courseId) {
       return errorResponse('courseId is required', corsHeaders, 400);
     }
@@ -44,6 +44,22 @@ serve(async (req) => {
     // Reject free courses — no payment required
     if (course.price <= 0) {
       return errorResponse('This course is free — no payment required', corsHeaders, 400);
+    }
+
+    // Verify couponUseId belongs to the authed user for this course (if provided)
+    let effectivePrice = course.price;
+    if (couponUseId) {
+      const { data: couponUse } = await supabaseAdmin
+        .from('coupon_uses')
+        .select('user_id, course_id, discount_pct')
+        .eq('id', couponUseId)
+        .maybeSingle();
+
+      if (!couponUse || couponUse.user_id !== user.id || couponUse.course_id !== courseId) {
+        return errorResponse('Invalid coupon reference', corsHeaders, 400);
+      }
+
+      effectivePrice = Math.round(course.price * (1 - couponUse.discount_pct / 100));
     }
 
     // Check existing enrollment
@@ -70,7 +86,7 @@ serve(async (req) => {
         'Authorization': 'Basic ' + btoa(`${razorpayKeyId}:${razorpayKeySecret}`),
       },
       body: JSON.stringify({
-        amount: course.price,
+        amount: effectivePrice,
         currency: 'INR',
         receipt: `order_${courseId}_${user.id}`.substring(0, 40),
         notes: {

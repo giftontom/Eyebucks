@@ -175,10 +175,10 @@ export const Learn: React.FC = () => {
   // Loading course data
   if (isLoadingCourse || isCheckingAccess) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
+      <div className="flex items-center justify-center h-screen t-bg">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-brand-600 mx-auto mb-4" />
-          <p className="text-neutral-600">
+          <p className="t-text-2">
             {isLoadingCourse ? 'Loading course...' : 'Verifying access...'}
           </p>
         </div>
@@ -189,9 +189,9 @@ export const Learn: React.FC = () => {
   // Course not found
   if (!course) {
     return (
-      <div className="flex items-center justify-center h-screen bg-neutral-900">
+      <div className="flex items-center justify-center h-screen t-bg">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">Course not found</h2>
+          <h2 className="text-2xl font-bold t-text mb-4">Course not found</h2>
           <Link to="/" className="text-brand-600 hover:text-brand-700 font-medium">
             Back to Catalog
           </Link>
@@ -218,7 +218,7 @@ export const Learn: React.FC = () => {
   if (course.type === CourseType.BUNDLE) {
     const bundledCourses = course.bundledCourses || [];
     return (
-      <div className="min-h-[calc(100vh-64px)] bg-neutral-950">
+      <div className="min-h-[calc(100vh-64px)] t-bg">
         <div className="max-w-4xl mx-auto px-4 py-12">
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
@@ -226,19 +226,19 @@ export const Learn: React.FC = () => {
                 <Layers size={12} className="inline mr-1" /> BUNDLE
               </span>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">{course.title}</h1>
-            <p className="text-neutral-400">{course.description}</p>
+            <h1 className="text-3xl font-bold t-text mb-2">{course.title}</h1>
+            <p className="t-text-2">{course.description}</p>
           </div>
 
           {/* Overall progress */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 mb-8">
-            <div className="flex justify-between text-sm text-neutral-400 mb-2">
+          <div className="t-card border t-border rounded-xl p-6 mb-8">
+            <div className="flex justify-between text-sm t-text-2 mb-2">
               <span>{bundledCourses.length} Courses in this Bundle</span>
               <span>{Math.round(progressPercent)}% Overall</span>
             </div>
-            <div className="w-full bg-neutral-800 h-2 rounded-full overflow-hidden">
+            <div className="w-full t-bg-alt h-2 rounded-full overflow-hidden">
               <div
-                className="bg-gradient-to-r from-brand-600 to-purple-500 h-full transition-all duration-500"
+                className="bg-gradient-to-r from-brand-600 to-brand-400 h-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -250,26 +250,26 @@ export const Learn: React.FC = () => {
               <Link
                 key={bc.id}
                 to={`/learn/${bc.id}`}
-                className="flex gap-4 p-4 bg-neutral-900 border border-neutral-800 rounded-xl hover:border-brand-500/40 hover:bg-neutral-800/50 transition group"
+                className="flex gap-4 p-4 t-card border t-border rounded-xl hover:border-brand-500/40 hover:bg-[var(--surface-hover)] transition group"
               >
-                <div className="w-24 h-16 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-800">
+                <div className="w-24 h-16 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                   {bc.thumbnail ? (
                     <img src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-neutral-600">
+                    <div className="w-full h-full flex items-center justify-center t-text-3">
                       <BookOpen size={24} />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Course {index + 1}</span>
-                  <h3 className="font-bold text-white group-hover:text-brand-400 transition truncate">{bc.title}</h3>
-                  <p className="text-sm text-neutral-500 line-clamp-1 mt-1">{bc.description}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-neutral-500">
+                  <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold">Course {index + 1}</span>
+                  <h3 className="font-bold t-text group-hover:text-brand-400 transition truncate">{bc.title}</h3>
+                  <p className="text-sm t-text-2 line-clamp-1 mt-1">{bc.description}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs t-text-2">
                     <span>{bc.moduleCount} Lessons</span>
                   </div>
                 </div>
-                <div className="hidden md:flex items-center text-neutral-600 group-hover:text-brand-500 transition">
+                <div className="hidden md:flex items-center t-text-3 group-hover:text-brand-500 transition">
                   <ArrowRight size={20} />
                 </div>
               </Link>
@@ -278,7 +278,7 @@ export const Learn: React.FC = () => {
 
           {bundledCourses.length === 0 && (
             <div className="text-center py-16">
-              <p className="text-neutral-500 mb-4">No courses have been added to this bundle yet.</p>
+              <p className="t-text-2 mb-4">No courses have been added to this bundle yet.</p>
               <Link to="/" className="text-brand-500 hover:text-brand-400 font-medium">Back to Catalog</Link>
             </div>
           )}
@@ -291,10 +291,10 @@ export const Learn: React.FC = () => {
   // No modules available (for MODULE courses only)
   if (modules.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen bg-neutral-900">
+      <div className="flex items-center justify-center h-screen t-bg">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-4">No modules available</h2>
-          <p className="text-neutral-400 mb-4">This course doesn't have any modules yet.</p>
+          <h2 className="text-2xl font-bold t-text mb-4">No modules available</h2>
+          <p className="t-text-2 mb-4">This course doesn't have any modules yet.</p>
           <Link to="/" className="text-brand-600 hover:text-brand-700 font-medium">
             Back to Catalog
           </Link>
@@ -382,9 +382,9 @@ export const Learn: React.FC = () => {
                         {Math.floor(seekPreviewTime / 60)}:{Math.floor(seekPreviewTime % 60).toString().padStart(2, '0')}
                       </div>
                     )}
-                    <div className="h-1 sm:h-1 active:h-2 w-full bg-gray-600 rounded-lg overflow-hidden transition-all">
-                        {/* Buffered bar (gray) */}
-                        <div className="absolute h-1 bg-gray-400/40 rounded-lg" style={{ width: `${(bufferedEnd / (duration || 1)) * 100}%` }}></div>
+                    <div className="h-1 sm:h-1 active:h-2 w-full t-card rounded-lg overflow-hidden transition-all">
+                        {/* Buffered bar */}
+                        <div className="absolute h-1 bg-[var(--surface-hover)] rounded-lg" style={{ width: `${(bufferedEnd / (duration || 1)) * 100}%` }}></div>
                         {/* Playback bar (brand color) */}
                         <div className="relative h-full bg-brand-500" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}></div>
                     </div>
@@ -406,16 +406,16 @@ export const Learn: React.FC = () => {
                 <div className="flex items-center justify-between text-white">
                     <div className="flex items-center gap-2 sm:gap-4">
                         {/* Skip prev — hidden on mobile (double-tap replaces it) */}
-                        <button onClick={handlePrev} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50" disabled={activeChapterIndex === 0} aria-label="Previous module">
+                        <button onClick={handlePrev} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" disabled={activeChapterIndex === 0} aria-label="Previous module">
                             <SkipBack size={20} fill="currentColor" />
                         </button>
 
-                        <button onClick={handlePlayPause} className="p-2 hover:text-brand-500 transition" aria-label={isPlaying ? 'Pause' : 'Play'}>
+                        <button onClick={handlePlayPause} className="p-2 hover:text-brand-500 transition focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" aria-label={isPlaying ? 'Pause' : 'Play'}>
                             {isPlaying ? <Pause size={20} className="sm:w-6 sm:h-6" fill="currentColor" /> : <Play size={20} className="sm:w-6 sm:h-6" fill="currentColor" />}
                         </button>
 
                         {/* Skip next — hidden on mobile */}
-                        <button onClick={handleNext} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50" disabled={activeChapterIndex === modules.length - 1} aria-label="Next module">
+                        <button onClick={handleNext} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" disabled={activeChapterIndex === modules.length - 1} aria-label="Next module">
                             <SkipForward size={20} fill="currentColor" />
                         </button>
 
@@ -505,7 +505,7 @@ export const Learn: React.FC = () => {
                           </button>
                         )}
 
-                        <button onClick={toggleFullScreen} className="p-2 hover:text-brand-500 transition" aria-label="Toggle fullscreen">
+                        <button onClick={toggleFullScreen} className="p-2 hover:text-brand-500 transition focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" aria-label="Toggle fullscreen">
                              <Maximize size={18} className="sm:w-5 sm:h-5" />
                         </button>
                     </div>
@@ -531,14 +531,14 @@ export const Learn: React.FC = () => {
             {/* Video Error Overlay */}
             {videoError && (
               <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40">
-                <div className="bg-neutral-900 border border-red-500 rounded-xl p-8 max-w-md text-center">
-                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="t-bg border-[var(--status-danger-border)] border rounded-xl p-8 max-w-md text-center">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--status-danger-bg)' }}>
+                    <svg className="w-8 h-8" style={{ color: 'var(--status-danger-text)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-2">Video Error</h3>
-                  <p className="text-gray-400 mb-6">{videoError}</p>
+                  <h3 className="text-xl font-bold t-text mb-2">Video Error</h3>
+                  <p className="t-text-2 mb-6">{videoError}</p>
                   <button
                     onClick={retryVideo}
                     className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-lg font-medium transition"
@@ -551,23 +551,41 @@ export const Learn: React.FC = () => {
         </div>
 
         {/* Course Progress Bar (Global) */}
-        <div className="bg-neutral-900 border-b border-neutral-800 p-4">
-             <div className="flex justify-between text-xs text-gray-400 mb-2 font-medium">
+        <div className="t-bg border-b t-border p-4">
+             <div className="flex justify-between text-xs t-text-2 mb-2 font-medium">
                  <span className="flex items-center gap-2"><Film size={14}/> {course.title}</span>
                  <span>{Math.round(progressPercent)}% Completed</span>
              </div>
-             <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
+             <div className="w-full t-bg-alt h-1.5 rounded-full overflow-hidden">
                  <div
-                    className="bg-gradient-to-r from-brand-600 to-purple-500 h-full transition-all duration-500"
+                    className="bg-gradient-to-r from-brand-600 to-brand-400 h-full transition-all duration-500"
                     style={{ width: `${progressPercent}%` }}
                  />
              </div>
         </div>
 
+        {/* Mobile prev/next module buttons */}
+        <div className="lg:hidden flex items-center gap-2 px-3 pt-2 pb-1 t-bg">
+          <button
+            onClick={handlePrev}
+            disabled={activeChapterIndex === 0}
+            className="flex-1 flex items-center justify-center gap-1 text-xs font-bold t-card t-border border py-2 px-3 rounded-full disabled:opacity-40 transition hover:bg-[var(--surface-hover)]"
+          >
+            <SkipBack size={14} /> Prev
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={activeChapterIndex === modules.length - 1}
+            className="flex-1 flex items-center justify-center gap-1 text-xs font-bold t-card t-border border py-2 px-3 rounded-full disabled:opacity-40 transition hover:bg-[var(--surface-hover)]"
+          >
+            Next <SkipForward size={14} />
+          </button>
+        </div>
+
         {/* Mobile Module Toggle Bar */}
         <button
           onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          className="lg:hidden sticky bottom-0 w-full bg-neutral-900 border-t border-neutral-800 p-3 flex items-center justify-between text-white z-20"
+          className="lg:hidden sticky bottom-0 w-full t-bg border-t t-border p-3 flex items-center justify-between t-text z-20"
         >
           <span className="text-sm font-medium truncate mr-2">
             Module {String(activeChapterIndex + 1).padStart(2, '0')}: {activeModule?.title}
@@ -578,10 +596,10 @@ export const Learn: React.FC = () => {
 
       {/* Mobile Module Drawer */}
       {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-neutral-900 border-t border-neutral-800 rounded-t-2xl max-h-[60vh] overflow-y-auto animate-slide-up">
-          <div className="sticky top-0 bg-neutral-900 p-4 border-b border-neutral-800 flex items-center justify-between z-10">
-            <h2 className="font-bold text-white">Course Content</h2>
-            <button onClick={() => setMobileDrawerOpen(false)} className="text-neutral-400 p-2">
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 t-bg border-t t-border rounded-t-2xl max-h-[60vh] overflow-y-auto animate-slide-up">
+          <div className="sticky top-0 t-bg p-4 border-b t-border flex items-center justify-between z-10">
+            <h2 className="font-bold t-text">Course Content</h2>
+            <button onClick={() => setMobileDrawerOpen(false)} className="t-text-2 p-2">
               <X size={20} />
             </button>
           </div>
@@ -591,19 +609,19 @@ export const Learn: React.FC = () => {
               <button
                 key={module.id}
                 onClick={() => { setActiveChapterId(module.id); setMobileDrawerOpen(false); }}
-                className={`w-full text-left p-4 border-b border-neutral-800 hover:bg-white/5 transition flex items-start gap-3 group ${
+                className={`w-full text-left p-4 border-b t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
                   activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
                 }`}
               >
                 <div className="mt-0.5">
-                  {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="text-neutral-600 group-hover:text-neutral-500" />}
+                  {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3 group-hover:t-text-2" />}
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
-                  <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'}`}>
+                  <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
+                  <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 't-text' : 't-text-2 group-hover:t-text'}`}>
                     {module.title}
                   </h3>
-                  <p className="text-xs text-neutral-600 mt-1.5 font-mono">{module.duration}</p>
+                  <p className="text-xs t-text-3 mt-1.5 font-mono">{module.duration}</p>
                 </div>
               </button>
             );
@@ -617,10 +635,10 @@ export const Learn: React.FC = () => {
       )}
 
       {/* Desktop Curriculum Sidebar */}
-      <div className="hidden lg:flex w-96 bg-neutral-900 border-l border-neutral-800 flex-col h-full z-10">
-         <div className="p-4 border-b border-neutral-800 bg-neutral-900">
-            <h2 className="font-bold text-lg text-white">Course Content</h2>
-            <p className="text-xs text-gray-500 mt-1">{modules.length} Modules</p>
+      <div className="hidden lg:flex w-96 t-bg border-l t-border flex-col h-full z-10">
+         <div className="p-4 border-b t-border t-bg">
+            <h2 className="font-bold text-lg t-text">Course Content</h2>
+            <p className="text-xs t-text-3 mt-1">{modules.length} Modules</p>
          </div>
 
          <div className="flex-grow overflow-y-auto custom-scrollbar">
@@ -631,19 +649,26 @@ export const Learn: React.FC = () => {
                 <button
                     key={module.id}
                     onClick={() => setActiveChapterId(module.id)}
-                    className={`w-full text-left p-4 border-b border-neutral-800 hover:bg-white/5 transition flex items-start gap-3 group ${
+                    className={`w-full text-left p-4 border-b t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
                         activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
                     }`}
                 >
                     <div className="mt-0.5">
-                        {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="text-neutral-600 group-hover:text-neutral-500" />}
+                        {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3 group-hover:t-text-2" />}
                     </div>
-                    <div>
-                        <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
-                        <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'}`}>
+                    <div className="flex-1 min-w-0">
+                        <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
+                        <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 't-text' : 't-text-2 group-hover:t-text'}`}>
                             {module.title}
                         </h3>
-                        <p className="text-xs text-neutral-600 mt-1.5 font-mono">{module.duration}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <p className="text-xs t-text-3 font-mono">{module.duration}</p>
+                          {isCompleted && activeChapterId === module.id && (
+                            <span className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: 'var(--status-success-text)' }}>
+                              <CheckCircle size={10} fill="currentColor" /> Completed
+                            </span>
+                          )}
+                        </div>
                     </div>
                 </button>
                 );
@@ -651,10 +676,10 @@ export const Learn: React.FC = () => {
          </div>
 
          {/* Desktop Notes Area */}
-         <div className="flex flex-col p-4 border-t border-neutral-800 bg-neutral-900 h-1/3">
-            <h3 className="font-bold text-sm mb-2 text-neutral-400 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</h3>
+         <div className="flex flex-col p-4 border-t t-border t-bg h-1/3">
+            <h3 className="font-bold text-sm mb-2 t-text-2 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</h3>
             <textarea
-                className="flex-grow w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 text-xs text-gray-300 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
+                className="flex-grow w-full t-bg t-border border rounded-lg p-3 text-xs t-text-2 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
                 placeholder="Take notes for this module..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}

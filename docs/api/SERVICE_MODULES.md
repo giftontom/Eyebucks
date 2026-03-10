@@ -5,7 +5,7 @@ All API modules live in `services/api/` and communicate with Supabase via PostgR
 ```ts
 import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi,
          notificationsApi, paymentsApi, certificatesApi, reviewsApi,
-         siteContentApi, usersApi } from 'services/api';
+         siteContentApi, usersApi, couponsApi } from 'services/api';
 ```
 
 ---
@@ -23,7 +23,8 @@ import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi,
 9. [reviews.api.ts](#9-reviewsapits)
 10. [siteContent.api.ts](#10-sitecontentapits)
 11. [users.api.ts](#11-usersapits)
-12. [Error Handling Patterns](#error-handling-patterns)
+12. [coupons.api.ts](#12-couponsapits)
+13. [Error Handling Patterns](#error-handling-patterns)
 
 ---
 
@@ -1217,6 +1218,24 @@ async updateProfile(userId: string, data: { name?: string }): Promise<void>
 ```
 
 Updates user profile fields. Currently supports `name` only. Throws `'Failed to update profile'` on error.
+
+---
+
+## 12. coupons.api.ts
+
+**Export:** `couponsApi`
+**Tables:** `coupons`
+**Auth required:** Yes (user must be authenticated to validate a coupon)
+
+### Functions
+
+#### `validateCoupon(code)`
+
+```ts
+couponsApi.validateCoupon(code: string): Promise<{ discount_pct: number }>
+```
+
+Validates a coupon code against the `coupons` table and returns the discount percentage if valid. Throws if the code is not found, expired, or inactive.
 
 ---
 

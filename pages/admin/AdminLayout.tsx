@@ -12,10 +12,10 @@ export const AdminLayout: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
+      <div className="flex items-center justify-center h-screen t-bg">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-brand-600 mx-auto mb-4" />
-          <p className="text-slate-500">Loading...</p>
+          <p className="t-text-2">Loading...</p>
         </div>
       </div>
     );
@@ -23,10 +23,10 @@ export const AdminLayout: React.FC = () => {
 
   if (user?.role !== 'ADMIN') {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="text-center p-8 bg-slate-50 rounded-xl border border-slate-200">
+      <div className="flex items-center justify-center h-screen t-bg">
+        <div className="text-center p-8 t-card rounded-xl t-border border">
           <h1 className="text-2xl font-bold mb-4 text-red-500">Access Denied</h1>
-          <p className="text-slate-500 mb-4">You do not have permission to view this area.</p>
+          <p className="t-text-2 mb-4">You do not have permission to view this area.</p>
           <Link to="/" className="text-brand-600 hover:underline">Return Home</Link>
         </div>
       </div>
@@ -35,7 +35,7 @@ export const AdminLayout: React.FC = () => {
 
   return (
     <AdminProvider>
-      <div className="flex min-h-screen bg-slate-50">
+      <div className="flex min-h-screen t-bg-alt">
         <AdminSidebar />
         <main className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 overflow-auto min-w-0">
           <Outlet />

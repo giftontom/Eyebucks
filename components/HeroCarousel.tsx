@@ -12,10 +12,10 @@ interface HeroCarouselProps {
 }
 
 const DEFAULT_SLIDES: Slide[] = [
-  { image: 'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?auto=format&fit=crop&q=80&w=1200', title: 'Cinematic Editing' },
-  { image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&q=80&w=1200', title: 'Color Grading Mastery' },
-  { image: 'https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1200', title: 'Professional Cinematography' },
-  { image: 'https://images.unsplash.com/photo-1524712245354-2c4e5e7121c0?auto=format&fit=crop&q=80&w=1200', title: 'Sound Design & Mixing' },
+  { image: '/premium_banner_1.png', title: 'Masterclass Series' },
+  { image: '/premium_banner_2.png', title: 'Expert-Led Courses' },
+  { image: '/premium_courses_cover.png', title: 'Premium Courses' },
+  { image: '/digital_assets_cover.png', title: 'Digital Assets' },
 ];
 
 export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLIDES, interval = 5000 }) => {
@@ -50,7 +50,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
 
   return (
     <div
-      className="relative w-full max-w-4xl mx-auto bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl overflow-hidden group"
+      className="relative w-full max-w-4xl mx-auto t-card t-border border backdrop-blur-xl rounded-3xl overflow-hidden group"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={handleTouchStart}
@@ -79,15 +79,15 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
       {/* Arrows */}
       <button
         onClick={prev}
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 backdrop-blur-sm border border-white/10 rounded-full flex items-center justify-center text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
-        aria-label="Previous slide"
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 t-overlay backdrop-blur-sm border border-white/10 rounded-full flex items-center justify-center text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60 focus-visible:ring-2 focus-visible:ring-brand-500 outline-none"
+        aria-label={`Go to previous slide (${current + 1} of ${slides.length})`}
       >
         <ChevronLeft size={20} />
       </button>
       <button
         onClick={next}
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 backdrop-blur-sm border border-white/10 rounded-full flex items-center justify-center text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60"
-        aria-label="Next slide"
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 t-overlay backdrop-blur-sm border border-white/10 rounded-full flex items-center justify-center text-white opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/60 focus-visible:ring-2 focus-visible:ring-brand-500 outline-none"
+        aria-label={`Go to next slide (${current + 1} of ${slides.length})`}
       >
         <ChevronRight size={20} />
       </button>
@@ -99,7 +99,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
             key={i}
             onClick={() => setCurrent(i)}
             className={`w-2.5 h-2.5 sm:w-2 sm:h-2 rounded-full transition-all ${i === current ? 'bg-white w-6 sm:w-6' : 'bg-white/40 hover:bg-white/60'}`}
-            aria-label={`Go to slide ${i + 1}`}
+            aria-label={`Go to slide ${i + 1} of ${slides.length}`}
           />
         ))}
       </div>

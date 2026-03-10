@@ -35,19 +35,29 @@ serve(async (req) => {
       return errorResponse('Forbidden', corsHeaders, 403);
     }
 
-    // Check if certificate already exists
+    // Check if certificate already exists (idempotent — return existing cert)
     const { data: existingCert } = await supabaseAdmin
       .from('certificates')
-      .select('id, certificate_number')
+      .select('id, certificate_number, student_name, course_title, issue_date, completion_date, status')
       .eq('user_id', targetUserId)
       .eq('course_id', courseId)
       .maybeSingle();
 
     if (existingCert) {
       return jsonResponse(
-        { success: false, error: 'Certificate already exists', certificate: existingCert },
-        corsHeaders,
-        409
+        {
+          success: true,
+          certificate: {
+            id: existingCert.id,
+            certificateNumber: existingCert.certificate_number,
+            studentName: existingCert.student_name,
+            courseTitle: existingCert.course_title,
+            issueDate: existingCert.issue_date,
+            completionDate: existingCert.completion_date,
+            status: existingCert.status,
+          },
+        },
+        corsHeaders
       );
     }
 

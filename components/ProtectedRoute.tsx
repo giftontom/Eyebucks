@@ -20,7 +20,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-brand-600 mx-auto mb-4" />
           <p className="text-neutral-500">Checking authentication...</p>

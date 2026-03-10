@@ -1,4 +1,4 @@
-import { Search, CreditCard } from 'lucide-react';
+import { Search, CreditCard, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { adminApi } from '../../services/api/admin.api';
@@ -55,6 +55,28 @@ export const PaymentsPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  const handleExportCSV = () => {
+    const headers = ['Receipt #', 'Student', 'Email', 'Course', 'Amount (₹)', 'Status', 'Date'];
+    const rows = payments.map(p => [
+      p.receiptNumber || '',
+      p.userName || '',
+      p.userEmail || '',
+      p.courseTitle || '',
+      (p.amount / 100).toFixed(2),
+      p.status,
+      new Date(p.createdAt).toLocaleDateString('en-IN'),
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payments-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleRefund = async () => {
     if (!refundPayment || !refundReason.trim()) {
       showToast('Please provide a reason', 'error');
@@ -99,10 +121,19 @@ export const PaymentsPage: React.FC = () => {
       )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+        <div className="p-6 border-b border-slate-200 flex justify-between items-center gap-4 flex-wrap">
           <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <CreditCard size={20} /> Payment Manager
           </h3>
+          <div className="flex items-center gap-3">
+            {payments.length > 0 && (
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+              >
+                <Download size={14} /> Export CSV
+              </button>
+            )}
           <div className="relative">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
             <input
@@ -112,6 +143,7 @@ export const PaymentsPage: React.FC = () => {
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-slate-900 focus:ring-1 focus:ring-brand-500 outline-none text-sm w-72"
             />
+          </div>
           </div>
         </div>
 

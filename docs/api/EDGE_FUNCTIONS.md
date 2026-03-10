@@ -33,6 +33,7 @@ Every function (except `checkout-webhook`) requires a valid Supabase JWT in the 
   - [certificate-generate](#6-certificate-generate)
   - [progress-complete](#7-progress-complete)
   - [refund-process](#8-refund-process)
+  - [session-enforce](#9-session-enforce)
 
 ---
 
@@ -860,6 +861,22 @@ refunded  -->  refunded     (rejected: 409)
 | `RESEND_API_KEY` | checkout-verify, certificate-generate | Resend email API key |
 | `RESEND_FROM_EMAIL` | checkout-verify, certificate-generate | Sender email address |
 | `APP_URL` | checkout-verify, certificate-generate | Base URL for email links |
+
+---
+
+### 9. `session-enforce`
+
+Verifies and enforces user session state. Used for server-side session invalidation and admin-controlled session management.
+
+**Source:** `supabase/functions/session-enforce/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/session-enforce` |
+| **Auth** | JWT + Admin role required |
+| **External APIs** | None |
+
+**Deployment note:** Deployed with `--no-verify-jwt` flag (ES256 JWT migration compatibility). JWT verification is performed manually inside the function via `verifyAuth()`.
 
 ---
 

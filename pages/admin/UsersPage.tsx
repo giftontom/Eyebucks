@@ -24,6 +24,8 @@ export const UsersPage: React.FC = () => {
   const debouncedSearch = useDebounce(search);
   const { pagination, setPage, setTotal } = usePagination(20);
   const [operationLoading, setOperationLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Manual enroll modal
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -76,6 +78,26 @@ export const UsersPage: React.FC = () => {
     }
   };
 
+  const handleBulkAction = async (action: 'activate' | 'deactivate' | 'make-user' | 'make-admin') => {
+    if (selectedIds.size === 0) { return; }
+    setBulkLoading(true);
+    const ids = Array.from(selectedIds);
+    let successCount = 0;
+    for (const id of ids) {
+      try {
+        if (action === 'activate') { await adminApi.updateUser(id, { isActive: true }); }
+        else if (action === 'deactivate') { await adminApi.updateUser(id, { isActive: false }); }
+        else if (action === 'make-user') { await adminApi.updateUser(id, { role: 'USER' }); }
+        else if (action === 'make-admin') { await adminApi.updateUser(id, { role: 'ADMIN' }); }
+        successCount++;
+      } catch { /* skip individual failures */ }
+    }
+    showToast(`Bulk action applied to ${successCount}/${ids.length} users`, 'success');
+    setSelectedIds(new Set());
+    setBulkLoading(false);
+    fetchUsers();
+  };
+
   const handleEnroll = async () => {
     if (!enrollUser || !enrollCourseId) {
       showToast('Please select a course', 'error');
@@ -96,7 +118,27 @@ export const UsersPage: React.FC = () => {
     <div className="animate-fade-in">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="text-xl font-bold text-slate-900">User Manager</h3>
+          <div className="flex items-center gap-4">
+            <h3 className="text-xl font-bold text-slate-900">User Manager</h3>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-500">{selectedIds.size} selected</span>
+                <select
+                  disabled={bulkLoading}
+                  onChange={(e) => { if (e.target.value) { handleBulkAction(e.target.value as any); e.target.value = ''; } }}
+                  className="bg-slate-900 text-white text-sm rounded-lg px-3 py-1.5 outline-none disabled:opacity-50"
+                  defaultValue=""
+                >
+                  <option value="" disabled>Bulk Actions</option>
+                  <option value="activate">Activate</option>
+                  <option value="deactivate">Deactivate</option>
+                  <option value="make-user">Set Role: USER</option>
+                  <option value="make-admin">Set Role: ADMIN</option>
+                </select>
+                {bulkLoading && <span className="text-xs text-slate-400">Processing...</span>}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <select
               value={roleFilter}
@@ -218,6 +260,9 @@ export const UsersPage: React.FC = () => {
           rowKey={(u) => u.id}
           pagination={pagination}
           onPageChange={setPage}
+          selectable
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
       </div>
 

@@ -6,6 +6,7 @@ import { logger } from '../../utils/logger';
 
 import { useAdmin } from './AdminContext';
 import { AdminModal } from './components/AdminModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
 
 import type { SiteContentItem } from '../../types';
 
@@ -17,6 +18,8 @@ export const ContentPage: React.FC = () => {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<SiteContentItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     section: 'faq' as string,
     title: '',
@@ -96,14 +99,18 @@ export const ContentPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (item: SiteContentItem) => {
-    if (!confirm(`Delete "${item.title}"?`)) {return;}
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete) { return; }
+    setIsDeleting(true);
     try {
-      await adminApi.deleteSiteContent(item.id);
+      await adminApi.deleteSiteContent(confirmDelete.id);
       showToast('Content deleted', 'success');
+      setConfirmDelete(null);
       fetchContent();
     } catch (err: any) {
       showToast(err.message || 'Failed to delete', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -153,7 +160,7 @@ export const ContentPage: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button onClick={() => openEdit(item)} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Edit</button>
-                          <button onClick={() => handleDelete(item)} className="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
+                          <button onClick={() => setConfirmDelete(item)} className="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
                         </div>
                       </div>
                     ))}
@@ -164,6 +171,17 @@ export const ContentPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Content"
+        message={`Are you sure you want to delete "${confirmDelete?.title}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={isDeleting}
+      />
 
       {/* Content Create/Edit Modal */}
       <AdminModal

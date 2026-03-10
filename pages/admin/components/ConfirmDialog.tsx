@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { Button } from '../../../components';
+
 import { AdminModal } from './AdminModal';
 
 interface ConfirmDialogProps {
@@ -22,7 +24,6 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   message,
   warning,
   confirmLabel = 'Confirm',
-  confirmColor = 'bg-red-600 hover:bg-red-700',
   loading = false,
 }) => (
   <AdminModal open={open} onClose={onClose} title={title}>
@@ -31,19 +32,12 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <p className="text-sm text-yellow-600 mb-6">{warning}</p>
     )}
     <div className="flex gap-3 mt-4">
-      <button
-        onClick={onClose}
-        className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
-      >
+      <Button variant="secondary" size="md" fullWidth onClick={onClose}>
         Cancel
-      </button>
-      <button
-        onClick={onConfirm}
-        disabled={loading}
-        className={`flex-1 ${confirmColor} text-white py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        {loading ? '...' : confirmLabel}
-      </button>
+      </Button>
+      <Button variant="danger" size="md" fullWidth loading={loading} onClick={onConfirm}>
+        {confirmLabel}
+      </Button>
     </div>
   </AdminModal>
 );
