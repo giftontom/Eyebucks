@@ -27,6 +27,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   size = 'md',
   containerClassName = '',
   className = '',
+  id,
   ...rest
 }, ref) => {
   const hasLeading  = Boolean(leadingIcon);
@@ -34,11 +35,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   const errorStyle  = error
     ? 'border-[var(--status-danger-border)] focus:ring-[var(--status-danger-text)]'
     : '';
+  const inputId = id ?? (label ? `input-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : undefined);
 
   return (
     <div className={containerClassName}>
       {label && (
-        <label className="block text-xs font-semibold t-text-2 mb-1.5">{label}</label>
+        <label htmlFor={inputId} className="block text-xs font-semibold t-text-2 mb-1.5">{label}</label>
       )}
       <div className="relative">
         {hasLeading && (
@@ -48,6 +50,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
         )}
         <input
           ref={ref}
+          id={inputId}
           className={`${BASE} ${sizeClasses[size]} ${hasLeading ? 'pl-10' : ''} ${hasTrailing ? 'pr-10' : ''} ${errorStyle} ${className}`}
           {...rest}
         />
