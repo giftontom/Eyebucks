@@ -53,7 +53,7 @@ export const DashboardPage: React.FC = () => {
   if (loading && !stats) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-slate-400">Loading dashboard...</div>
+        <div className="t-text-3">Loading dashboard...</div>
       </div>
     );
   }
@@ -68,32 +68,32 @@ export const DashboardPage: React.FC = () => {
           value={`₹${stats ? (stats.totalRevenue / 100000).toFixed(1) : '0'}k`}
           subtitle={`${stats?.totalEnrollments || 0} enrollments`}
           icon={<DollarSign size={18} />}
-          iconBg="bg-green-50 text-green-600"
-          subtitleColor="text-green-600"
+          iconBg="t-status-success"
+          subtitleColor="[color:var(--status-success-text)]"
         />
         <StatsCard
           label="Active Learners"
           value={stats?.activeUsers || 0}
           subtitle={`of ${stats?.totalUsers || 0} total users`}
           icon={<Users size={18} />}
-          iconBg="bg-blue-50 text-blue-600"
-          subtitleColor="text-blue-600"
+          iconBg="t-status-info"
+          subtitleColor="[color:var(--status-info-text)]"
         />
         <StatsCard
           label="Total Courses"
           value={stats?.totalCourses || 0}
           subtitle={`${stats?.draftCourses || 0} Draft pending`}
           icon={<BookOpen size={18} />}
-          iconBg="bg-purple-50 text-purple-600"
-          subtitleColor="text-purple-600"
+          iconBg="bg-brand-600/10 text-brand-400"
+          subtitleColor="text-brand-400"
         />
         <StatsCard
           label="Certificates"
           value={stats?.totalCertificates || 0}
           subtitle="Issued to date"
           icon={<Award size={18} />}
-          iconBg="bg-yellow-50 text-yellow-600"
-          subtitleColor="text-yellow-600"
+          iconBg="t-status-warning"
+          subtitleColor="[color:var(--status-warning-text)]"
         />
       </div>
 

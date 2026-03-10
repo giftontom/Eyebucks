@@ -15,14 +15,14 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   subtitle,
   icon,
   iconBg,
-  subtitleColor = 'text-slate-500',
+  subtitleColor,
 }) => (
-  <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+  <div className="t-card t-border border p-6 rounded-xl shadow-sm">
     <div className="flex items-center justify-between mb-4">
-      <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">{label}</span>
+      <span className="t-text-2 text-xs font-bold uppercase tracking-wider">{label}</span>
       <div className={`p-2 rounded-lg ${iconBg}`}>{icon}</div>
     </div>
-    <p className="text-3xl font-bold text-slate-900">{value}</p>
-    {subtitle && <p className={`text-xs mt-2 ${subtitleColor}`}>{subtitle}</p>}
+    <p className="text-3xl font-bold t-text">{value}</p>
+    {subtitle && <p className={`text-xs mt-2 ${subtitleColor || 't-text-2'}`}>{subtitle}</p>}
   </div>
 );

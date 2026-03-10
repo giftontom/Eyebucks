@@ -27,9 +27,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   loading = false,
 }) => (
   <AdminModal open={open} onClose={onClose} title={title}>
-    <div className="text-slate-600 mb-2">{message}</div>
+    <div className="t-text-2 mb-2">{message}</div>
     {warning && (
-      <p className="text-sm text-yellow-600 mb-6">{warning}</p>
+      <p className="text-sm mb-6" style={{ color: 'var(--status-warning-text)' }}>{warning}</p>
     )}
     <div className="flex gap-3 mt-4">
       <Button variant="secondary" size="md" fullWidth onClick={onClose}>

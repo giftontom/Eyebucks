@@ -58,7 +58,7 @@ export const ReviewsPage: React.FC = () => {
   const renderStars = (rating: number) => (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(n => (
-        <Star key={n} size={14} className={n <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-200'} />
+        <Star key={n} size={14} className={n <= rating ? 'fill-[var(--status-warning-text)] text-[var(--status-warning-text)]' : 't-text-3'} />
       ))}
     </div>
   );
@@ -69,8 +69,8 @@ export const ReviewsPage: React.FC = () => {
       label: 'User',
       render: (r: AdminReview) => (
         <div>
-          <p className="font-medium text-slate-900 text-sm">{r.userName}</p>
-          <p className="text-xs text-slate-500">{r.userEmail}</p>
+          <p className="font-medium t-text text-sm">{r.userName}</p>
+          <p className="text-xs t-text-2">{r.userEmail}</p>
         </div>
       ),
     },
@@ -78,7 +78,7 @@ export const ReviewsPage: React.FC = () => {
       key: 'course',
       label: 'Course',
       render: (r: AdminReview) => (
-        <span className="text-sm text-slate-700">{r.courseTitle}</span>
+        <span className="text-sm t-text">{r.courseTitle}</span>
       ),
     },
     {
@@ -90,7 +90,7 @@ export const ReviewsPage: React.FC = () => {
       key: 'comment',
       label: 'Comment',
       render: (r: AdminReview) => (
-        <p className="text-sm text-slate-600 max-w-xs truncate" title={r.comment}>
+        <p className="text-sm t-text-2 max-w-xs truncate" title={r.comment}>
           {r.comment}
         </p>
       ),
@@ -99,7 +99,7 @@ export const ReviewsPage: React.FC = () => {
       key: 'date',
       label: 'Date',
       render: (r: AdminReview) => (
-        <span className="text-xs text-slate-500">
+        <span className="text-xs t-text-2">
           {new Date(r.createdAt).toLocaleDateString()}
         </span>
       ),
@@ -110,7 +110,7 @@ export const ReviewsPage: React.FC = () => {
       render: (r: AdminReview) => (
         <button
           onClick={() => setDeleteTarget(r)}
-          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
+          className="p-1.5 t-status-danger border rounded-lg transition hover:opacity-80"
           title="Delete review"
         >
           <Trash2 size={16} />
@@ -122,23 +122,23 @@ export const ReviewsPage: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Reviews</h1>
+        <h1 className="text-2xl font-bold t-text">Reviews</h1>
       </div>
 
       {/* Search */}
       <div className="relative max-w-md">
-        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 t-text-3" />
         <input
           type="text"
           placeholder="Search by comment..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          className="w-full pl-10 pr-4 py-2.5 t-input-bg t-border border rounded-lg text-sm t-text outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="t-card t-border border rounded-xl overflow-hidden">
         <DataTable
           columns={columns}
           data={reviews}

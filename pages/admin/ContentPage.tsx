@@ -116,29 +116,29 @@ export const ContentPage: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-slate-900">Site Content Manager</h3>
+      <div className="t-card t-border border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b t-border flex justify-between items-center">
+          <h3 className="text-xl font-bold t-text">Site Content Manager</h3>
           <button
             onClick={openCreate}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
+            className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
           >
             <Plus size={16} /> New Content
           </button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20"><div className="text-slate-400">Loading content...</div></div>
+          <div className="flex items-center justify-center py-20"><div className="t-text-3">Loading content...</div></div>
         ) : siteContent.length === 0 ? (
-          <div className="flex items-center justify-center py-20"><div className="text-slate-400">No content found</div></div>
+          <div className="flex items-center justify-center py-20"><div className="t-text-3">No content found</div></div>
         ) : (
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y t-divide">
             {(['faq', 'testimonial', 'showcase', 'banner'] as const).map(section => {
               const items = siteContent.filter(c => c.section === section);
               if (items.length === 0) {return null;}
               return (
                 <div key={section} className="p-6">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <h4 className="text-sm font-bold t-text-2 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Layers size={14} />
                     {section}s ({items.length})
                   </h4>
@@ -147,20 +147,20 @@ export const ContentPage: React.FC = () => {
                       <div
                         key={item.id}
                         className={`flex items-center justify-between p-4 rounded-lg border ${
-                          item.isActive ? 'bg-slate-50 border-slate-200' : 'bg-red-50 border-red-200 opacity-60'
+                          item.isActive ? 't-card t-border' : 't-status-danger opacity-60'
                         }`}
                       >
                         <div className="flex-1 min-w-0 mr-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400 font-mono">#{item.orderIndex}</span>
-                            <p className="font-medium text-slate-900 truncate">{item.title}</p>
-                            {!item.isActive && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Inactive</span>}
+                            <span className="text-xs t-text-3 font-mono">#{item.orderIndex}</span>
+                            <p className="font-medium t-text truncate">{item.title}</p>
+                            {!item.isActive && <span className="px-1.5 py-0.5 t-status-danger border text-xs font-bold rounded">Inactive</span>}
                           </div>
-                          <p className="text-sm text-slate-500 truncate mt-1">{item.body}</p>
+                          <p className="text-sm t-text-2 truncate mt-1">{item.body}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button onClick={() => openEdit(item)} className="text-brand-600 hover:text-brand-700 text-sm font-medium">Edit</button>
-                          <button onClick={() => setConfirmDelete(item)} className="text-red-600 hover:text-red-700 text-sm font-medium">Delete</button>
+                          <button onClick={() => openEdit(item)} className="text-brand-600 hover:text-brand-500 text-sm font-medium">Edit</button>
+                          <button onClick={() => setConfirmDelete(item)} className="text-sm font-medium hover:opacity-70" style={{ color: 'var(--status-danger-text)' }}>Delete</button>
                         </div>
                       </div>
                     ))}
@@ -192,11 +192,11 @@ export const ContentPage: React.FC = () => {
       >
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Section *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Section *</label>
             <select
               value={formData.section}
               onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="faq">FAQ</option>
               <option value="testimonial">Testimonial</option>
@@ -205,43 +205,43 @@ export const ContentPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Title *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Title *</label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="Title / Question"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Body *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Body *</label>
             <textarea
               value={formData.body}
               onChange={(e) => setFormData({ ...formData, body: e.target.value })}
               rows={4}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="Answer / Description"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Metadata (JSON)</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Metadata (JSON)</label>
             <textarea
               value={formData.metadata}
               onChange={(e) => setFormData({ ...formData, metadata: e.target.value })}
               rows={3}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-xs"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500 font-mono text-xs"
               placeholder='{"role": "Director", "image": "https://..."}'
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Order Index</label>
+              <label className="block text-sm font-medium t-text-2 mb-2">Order Index</label>
               <input
                 type="number"
                 value={formData.orderIndex}
                 onChange={(e) => setFormData({ ...formData, orderIndex: Number(e.target.value) })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
             <div className="flex items-end pb-1">
@@ -250,9 +250,9 @@ export const ContentPage: React.FC = () => {
                   type="checkbox"
                   checked={formData.isActive}
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="w-4 h-4 text-brand-600 border-slate-300 rounded focus:ring-brand-500"
+                  className="w-4 h-4 text-brand-600 t-border rounded focus:ring-brand-500"
                 />
-                <span className="text-sm text-slate-700">Active</span>
+                <span className="text-sm t-text">Active</span>
               </label>
             </div>
           </div>
@@ -260,13 +260,13 @@ export const ContentPage: React.FC = () => {
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => { setShowModal(false); setEditingId(null); }}
-            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+            className="flex-1 t-card hover:bg-[var(--surface-hover)] t-border border t-text py-2 rounded-lg font-medium transition"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded-lg font-medium transition"
+            className="flex-1 bg-brand-600 hover:bg-brand-500 text-white py-2 rounded-lg font-medium transition"
           >
             {editingId ? 'Update' : 'Create'}
           </button>

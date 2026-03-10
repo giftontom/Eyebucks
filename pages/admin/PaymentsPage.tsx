@@ -101,47 +101,47 @@ export const PaymentsPage: React.FC = () => {
       {/* Revenue summary */}
       {!loading && payments.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Transactions</p>
-            <p className="text-2xl font-bold text-slate-900">{pagination.total}</p>
+          <div className="t-card t-border border p-5 rounded-xl shadow-sm">
+            <p className="text-xs font-bold t-text-2 uppercase tracking-wider mb-1">Total Transactions</p>
+            <p className="text-2xl font-bold t-text">{pagination.total}</p>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Revenue</p>
-            <p className="text-2xl font-bold text-green-600">
+          <div className="t-card t-border border p-5 rounded-xl shadow-sm">
+            <p className="text-xs font-bold t-text-2 uppercase tracking-wider mb-1">Total Revenue</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--status-success-text)' }}>
               ₹{(totalRevenue / 100).toLocaleString('en-IN')}
             </p>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Refunded</p>
-            <p className="text-2xl font-bold text-yellow-600">
+          <div className="t-card t-border border p-5 rounded-xl shadow-sm">
+            <p className="text-xs font-bold t-text-2 uppercase tracking-wider mb-1">Refunded</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--status-warning-text)' }}>
               ₹{(refundedAmount / 100).toLocaleString('en-IN')}
             </p>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center gap-4 flex-wrap">
-          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+      <div className="t-card t-border border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b t-border flex justify-between items-center gap-4 flex-wrap">
+          <h3 className="text-xl font-bold t-text flex items-center gap-2">
             <CreditCard size={20} /> Payment Manager
           </h3>
           <div className="flex items-center gap-3">
             {payments.length > 0 && (
               <button
                 onClick={handleExportCSV}
-                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
               >
                 <Download size={14} /> Export CSV
               </button>
             )}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <Search className="absolute left-3 top-2.5 t-text-3" size={16} />
             <input
               type="text"
               placeholder="Search receipt # or payment ID..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-slate-900 focus:ring-1 focus:ring-brand-500 outline-none text-sm w-72"
+              className="t-input-bg t-border border rounded-lg pl-10 pr-4 py-2 t-text focus:ring-1 focus:ring-brand-500 outline-none text-sm w-72"
             />
           </div>
           </div>
@@ -153,22 +153,22 @@ export const PaymentsPage: React.FC = () => {
               key: 'receipt',
               label: 'Receipt #',
               className: 'pl-6',
-              render: (p: Payment) => <span className="font-mono text-xs text-slate-500">{p.receiptNumber || '—'}</span>,
+              render: (p: Payment) => <span className="font-mono text-xs t-text-2">{p.receiptNumber || '—'}</span>,
             },
             {
               key: 'student',
               label: 'Student',
               render: (p: Payment) => (
                 <div>
-                  <div className="font-medium text-slate-900">{p.userName || '—'}</div>
-                  <div className="text-xs text-slate-500">{p.userEmail || ''}</div>
+                  <div className="font-medium t-text">{p.userName || '—'}</div>
+                  <div className="text-xs t-text-2">{p.userEmail || ''}</div>
                 </div>
               ),
             },
-            { key: 'course', label: 'Course', render: (p: Payment) => <span className="text-slate-700">{p.courseTitle || '—'}</span> },
-            { key: 'amount', label: 'Amount', render: (p: Payment) => <span className="font-medium text-slate-900">₹{(p.amount / 100).toLocaleString('en-IN')}</span> },
+            { key: 'course', label: 'Course', render: (p: Payment) => <span className="t-text">{p.courseTitle || '—'}</span> },
+            { key: 'amount', label: 'Amount', render: (p: Payment) => <span className="font-medium t-text">₹{(p.amount / 100).toLocaleString('en-IN')}</span> },
             { key: 'status', label: 'Status', render: (p: Payment) => <StatusBadge status={p.status} /> },
-            { key: 'date', label: 'Date', render: (p: Payment) => <span className="text-slate-500">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span> },
+            { key: 'date', label: 'Date', render: (p: Payment) => <span className="t-text-2">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span> },
             {
               key: 'action',
               label: 'Action',
@@ -178,12 +178,13 @@ export const PaymentsPage: React.FC = () => {
                   {p.status === 'captured' && (
                     <button
                       onClick={() => { setRefundPayment(p); setRefundReason(''); setShowRefundModal(true); }}
-                      className="text-yellow-600 hover:text-yellow-700 font-medium text-sm"
+                      className="font-medium text-sm hover:opacity-70"
+                      style={{ color: 'var(--status-warning-text)' }}
                     >
                       Refund
                     </button>
                   )}
-                  {p.status === 'refunded' && <span className="text-xs text-slate-400 italic">Refunded</span>}
+                  {p.status === 'refunded' && <span className="text-xs t-text-3 italic">Refunded</span>}
                 </>
               ),
             },
@@ -206,32 +207,32 @@ export const PaymentsPage: React.FC = () => {
       >
         {refundPayment && (
           <>
-            <p className="text-slate-600 mb-2">
-              Refunding <span className="font-bold text-slate-900">₹{(refundPayment.amount / 100).toLocaleString('en-IN')}</span> for{' '}
+            <p className="t-text-2 mb-2">
+              Refunding <span className="font-bold t-text">₹{(refundPayment.amount / 100).toLocaleString('en-IN')}</span> for{' '}
               <span className="font-medium">{refundPayment.courseTitle || 'Unknown Course'}</span>
             </p>
-            <p className="text-xs text-slate-500 mb-4">Student: {refundPayment.userName || '—'}</p>
+            <p className="text-xs t-text-2 mb-4">Student: {refundPayment.userName || '—'}</p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Reason for Refund *</label>
+              <label className="block text-sm font-medium t-text-2 mb-2">Reason for Refund *</label>
               <textarea
                 value={refundReason}
                 onChange={(e) => setRefundReason(e.target.value)}
                 placeholder="Explain why this refund is being processed..."
                 rows={3}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowRefundModal(false); setRefundPayment(null); }}
-                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+                className="flex-1 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2 rounded-lg font-medium transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRefund}
                 disabled={!refundReason.trim()}
-                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 t-status-warning border py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80"
               >
                 Confirm Refund
               </button>

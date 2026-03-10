@@ -2,7 +2,7 @@ import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
-import { Button, Badge } from '../components';
+import { Button, Badge, WishlistButton, ShareButton } from '../components';
 import { ReviewList } from '../components/ReviewList';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
@@ -142,12 +142,16 @@ export const CourseDetails: React.FC = () => {
               <h1 className="text-3xl md:text-6xl font-bold text-white mb-3 leading-tight">{course.title}</h1>
               <p className="text-sm md:text-xl text-gray-200 hidden md:block">By Eyebuckz Academy</p>
            </div>
-           <button 
-             onClick={() => setIsMuted(!isMuted)}
-             className="bg-white/10 p-3 rounded-full hover:bg-white/20 backdrop-blur-md transition text-white border border-white/10"
-           >
-             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-           </button>
+           <div className="flex items-center gap-2">
+             <WishlistButton courseId={course.id} size={22} className="bg-white/10 p-3 rounded-full hover:bg-white/20 backdrop-blur-md border border-white/10 text-white" />
+             <button
+               onClick={() => setIsMuted(!isMuted)}
+               aria-label={isMuted ? 'Unmute trailer' : 'Mute trailer'}
+               className="bg-white/10 p-3 rounded-full hover:bg-white/20 backdrop-blur-md transition text-white border border-white/10"
+             >
+               {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+             </button>
+           </div>
         </div>
       </div>
 
@@ -280,7 +284,7 @@ export const CourseDetails: React.FC = () => {
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="text-xs font-bold t-text-2">COURSE {index + 1}</span>
                                         {bc.rating && (
-                                            <div className="flex items-center gap-1 text-xs text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
+                                            <div className="flex items-center gap-1 text-xs t-status-warning px-1.5 py-0.5 rounded">
                                                 <Star size={10} fill="currentColor" />
                                                 {bc.rating}
                                             </div>
@@ -303,9 +307,9 @@ export const CourseDetails: React.FC = () => {
                     {course.bundledCourses && course.bundledCourses.length > 0 && (() => {
                         const savings = course.bundledCourses.reduce((sum, c) => sum + c.price, 0) - course.price;
                         return savings > 0 ? (
-                            <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 mt-6">
-                                <p className="text-sm text-brand-800 font-medium flex items-center gap-2">
-                                    <Zap size={16} className="text-brand-600" />
+                            <div className="t-status-success border rounded-xl p-4 mt-6">
+                                <p className="text-sm font-medium flex items-center gap-2">
+                                    <Zap size={16} />
                                     Save ₹{(savings / 100).toLocaleString()} compared to buying individually
                                 </p>
                             </div>
@@ -370,6 +374,15 @@ export const CourseDetails: React.FC = () => {
                 </div>
               </div>
             )}
+
+            <div className="flex items-center gap-3 mt-4">
+              <WishlistButton courseId={course.id} className="flex-1 t-card t-border border py-2 rounded-lg justify-center hover:border-brand-500/50 t-text-2" />
+              <ShareButton
+                title={course.title}
+                text={`Check out ${course.title} on Eyebuckz`}
+                className="flex-1 t-card t-border border py-2 rounded-lg justify-center hover:border-brand-500/50 t-text-2"
+              />
+            </div>
 
             <div className="space-y-4 mt-8 border-t t-border pt-6">
                 <div className="flex items-center gap-3 text-sm t-text-2">

@@ -157,6 +157,57 @@ export const Learn: React.FC = () => {
     }
   };
 
+  // Global keyboard shortcuts — work even when video container doesn't have focus.
+  // Skipped when focus is in a text input/textarea (e.g. notes editor).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {return;}
+      if (!videoRef.current) {return;}
+      switch (e.key) {
+        case ' ':
+        case 'k':
+          e.preventDefault();
+          handlePlayPause();
+          break;
+        case 'ArrowLeft':
+        case 'j':
+          e.preventDefault();
+          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
+          break;
+        case 'ArrowRight':
+        case 'l':
+          e.preventDefault();
+          videoRef.current.currentTime = Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + 10);
+          break;
+        case 'm':
+          e.preventDefault();
+          toggleMute();
+          break;
+        case 'f':
+          e.preventDefault();
+          toggleFullScreen();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          { const newVol = Math.min(1, (videoRef.current.volume || 0) + 0.1);
+            videoRef.current.volume = newVol;
+            setVolume(newVol);
+            setIsMuted(newVol === 0); }
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          { const newVol = Math.max(0, (videoRef.current.volume || 0) - 0.1);
+            videoRef.current.volume = newVol;
+            setVolume(newVol);
+            setIsMuted(newVol === 0); }
+          break;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handlePlayPause, toggleMute, toggleFullScreen, setVolume, setIsMuted]);
+
   // Previous / Next Chapter Logic
   const handlePrev = () => {
     if (activeChapterIndex > 0) {
@@ -451,7 +502,7 @@ export const Learn: React.FC = () => {
                         {/* Speed Control */}
                         <button
                           onClick={cycleSpeed}
-                          className="text-[10px] sm:text-xs font-bold px-2 py-1 rounded hover:bg-white/20 transition min-w-[2.5rem] sm:min-w-[3rem]"
+                          className="text-[10px] sm:text-xs font-bold px-2 py-2 sm:py-1 rounded hover:bg-white/20 transition min-w-[2.5rem] sm:min-w-[3rem]"
                           title="Playback speed (< / > keys)"
                         >
                           {playbackRate}x
@@ -462,7 +513,7 @@ export const Learn: React.FC = () => {
                           <div className="relative">
                             <button
                               onClick={() => setShowQualityMenu(prev => !prev)}
-                              className="text-[10px] sm:text-xs font-bold px-2 py-1 rounded hover:bg-white/20 transition min-w-[3rem]"
+                              className="text-[10px] sm:text-xs font-bold px-2 py-2 sm:py-1 rounded hover:bg-white/20 transition min-w-[3rem]"
                               title="Video quality (q key)"
                             >
                               {selectedQuality === -1
@@ -473,7 +524,7 @@ export const Learn: React.FC = () => {
                               <div className="absolute bottom-full right-0 mb-2 bg-black/90 backdrop-blur-sm rounded-lg border border-white/10 py-1 min-w-[8rem] z-50">
                                 <button
                                   onClick={() => handleSelectQuality(-1)}
-                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition ${
+                                  className={`w-full text-left px-3 py-2.5 sm:py-1.5 text-xs hover:bg-white/10 transition ${
                                     selectedQuality === -1 ? 'text-brand-400 font-bold' : 'text-white'
                                   }`}
                                 >
@@ -486,7 +537,7 @@ export const Learn: React.FC = () => {
                                     <button
                                       key={level.index}
                                       onClick={() => handleSelectQuality(level.index)}
-                                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 transition ${
+                                      className={`w-full text-left px-3 py-2.5 sm:py-1.5 text-xs hover:bg-white/10 transition ${
                                         selectedQuality === level.index ? 'text-brand-400 font-bold' : 'text-white'
                                       }`}
                                     >
@@ -522,7 +573,7 @@ export const Learn: React.FC = () => {
 
             {/* Completion Notification */}
             {showCompletionNotification && (
-              <div className="absolute top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 animate-fade-in z-30">
+              <div className="absolute top-4 right-4 t-status-success border px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 animate-fade-in z-30">
                 <CheckCircle size={20} fill="currentColor" />
                 <span className="font-bold">Module Completed!</span>
               </div>

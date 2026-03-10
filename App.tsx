@@ -6,8 +6,6 @@ import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { About } from './pages/About';
-import { Contact } from './pages/Contact';
 import { CourseDetails } from './pages/CourseDetails';
 import { Login } from './pages/Login';
 import { Privacy } from './pages/Privacy';
@@ -21,6 +19,8 @@ const Learn = lazy(() => import('./pages/Learn').then(m => ({ default: m.Learn }
 const AdminRoutes = lazy(() => import('./pages/admin').then(m => ({ default: m.AdminRoutes })));
 const PurchaseSuccess = lazy(() => import('./pages/PurchaseSuccess').then(m => ({ default: m.PurchaseSuccess })));
 const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+const About = lazy(() => import('./pages/About').then(m => ({ default: m.About })));
+const Contact = lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
 
 const PageLoader: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -42,8 +42,8 @@ const App: React.FC = () => {
               <Route path="/course/:id" element={<CourseDetails />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
+              <Route path="/about" element={<Suspense fallback={<PageLoader />}><About /></Suspense>} />
+              <Route path="/contact" element={<Suspense fallback={<PageLoader />}><Contact /></Suspense>} />
 
               {/* Protected Routes - Require Authentication (lazy-loaded) */}
               <Route

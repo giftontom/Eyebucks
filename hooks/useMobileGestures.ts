@@ -76,10 +76,12 @@ export function useMobileGestures({
         handlePlayPause();
         break;
       case 'ArrowLeft':
+      case 'j':
         e.preventDefault();
         videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
         break;
       case 'ArrowRight':
+      case 'l':
         e.preventDefault();
         videoRef.current.currentTime = Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + 10);
         break;

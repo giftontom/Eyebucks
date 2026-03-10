@@ -59,14 +59,14 @@ export const VideoCleanup: React.FC<VideoCleanupProps> = ({ showToast }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-      <h3 className="text-lg font-bold mb-4 text-slate-900">Video Storage Cleanup</h3>
+    <div className="t-card t-border border p-6 rounded-xl shadow-sm">
+      <h3 className="text-lg font-bold mb-4 t-text">Video Storage Cleanup</h3>
 
       <div className="flex flex-wrap gap-3 mb-4">
         <button
           onClick={handleScan}
           disabled={scanning || deleting}
-          className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+          className="flex items-center gap-2 t-card t-border border hover:bg-[var(--surface-hover)] t-text px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
         >
           {scanning ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
           {scanning ? 'Scanning...' : 'Scan for Orphaned Videos'}
@@ -76,7 +76,7 @@ export const VideoCleanup: React.FC<VideoCleanupProps> = ({ showToast }) => {
           <button
             onClick={() => setConfirmOpen(true)}
             disabled={deleting}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+            className="flex items-center gap-2 t-status-danger border px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 hover:opacity-80"
           >
             {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
             {deleting ? 'Deleting...' : `Delete ${scanResult.orphanedCount} Orphaned Videos`}
@@ -87,43 +87,43 @@ export const VideoCleanup: React.FC<VideoCleanupProps> = ({ showToast }) => {
       {scanResult && (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3 text-sm">
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
-              <div className="text-xl font-bold text-slate-900">{scanResult.totalBunnyVideos}</div>
-              <div className="text-slate-500 text-xs">Total in Bunny</div>
+            <div className="t-bg-alt t-border border rounded-lg p-3 text-center">
+              <div className="text-xl font-bold t-text">{scanResult.totalBunnyVideos}</div>
+              <div className="t-text-2 text-xs">Total in Bunny</div>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
-              <div className="text-xl font-bold text-slate-900">{scanResult.referencedInDb}</div>
-              <div className="text-slate-500 text-xs">Referenced in DB</div>
+            <div className="t-bg-alt t-border border rounded-lg p-3 text-center">
+              <div className="text-xl font-bold t-text">{scanResult.referencedInDb}</div>
+              <div className="t-text-2 text-xs">Referenced in DB</div>
             </div>
-            <div className={`rounded-lg p-3 text-center ${scanResult.orphanedCount > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-              <div className={`text-xl font-bold ${scanResult.orphanedCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+            <div className={`rounded-lg p-3 text-center border ${scanResult.orphanedCount > 0 ? 't-status-danger' : 't-status-success'}`}>
+              <div className="text-xl font-bold">
                 {scanResult.orphanedCount}
               </div>
-              <div className={`text-xs ${scanResult.orphanedCount > 0 ? 'text-red-500' : 'text-green-500'}`}>Orphaned</div>
+              <div className="text-xs">Orphaned</div>
             </div>
           </div>
 
           {scanResult.orphanedCount === 0 && (
-            <div className="flex items-center gap-2 text-green-600 text-sm">
+            <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--status-success-text)' }}>
               <CheckCircle size={16} />
               <span>All Bunny videos are referenced in the database.</span>
             </div>
           )}
 
           {scanResult.orphanedVideos.length > 0 && (
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+            <div className="t-border border rounded-lg overflow-hidden">
+              <div className="t-bg-alt px-3 py-2 text-xs font-bold t-text-2 uppercase tracking-wider flex items-center gap-1">
                 <AlertTriangle size={12} /> Orphaned Videos
               </div>
-              <div className="max-h-48 overflow-y-auto divide-y divide-slate-100">
+              <div className="max-h-48 overflow-y-auto divide-y t-divide">
                 {scanResult.orphanedVideos.map(v => (
                   <div key={v.guid} className="px-3 py-2 text-sm flex justify-between items-center">
                     <div>
-                      <span className="text-slate-900 font-medium">{v.title}</span>
-                      <span className="text-slate-400 text-xs ml-2 font-mono">{v.guid.slice(0, 8)}...</span>
+                      <span className="t-text font-medium">{v.title}</span>
+                      <span className="t-text-3 text-xs ml-2 font-mono">{v.guid.slice(0, 8)}...</span>
                     </div>
                     {v.dateUploaded && (
-                      <span className="text-slate-400 text-xs">
+                      <span className="t-text-3 text-xs">
                         {new Date(v.dateUploaded).toLocaleDateString()}
                       </span>
                     )}

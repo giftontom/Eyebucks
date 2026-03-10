@@ -143,7 +143,7 @@ export const CourseEditorPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-slate-400">Loading course...</div>
+        <div className="t-text-3">Loading course...</div>
       </div>
     );
   }
@@ -151,16 +151,16 @@ export const CourseEditorPage: React.FC = () => {
   return (
     <div className="animate-fade-in space-y-6 max-w-4xl">
       {/* Back link */}
-      <Link to="/admin/courses" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700">
+      <Link to="/admin/courses" className="inline-flex items-center gap-2 text-sm t-text-2 hover:t-text transition">
         <ArrowLeft size={16} /> Back to Courses
       </Link>
 
-      <h2 className="text-2xl font-bold text-slate-900">
+      <h2 className="text-2xl font-bold t-text">
         {isEditing ? 'Edit Course' : 'Create New Course'}
       </h2>
 
       {/* Course form */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <div className="t-card t-border border rounded-xl shadow-sm p-6">
         <CourseForm
           formData={formData}
           onChange={handleFormChange}
@@ -169,17 +169,17 @@ export const CourseEditorPage: React.FC = () => {
           courses={courses}
         />
 
-        <div className="flex gap-3 mt-8 pt-6 border-t border-slate-200">
+        <div className="flex gap-3 mt-8 pt-6 border-t t-border">
           <button
             onClick={() => navigate('/admin/courses')}
-            className="px-6 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2.5 rounded-lg font-medium transition"
+            className="px-6 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2.5 rounded-lg font-medium transition"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 bg-brand-600 hover:bg-brand-500 text-white py-2.5 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving...' : (isEditing ? 'Update Course' : 'Create Course')}
           </button>
@@ -188,15 +188,15 @@ export const CourseEditorPage: React.FC = () => {
 
       {/* Inline Module Manager (for MODULE type courses being edited) */}
       {isEditing && courseId && courseType === 'MODULE' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="t-card t-border border rounded-xl shadow-sm p-6">
           <ModuleManager courseId={courseId} showToast={showToast} />
         </div>
       )}
 
       {/* Inline Bundle Course Manager (for BUNDLE type courses being edited) */}
       {isEditing && courseId && courseType === 'BUNDLE' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-lg font-bold text-slate-900 mb-4">Bundle Courses</h3>
+        <div className="t-card t-border border rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-bold t-text mb-4">Bundle Courses</h3>
           <BundleCoursePicker
             courses={courses}
             selectedIds={bundledCourseIds}
@@ -212,7 +212,7 @@ export const CourseEditorPage: React.FC = () => {
                 showToast(err.message || 'Failed to save bundle courses', 'error');
               }
             }}
-            className="mt-4 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+            className="mt-4 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg font-medium text-sm"
           >
             Save Bundle Courses
           </button>

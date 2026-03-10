@@ -141,14 +141,14 @@ export const CoursesPage: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+      <div className="t-card t-border border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b t-border flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h3 className="text-xl font-bold text-slate-900">Course Manager</h3>
+            <h3 className="text-xl font-bold t-text">Course Manager</h3>
             <button
               onClick={() => setShowArchived(!showArchived)}
               className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition ${
-                showArchived ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                showArchived ? 't-status-warning border' : 't-card t-border border t-text-2 hover:bg-[var(--surface-hover)]'
               }`}
             >
               {showArchived ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -157,7 +157,7 @@ export const CoursesPage: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/admin/courses/new')}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
+            className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
           >
             <Plus size={16} /> New Course
           </button>
@@ -172,15 +172,15 @@ export const CoursesPage: React.FC = () => {
               sortable: true,
               render: (c: AdminCourse) => (
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-900">{c.title}</span>
+                  <span className="font-medium t-text">{c.title}</span>
                   <StatusBadge status={c.type} />
-                  {c.deletedAt && <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs font-bold rounded">Archived</span>}
+                  {c.deletedAt && <span className="px-2 py-0.5 t-status-danger border text-xs font-bold rounded">Archived</span>}
                 </div>
               ),
             },
             { key: 'status', label: 'Status', sortable: true, render: (c: AdminCourse) => <StatusBadge status={c.status} className="px-2 py-1 rounded-full" /> },
-            { key: 'price', label: 'Price', sortable: true, render: (c: AdminCourse) => <span className="text-slate-700">₹{(c.price / 100).toLocaleString()}</span> },
-            { key: 'enrolled', label: 'Enrolled', sortable: true, render: (c: AdminCourse) => <span className="text-slate-500">{c.enrollmentCount || 0}</span> },
+            { key: 'price', label: 'Price', sortable: true, render: (c: AdminCourse) => <span className="t-text">₹{(c.price / 100).toLocaleString()}</span> },
+            { key: 'enrolled', label: 'Enrolled', sortable: true, render: (c: AdminCourse) => <span className="t-text-2">{c.enrollmentCount || 0}</span> },
             {
               key: 'actions',
               label: 'Actions',
@@ -191,17 +191,20 @@ export const CoursesPage: React.FC = () => {
                     disabled={operationLoading}
                     onClick={() => handlePublishToggle(c)}
                     className={`font-medium disabled:opacity-50 text-sm ${
-                      c.status === 'PUBLISHED' ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'
+                      c.status === 'PUBLISHED'
+                        ? 'hover:opacity-70'
+                        : 'hover:opacity-70'
                     }`}
+                    style={{ color: c.status === 'PUBLISHED' ? 'var(--status-warning-text)' : 'var(--status-success-text)' }}
                   >
                     {c.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
                   </button>
-                  <button onClick={() => openAnalytics(c)} className="text-blue-600 hover:text-blue-700 font-medium text-sm">Stats</button>
-                  <button onClick={() => navigate(`/admin/courses/${c.id}`)} className="text-brand-600 hover:text-brand-700 font-medium text-sm">Edit</button>
+                  <button onClick={() => openAnalytics(c)} className="font-medium text-sm hover:opacity-70" style={{ color: 'var(--status-info-text)' }}>Stats</button>
+                  <button onClick={() => navigate(`/admin/courses/${c.id}`)} className="text-brand-600 hover:text-brand-500 font-medium text-sm">Edit</button>
                   {c.deletedAt ? (
-                    <button onClick={() => handleRestore(c)} className="text-green-600 hover:text-green-700 font-medium text-sm">Restore</button>
+                    <button onClick={() => handleRestore(c)} className="font-medium text-sm hover:opacity-70" style={{ color: 'var(--status-success-text)' }}>Restore</button>
                   ) : (
-                    <button onClick={() => setDeleteTarget({ id: c.id, title: c.title })} className="text-red-600 hover:text-red-700 text-sm">Archive</button>
+                    <button onClick={() => setDeleteTarget({ id: c.id, title: c.title })} className="text-sm hover:opacity-70" style={{ color: 'var(--status-danger-text)' }}>Archive</button>
                   )}
                 </div>
               ),
@@ -226,7 +229,7 @@ export const CoursesPage: React.FC = () => {
         onConfirm={handleArchive}
         title="Archive Course"
         message={
-          <p>Are you sure you want to archive <span className="font-bold text-slate-900">"{deleteTarget?.title}"</span>?</p>
+          <p>Are you sure you want to archive <span className="font-bold t-text">"{deleteTarget?.title}"</span>?</p>
         }
         warning="The course will be hidden from students but can be restored later from the archived filter."
         confirmLabel="Archive Course"
@@ -239,10 +242,10 @@ export const CoursesPage: React.FC = () => {
         onConfirm={confirmPublishToggle}
         title={`${publishTarget?.action === 'publish' ? 'Publish' : 'Unpublish'} Course`}
         message={
-          <p>Are you sure you want to {publishTarget?.action} <span className="font-bold text-slate-900">"{publishTarget?.course.title}"</span>?</p>
+          <p>Are you sure you want to {publishTarget?.action} <span className="font-bold t-text">"{publishTarget?.course.title}"</span>?</p>
         }
         confirmLabel={publishTarget?.action === 'publish' ? 'Publish' : 'Unpublish'}
-        confirmColor={publishTarget?.action === 'publish' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}
+        confirmColor={publishTarget?.action === 'publish' ? 'bg-brand-600 hover:bg-brand-500' : 'bg-[var(--status-warning-bg)] hover:opacity-90 text-[var(--status-warning-text)] border border-[var(--status-warning-border)]'}
       />
 
       {/* Restore Confirm */}
@@ -252,10 +255,10 @@ export const CoursesPage: React.FC = () => {
         onConfirm={confirmRestore}
         title="Restore Course"
         message={
-          <p>Restore <span className="font-bold text-slate-900">"{restoreTarget?.title}"</span>?</p>
+          <p>Restore <span className="font-bold t-text">"{restoreTarget?.title}"</span>?</p>
         }
         confirmLabel="Restore"
-        confirmColor="bg-green-600 hover:bg-green-700"
+        confirmColor="bg-brand-600 hover:bg-brand-500"
       />
 
       {/* Course Analytics Modal */}
@@ -266,36 +269,36 @@ export const CoursesPage: React.FC = () => {
         maxWidth="max-w-lg"
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <BarChart3 size={20} className="text-blue-600" />
+          <h3 className="text-lg font-bold t-text flex items-center gap-2">
+            <BarChart3 size={20} style={{ color: 'var(--status-info-text)' }} />
             Course Analytics
           </h3>
-          <button onClick={() => setShowAnalytics(false)} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+          <button onClick={() => setShowAnalytics(false)} className="t-text-2 hover:t-text text-xl">&times;</button>
         </div>
-        <p className="text-sm text-slate-500 mb-6">{analyticsCourseTitle}</p>
+        <p className="text-sm t-text-2 mb-6">{analyticsCourseTitle}</p>
         {!analyticsData ? (
-          <div className="flex items-center justify-center py-12 text-slate-400">Loading analytics...</div>
+          <div className="flex items-center justify-center py-12 t-text-3">Loading analytics...</div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-blue-700">{analyticsData.totalEnrollments}</p>
-              <p className="text-xs text-blue-600 font-medium mt-1">Total Enrollments</p>
+            <div className="t-status-info border rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold">{analyticsData.totalEnrollments}</p>
+              <p className="text-xs font-medium mt-1">Total Enrollments</p>
             </div>
-            <div className="bg-green-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-green-700">{analyticsData.completionRate.toFixed(1)}%</p>
-              <p className="text-xs text-green-600 font-medium mt-1">Completion Rate</p>
+            <div className="t-status-success border rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold">{analyticsData.completionRate.toFixed(1)}%</p>
+              <p className="text-xs font-medium mt-1">Completion Rate</p>
             </div>
-            <div className="bg-purple-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-purple-700">{analyticsData.avgWatchTimeMinutes.toFixed(0)} min</p>
-              <p className="text-xs text-purple-600 font-medium mt-1">Avg Watch Time</p>
+            <div className="bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold">{analyticsData.avgWatchTimeMinutes.toFixed(0)} min</p>
+              <p className="text-xs font-medium mt-1">Avg Watch Time</p>
             </div>
-            <div className="bg-yellow-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-700">₹{(analyticsData.revenueTotal / 100).toLocaleString('en-IN')}</p>
-              <p className="text-xs text-yellow-600 font-medium mt-1">Total Revenue</p>
+            <div className="t-status-warning border rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold">₹{(analyticsData.revenueTotal / 100).toLocaleString('en-IN')}</p>
+              <p className="text-xs font-medium mt-1">Total Revenue</p>
             </div>
-            <div className="col-span-2 bg-slate-50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-slate-700">{analyticsData.activeStudents30d}</p>
-              <p className="text-xs text-slate-600 font-medium mt-1">Active Students (Last 30 Days)</p>
+            <div className="col-span-2 t-card t-border border rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold t-text">{analyticsData.activeStudents30d}</p>
+              <p className="text-xs t-text-2 font-medium mt-1">Active Students (Last 30 Days)</p>
             </div>
           </div>
         )}

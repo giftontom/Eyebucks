@@ -100,7 +100,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={toggleTheme}
-                      className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
+                      className="p-2 rounded-full hover:bg-[var(--surface-hover)] t-text-2 hover:t-text transition"
                       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                     >
@@ -146,6 +146,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <ChevronRight size={20} className="t-text-3" aria-hidden="true" />
                 </a>
 
+                <Link to="/about" className="flex items-center justify-between p-4 rounded-xl t-card hover:bg-[var(--surface-hover)] transition t-border border" role="menuitem">
+                    <span className="text-lg font-medium t-text">About Us</span>
+                    <ChevronRight size={20} className="t-text-3" aria-hidden="true" />
+                </Link>
+
+                <Link to="/contact" className="flex items-center justify-between p-4 rounded-xl t-card hover:bg-[var(--surface-hover)] transition t-border border" role="menuitem">
+                    <span className="text-lg font-medium t-text">Contact</span>
+                    <ChevronRight size={20} className="t-text-3" aria-hidden="true" />
+                </Link>
+
                 {user && (
                   <>
                     <Link to="/dashboard" className="flex items-center justify-between p-4 rounded-xl t-card hover:bg-[var(--surface-hover)] transition t-border border" role="menuitem">
@@ -168,6 +178,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
              </nav>
 
              <div className="mt-auto mb-10 pb-10 border-t t-border pt-8">
+                {/* Theme toggle */}
+                <button
+                  onClick={toggleTheme}
+                  className="w-full mb-4 flex items-center justify-between p-4 rounded-xl t-card hover:bg-[var(--surface-hover)] transition t-border border t-text"
+                  aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  <span className="text-base font-medium t-text flex items-center gap-2">
+                    {isDark ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
+                    {isDark ? 'Light Mode' : 'Dark Mode'}
+                  </span>
+                  <ChevronRight size={20} className="t-text-3" aria-hidden="true" />
+                </button>
                 {user ? (
                    <div className="space-y-4">
                       <div className="flex items-center gap-4 px-2">

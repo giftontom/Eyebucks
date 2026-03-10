@@ -1,8 +1,9 @@
-import { Play, Star, ArrowRight, Users, CheckCircle2, Layers, X, Plus, Award, Globe, Clapperboard, Sparkles, Search, BookOpen, Video, Palette } from 'lucide-react';
+import { Play, Star, ArrowRight, Users, CheckCircle2, Layers, X, Plus, Award, Globe, Clapperboard, Sparkles, Search, BookOpen, Video, Palette, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { Badge, Button } from '../components';
+import { Badge, Button, WishlistButton } from '../components';
+import { useStorefrontFilters } from '../hooks/useStorefrontFilters';
 import { HeroCarousel } from '../components/HeroCarousel';
 import { CourseCardSkeleton } from '../components/CourseCardSkeleton';
 import { useAuth } from '../context/AuthContext';
@@ -64,6 +65,9 @@ const CourseCard = React.memo<{ course: Course; index: number; onBuy: (courseId:
                         <Badge variant="default" size="md" className="uppercase tracking-wide backdrop-blur-md">{course.type}</Badge>
                         {isBundle && <Badge variant="brand" size="md" className="uppercase tracking-wide animate-pulse shadow-lg shadow-brand-500/40">Best Value</Badge>}
                     </div>
+                    <div className="absolute top-3 right-3">
+                        <WishlistButton courseId={course.id} size={18} className="bg-black/40 backdrop-blur-sm p-2 rounded-full hover:bg-black/60" />
+                    </div>
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                         <div className="group-hover:scale-110 transition-transform duration-300 flex flex-col items-center gap-3">
                             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border border-white/50 backdrop-blur-md">
@@ -117,14 +121,24 @@ const VALUE_CARDS = [
 ];
 
 export const Storefront: React.FC = () => {
-  const [filterType, setFilterType] = useState<'ALL' | CourseType>('ALL');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const {
+    filters,
+    setTypeFilter,
+    setSearchQuery,
+    setMinRating,
+    setMaxPrice,
+    clearFilters,
+    isFiltered,
+    filteredCourses,
+  } = useStorefrontFilters(courses);
 
   const [faqs, setFaqs] = useState(DEFAULT_FAQS);
   const [testimonials, setTestimonials] = useState(DEFAULT_TESTIMONIALS);
@@ -157,14 +171,7 @@ export const Storefront: React.FC = () => {
     navigate(`/checkout/${courseId}`);
   }, [navigate]);
 
-  const filteredCourses = courses.filter(c => {
-    if (filterType !== 'ALL' && c.type !== filterType) {return false;}
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return c.title.toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  // filteredCourses comes from useStorefrontFilters hook
 
   return (
     <div className="t-bg font-sans t-text overflow-x-hidden">
@@ -361,45 +368,112 @@ export const Storefront: React.FC = () => {
                 <h2 className="text-4xl font-bold t-text mb-2" style={{ fontFamily: "var(--font-display)" }}>Masterclass Catalog</h2>
                 <p className="t-text-2 text-lg">Choose your path. From cinematography to color grading.</p>
               </div>
-              {/* Filters */}
-              <div className="flex t-card p-1.5 rounded-xl t-border border">
-                {['ALL', 'BUNDLE', 'MODULE'].map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setFilterType(type as any)}
-                    className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-300 ${
-                      filterType === type
-                        ? 'bg-white/10 dark:bg-white/10 bg-black/10 t-text shadow-md'
-                        : 't-text-3 hover:t-text-2 hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    {type === 'ALL' ? 'All' : type === 'BUNDLE' ? 'Bundles' : 'Modules'}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3">
+                {/* Type pill filters */}
+                <div className="flex t-card p-1.5 rounded-xl t-border border">
+                  {(['ALL', 'BUNDLE', 'MODULE'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setTypeFilter(type as any)}
+                      className={`px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
+                        filters.typeFilter === type
+                          ? 'bg-white/10 dark:bg-white/10 bg-black/10 t-text shadow-md'
+                          : 't-text-3 hover:t-text-2 hover:bg-black/5 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      {type === 'ALL' ? 'All' : type === 'BUNDLE' ? 'Bundles' : 'Modules'}
+                    </button>
+                  ))}
+                </div>
+                {/* Advanced filter toggle */}
+                <button
+                  onClick={() => setShowAdvancedFilters(v => !v)}
+                  aria-expanded={showAdvancedFilters}
+                  aria-label="Toggle advanced filters"
+                  className={`p-2.5 rounded-xl t-card t-border border transition hover:border-brand-500/50 ${showAdvancedFilters ? 'text-brand-400 border-brand-500/40' : 't-text-2'}`}
+                >
+                  <SlidersHorizontal size={18} />
+                </button>
               </div>
             </div>
+
             {/* Search Bar */}
-            <div className="relative mb-10">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+            <div className="relative mb-4">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 t-text-3" size={20} />
               <input
                 type="text"
-                value={searchQuery}
+                value={filters.searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search courses by title or description..."
+                aria-label="Search courses"
                 className="w-full pl-12 pr-10 py-4 rounded-2xl t-border border t-input-bg t-text placeholder:t-text-3 outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-lg backdrop-blur-sm"
               />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              {filters.searchQuery && (
+                <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-4 top-1/2 -translate-y-1/2 t-text-3 hover:t-text transition">
                   <X size={20} />
                 </button>
               )}
             </div>
+
+            {/* Advanced filters panel */}
+            {showAdvancedFilters && (
+              <div className="t-card t-border border rounded-2xl p-5 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
+                {/* Min rating */}
+                <div>
+                  <label className="block text-sm font-bold t-text mb-3">
+                    Min Rating: {filters.minRating > 0 ? `${filters.minRating}★` : 'Any'}
+                  </label>
+                  <div className="flex gap-2">
+                    {[0, 3, 4, 4.5].map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setMinRating(r)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                          filters.minRating === r
+                            ? 'bg-brand-600 text-white'
+                            : 't-card t-border border t-text-2 hover:border-brand-500/50'
+                        }`}
+                      >
+                        {r === 0 ? 'Any' : <><Star size={10} fill="currentColor" className="text-yellow-400" /> {r}+</>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Max price */}
+                <div>
+                  <label className="block text-sm font-bold t-text mb-3">
+                    Max Price: {filters.maxPrice > 0 ? `₹${(filters.maxPrice / 100).toLocaleString()}` : 'Any'}
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[0, 49900, 99900, 199900].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setMaxPrice(p)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                          filters.maxPrice === p
+                            ? 'bg-brand-600 text-white'
+                            : 't-card t-border border t-text-2 hover:border-brand-500/50'
+                        }`}
+                      >
+                        {p === 0 ? 'Any' : `≤₹${(p / 100).toLocaleString()}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </FadeIn>
 
-          {searchQuery && !isLoading && (
-            <p className="text-sm t-text-3 mb-4">
-              Showing {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''}
-            </p>
+          {isFiltered && !isLoading && (
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm t-text-3">
+                Showing {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''}
+              </p>
+              <button onClick={clearFilters} className="text-xs text-brand-400 hover:text-brand-300 font-medium transition">
+                Clear all filters
+              </button>
+            </div>
           )}
 
           {isLoading ? (
@@ -422,7 +496,7 @@ export const Storefront: React.FC = () => {
               ) : (
                 <>
                   <p className="t-text-2 mb-4">No courses match your search.</p>
-                  <button onClick={() => { setSearchQuery(''); setFilterType('ALL'); }} className="text-brand-400 hover:text-brand-300 font-medium transition">
+                  <button onClick={clearFilters} className="text-brand-400 hover:text-brand-300 font-medium transition">
                     Clear filters
                   </button>
                 </>

@@ -63,8 +63,9 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         error={!isSlugValid ? 'Slug must be lowercase letters, numbers, and hyphens only (e.g. "my-course-1")' : undefined}
       />
       <div>
-        <label className="block text-xs font-semibold t-text-2 mb-1.5">Description *</label>
+        <label htmlFor="course-description" className="block text-xs font-semibold t-text-2 mb-1.5">Description *</label>
         <textarea
+          id="course-description"
           value={formData.description}
           onChange={(e) => update({ description: e.target.value })}
           rows={4}
@@ -97,8 +98,9 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         hint="Used as the hero/preview video on the course page"
       />
       <div>
-        <label className="block text-xs font-semibold t-text-2 mb-1.5">Type *</label>
+        <label htmlFor="course-type" className="block text-xs font-semibold t-text-2 mb-1.5">Type *</label>
         <select
+          id="course-type"
           value={formData.type}
           onChange={(e) => {
             const newType = e.target.value as CourseType;
@@ -137,7 +139,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
             {formData.features.length > 1 && (
               <button
                 onClick={() => update({ features: formData.features.filter((_, i) => i !== index) })}
-                className="px-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg"
+                className="px-3 t-status-danger border hover:opacity-80 rounded-lg"
               >
                 x
               </button>

@@ -20,16 +20,16 @@ export const SalesChart: React.FC<SalesChartProps> = ({ salesData, onPeriodChang
   if (salesData.length === 0) {return null;}
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-[400px]">
+    <div className="t-card t-border border p-6 rounded-xl shadow-sm h-[400px]">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-slate-900">Sales Performance</h3>
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+        <h3 className="text-lg font-bold t-text">Sales Performance</h3>
+        <div className="flex gap-1 t-bg-alt p-1 rounded-lg">
           {periods.map(p => (
             <button
               key={p.days}
               onClick={() => { setActivePeriod(p.days); onPeriodChange(p.days); }}
               className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                activePeriod === p.days ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                activePeriod === p.days ? 't-card t-text shadow-sm' : 't-text-2 hover:t-text'
               }`}
             >
               {p.label}
@@ -41,19 +41,19 @@ export const SalesChart: React.FC<SalesChartProps> = ({ salesData, onPeriodChang
         <AreaChart data={salesData}>
           <defs>
             <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--color-brand-600)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--color-brand-600)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-          <XAxis dataKey="date" stroke="#94a3b8" axisLine={false} tickLine={false} dy={10} />
-          <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `₹${(val / 100000).toFixed(1)}k`} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="date" stroke="var(--text-3)" axisLine={false} tickLine={false} dy={10} />
+          <YAxis stroke="var(--text-3)" axisLine={false} tickLine={false} dx={-10} tickFormatter={(val) => `₹${(val / 100000).toFixed(1)}k`} />
           <Tooltip
-            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#0f172a', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-            itemStyle={{ color: '#0f172a' }}
+            contentStyle={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+            itemStyle={{ color: 'var(--text)' }}
             formatter={(value: number) => [`₹${(value / 100).toLocaleString()}`, 'Revenue']}
           />
-          <Area type="monotone" dataKey="amount" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorAmount)" />
+          <Area type="monotone" dataKey="amount" stroke="var(--color-brand-600)" strokeWidth={3} fillOpacity={1} fill="url(#colorAmount)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>

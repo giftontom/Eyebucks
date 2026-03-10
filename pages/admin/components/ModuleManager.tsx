@@ -124,43 +124,43 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
   };
 
   if (loading) {
-    return <div className="text-slate-400 py-8 text-center">Loading modules...</div>;
+    return <div className="t-text-3 py-8 text-center">Loading modules...</div>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-slate-900">Modules ({modules.length})</h3>
+        <h3 className="text-lg font-bold t-text">Modules ({modules.length})</h3>
         <button
           onClick={openCreate}
-          className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium text-sm"
+          className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium text-sm"
         >
           <Plus size={16} /> Add Module
         </button>
       </div>
 
       {modules.length === 0 ? (
-        <div className="text-slate-400 text-center py-12 border border-dashed border-slate-300 rounded-lg">
+        <div className="t-text-3 text-center py-12 border border-dashed t-border rounded-lg">
           No modules yet. Click "Add Module" to create one.
         </div>
       ) : (
         <div className="space-y-3">
           {modules.map((module, index) => (
-            <div key={module.id} className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <div key={module.id} className="t-bg-alt t-border border rounded-lg p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-bold text-slate-400">#{index + 1}</span>
-                    <h4 className="font-bold text-slate-900">{module.title}</h4>
+                    <span className="text-xs font-bold t-text-3">#{index + 1}</span>
+                    <h4 className="font-bold t-text">{module.title}</h4>
                     {module.isFreePreview && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">FREE PREVIEW</span>
+                      <span className="px-2 py-0.5 t-status-success text-xs font-bold rounded">FREE PREVIEW</span>
                     )}
                   </div>
-                  <div className="text-sm text-slate-600 space-y-1">
+                  <div className="text-sm t-text-2 space-y-1">
                     <div>Duration: <span className="font-medium">{module.duration}</span></div>
                     <div className="flex items-center gap-2">
                       Video:
-                      <a href={module.videoUrl} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline text-xs truncate max-w-md">
+                      <a href={module.videoUrl} target="_blank" rel="noopener noreferrer" className="t-link hover:t-link-hover text-xs truncate max-w-md">
                         {module.videoUrl}
                       </a>
                     </div>
@@ -170,22 +170,22 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
                   <button
                     onClick={() => handleReorder(index, 'up')}
                     disabled={index === 0}
-                    className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="text-xs px-2 py-1 t-bg-alt t-border border hover:bg-[var(--surface-hover)] rounded disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     ↑
                   </button>
                   <button
                     onClick={() => handleReorder(index, 'down')}
                     disabled={index === modules.length - 1}
-                    className="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="text-xs px-2 py-1 t-bg-alt t-border border hover:bg-[var(--surface-hover)] rounded disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     ↓
                   </button>
                 </div>
               </div>
-              <div className="flex gap-2 mt-3 pt-3 border-t border-slate-300">
-                <button onClick={() => openEdit(module)} className="text-sm text-brand-600 hover:text-brand-700 font-medium">Edit</button>
-                <button onClick={() => setDeleteTarget(module)} className="text-sm text-red-600 hover:text-red-700 font-medium">Delete</button>
+              <div className="flex gap-2 mt-3 pt-3 border-t t-border">
+                <button onClick={() => openEdit(module)} className="text-sm t-link hover:t-link-hover font-medium">Edit</button>
+                <button onClick={() => setDeleteTarget(module)} className="text-sm font-medium hover:opacity-70" style={{ color: 'var(--status-danger-text)' }}>Delete</button>
               </div>
             </div>
           ))}
@@ -202,33 +202,33 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Module Title *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Module Title *</label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="Introduction to React"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Duration (MM:SS) *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Duration (MM:SS) *</label>
             <input
               type="text"
               value={formData.duration}
               onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="15:30"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Video Source *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Video Source *</label>
             <div className="flex gap-2 mb-3">
               <button
                 type="button"
                 onClick={() => setVideoUploadMode('url')}
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
-                  videoUploadMode === 'url' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  videoUploadMode === 'url' ? 'bg-brand-600 text-white' : 't-bg-alt t-border border hover:bg-[var(--surface-hover)] t-text-2'
                 }`}
               >
                 Enter URL
@@ -237,7 +237,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
                 type="button"
                 onClick={() => setVideoUploadMode('upload')}
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
-                  videoUploadMode === 'upload' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  videoUploadMode === 'upload' ? 'bg-brand-600 text-white' : 't-bg-alt t-border border hover:bg-[var(--surface-hover)] t-text-2'
                 }`}
               >
                 Upload Video
@@ -248,7 +248,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
                 type="url"
                 value={formData.videoUrl}
                 onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="https://youtube.com/watch?v=..."
               />
             ) : (
@@ -276,9 +276,9 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               id="modulePreview"
               checked={formData.isFreePreview}
               onChange={(e) => setFormData({ ...formData, isFreePreview: e.target.checked })}
-              className="w-4 h-4 text-brand-600 border-slate-300 rounded focus:ring-brand-500"
+              className="w-4 h-4 text-brand-600 t-border rounded focus:ring-brand-500"
             />
-            <label htmlFor="modulePreview" className="text-sm text-slate-700">
+            <label htmlFor="modulePreview" className="text-sm t-text-2">
               Free Preview (Allow non-enrolled users to watch)
             </label>
           </div>
@@ -286,13 +286,13 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => { setShowModal(false); setEditingModuleId(null); }}
-            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+            className="flex-1 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2 rounded-lg font-medium transition"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded-lg font-medium transition"
+            className="flex-1 bg-brand-600 hover:bg-brand-500 text-white py-2 rounded-lg font-medium transition"
           >
             {editingModuleId ? 'Update Module' : 'Create Module'}
           </button>
@@ -306,7 +306,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
         onConfirm={confirmDelete}
         title="Delete Module"
         message={
-          <p>Are you sure you want to delete <span className="font-bold text-slate-900">"{deleteTarget?.title}"</span>? This cannot be undone.</p>
+          <p>Are you sure you want to delete <span className="font-bold t-text">"{deleteTarget?.title}"</span>? This cannot be undone.</p>
         }
         confirmLabel="Delete Module"
       />

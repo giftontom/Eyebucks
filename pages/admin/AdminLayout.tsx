@@ -25,7 +25,7 @@ export const AdminLayout: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen t-bg">
         <div className="text-center p-8 t-card rounded-xl t-border border">
-          <h1 className="text-2xl font-bold mb-4 text-red-500">Access Denied</h1>
+          <h1 className="text-2xl font-bold mb-4" style={{ color: 'var(--status-danger-text)' }}>Access Denied</h1>
           <p className="t-text-2 mb-4">You do not have permission to view this area.</p>
           <Link to="/" className="text-brand-600 hover:underline">Return Home</Link>
         </div>

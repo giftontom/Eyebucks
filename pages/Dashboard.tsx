@@ -1,11 +1,14 @@
-import { PlayCircle, UserCircle, Layers, ArrowRight } from 'lucide-react';
+import { PlayCircle, UserCircle, Layers, ArrowRight, TrendingUp, BookOpen, CheckCircle, Heart } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Badge } from '../components';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
+import { WishlistButton } from '../components/WishlistButton';
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../hooks/useWishlist';
 import { enrollmentsApi, coursesApi } from '../services/api';
+import { wishlistApi } from '../services/api/wishlist.api';
 import { CourseType } from '../types';
 import { logger } from '../utils/logger';
 
@@ -24,6 +27,9 @@ function relativeTime(date: Date | null | undefined): string {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'MY_COURSES' | 'SAVED'>('MY_COURSES');
+  const [savedCourses, setSavedCourses] = useState<{ id: string; title: string; thumbnail: string; type: string; description: string }[]>([]);
+  const { wishlistIds } = useWishlist();
   const [enrolledCourses, setEnrolledCourses] = useState<Array<{
     id: string;
     title: string;
@@ -96,6 +102,16 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => { loadEnrollments(); }, [user]);
 
+  // Load saved/wishlist courses
+  useEffect(() => {
+    if (!user) { setSavedCourses([]); return; }
+    wishlistApi.list().then(async (entries) => {
+      if (entries.length === 0) { setSavedCourses([]); return; }
+      const courses = await coursesApi.getCoursesByIds(entries.map(e => e.courseId));
+      setSavedCourses(courses);
+    }).catch(() => {});
+  }, [user, wishlistIds]);
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -147,12 +163,109 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Tab navigation */}
+      <div className="flex border-b t-border mb-8">
+        <button
+          onClick={() => setActiveTab('MY_COURSES')}
+          className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition border-b-2 ${activeTab === 'MY_COURSES' ? 'border-brand-600 text-brand-500' : 'border-transparent t-text-2 hover:t-text'}`}
+        >
+          <BookOpen size={16} /> My Courses
+          {enrolledCourses.length > 0 && <span className="bg-brand-600/20 text-brand-400 text-xs px-2 py-0.5 rounded-full font-bold">{enrolledCourses.length}</span>}
+        </button>
+        <button
+          onClick={() => setActiveTab('SAVED')}
+          className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition border-b-2 ${activeTab === 'SAVED' ? 'border-brand-600 text-brand-500' : 'border-transparent t-text-2 hover:t-text'}`}
+        >
+          <Heart size={16} /> Saved
+          {savedCourses.length > 0 && <span className="bg-brand-600/20 text-brand-400 text-xs px-2 py-0.5 rounded-full font-bold">{savedCourses.length}</span>}
+        </button>
+      </div>
+
+      {/* Saved tab */}
+      {activeTab === 'SAVED' && (
+        <div>
+          {savedCourses.length === 0 ? (
+            <div className="text-center py-20 t-card rounded-2xl t-border border">
+              <Heart size={40} className="mx-auto t-text-3 mb-4" />
+              <p className="text-xl font-bold t-text mb-2">No saved courses yet</p>
+              <p className="t-text-2 mb-6">Tap the heart icon on any course to save it for later.</p>
+              <Link to="/" className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-full transition">
+                Browse Catalog <ArrowRight size={16} />
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {savedCourses.map(course => (
+                <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden group relative">
+                  <Link to={`/course/${course.id}`}>
+                    <img src={course.thumbnail} alt={course.title} className="w-full h-40 object-cover" />
+                    <div className="p-4">
+                      <p className="font-bold t-text leading-tight group-hover:text-brand-400 transition">{course.title}</p>
+                      <p className="text-xs t-text-3 mt-1 capitalize">{course.type?.toLowerCase().replace('_', ' ')}</p>
+                    </div>
+                  </Link>
+                  <div className="absolute top-3 right-3">
+                    <WishlistButton courseId={course.id} className="bg-black/50 backdrop-blur-sm p-2 rounded-full border border-white/10" size={18} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'MY_COURSES' && (
+      <>
+      {/* Progress stats row */}
+      {enrolledCourses.length > 0 && (() => {
+        const completed = enrolledCourses.filter(c => c.progress >= 100).length;
+        const inProgress = enrolledCourses.filter(c => c.progress > 0 && c.progress < 100).length;
+        const avgProgress = Math.round(enrolledCourses.reduce((sum, c) => sum + (c.progress || 0), 0) / enrolledCourses.length);
+        return (
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="t-card t-border border rounded-2xl p-4 text-center">
+              <BookOpen size={20} className="text-brand-400 mx-auto mb-2" />
+              <p className="text-2xl font-black t-text">{enrolledCourses.length}</p>
+              <p className="text-xs t-text-2 mt-0.5">Enrolled</p>
+            </div>
+            <div className="t-card t-border border rounded-2xl p-4 text-center">
+              <TrendingUp size={20} className="mx-auto mb-2" style={{ color: 'var(--status-warning-text)' }} />
+              <p className="text-2xl font-black t-text">{inProgress}</p>
+              <p className="text-xs t-text-2 mt-0.5">In Progress</p>
+            </div>
+            <div className="t-card t-border border rounded-2xl p-4 text-center">
+              <CheckCircle size={20} className="mx-auto mb-2" style={{ color: 'var(--status-success-text)' }} />
+              <p className="text-2xl font-black t-text">{completed}</p>
+              <p className="text-xs t-text-2 mt-0.5">Completed</p>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Avg progress bar */}
+      {enrolledCourses.length > 0 && (
+        <div className="t-card t-border border rounded-2xl p-4 mb-8">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-medium t-text-2">Overall Progress</p>
+            <p className="text-sm font-bold t-text">
+              {Math.round(enrolledCourses.reduce((sum, c) => sum + (c.progress || 0), 0) / enrolledCourses.length)}%
+            </p>
+          </div>
+          <div className="w-full t-bg-alt h-2 rounded-full overflow-hidden">
+            <div
+              className="bg-brand-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${Math.round(enrolledCourses.reduce((sum, c) => sum + (c.progress || 0), 0) / enrolledCourses.length)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {enrolledCourses.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {enrolledCourses.map(course => {
               const statusLabel = course.progress >= 100 ? 'Completed' : course.progress > 0 ? 'In Progress' : 'Not Started';
-              const statusColor = course.progress >= 100 ? 'text-green-400' : course.progress > 0 ? 'text-brand-400' : 't-text-3';
+              const statusColor = course.progress >= 100 ? '[color:var(--status-success-text)]' : course.progress > 0 ? 'text-brand-400' : 't-text-3';
               return (
                 <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden hover:bg-[var(--surface-hover)] transition group duration-300">
                   <div className="relative h-48">
@@ -243,6 +356,8 @@ export const Dashboard: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );

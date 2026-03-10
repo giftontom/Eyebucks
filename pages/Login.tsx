@@ -91,8 +91,8 @@ export const Login: React.FC = () => {
 
             <div className="space-y-4">
               <div className="flex items-start gap-4 p-4 rounded-xl t-card t-border border">
-                <div className="bg-green-500/10 p-2 rounded-lg">
-                  <CheckCircle2 className="text-green-400" size={24} />
+                <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--status-success-bg)' }}>
+                  <CheckCircle2 size={24} style={{ color: 'var(--status-success-text)' }} />
                 </div>
                 <div>
                   <h3 className="font-bold t-text mb-1">Track Your Progress</h3>
@@ -101,8 +101,8 @@ export const Login: React.FC = () => {
               </div>
 
               <div className="flex items-start gap-4 p-4 rounded-xl t-card t-border border">
-                <div className="bg-blue-500/10 p-2 rounded-lg">
-                  <Zap className="text-blue-400" size={24} />
+                <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--status-info-bg)' }}>
+                  <Zap size={24} style={{ color: 'var(--status-info-text)' }} />
                 </div>
                 <div>
                   <h3 className="font-bold t-text mb-1">Instant Access</h3>
@@ -111,8 +111,8 @@ export const Login: React.FC = () => {
               </div>
 
               <div className="flex items-start gap-4 p-4 rounded-xl t-card t-border border">
-                <div className="bg-purple-500/10 p-2 rounded-lg">
-                  <Star className="text-purple-400" size={24} />
+                <div className="bg-brand-600/10 p-2 rounded-lg">
+                  <Star size={24} className="text-brand-400" />
                 </div>
                 <div>
                   <h3 className="font-bold t-text mb-1">Premium Content</h3>
@@ -125,7 +125,7 @@ export const Login: React.FC = () => {
               <div className="flex -space-x-2">
                 <div className="w-10 h-10 rounded-full t-border border bg-brand-600/30 flex items-center justify-center t-text text-xs font-bold">M</div>
                 <div className="w-10 h-10 rounded-full t-border border bg-orange-600/30 flex items-center justify-center t-text text-xs font-bold">S</div>
-                <div className="w-10 h-10 rounded-full t-border border bg-purple-600/30 flex items-center justify-center t-text text-xs font-bold">D</div>
+                <div className="w-10 h-10 rounded-full t-border border bg-brand-600/20 flex items-center justify-center t-text text-xs font-bold">D</div>
                 <div className="w-10 h-10 rounded-full t-border border t-card flex items-center justify-center t-text text-xs font-bold">
                   +10K
                 </div>
@@ -157,7 +157,7 @@ export const Login: React.FC = () => {
 
             {/* Error Message */}
             {error && (
-              <div role="alert" aria-live="polite" className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+              <div role="alert" aria-live="polite" className="mb-4 p-4 t-status-danger border rounded-xl text-sm">
                 {error}
               </div>
             )}
@@ -222,7 +222,7 @@ export const Login: React.FC = () => {
             {/* Security Badge */}
             <div className="mt-8 pt-8 border-t t-border">
               <div className="flex items-center justify-center gap-2 text-sm t-text-3">
-                <Shield size={16} className="text-green-500" />
+                <Shield size={16} style={{ color: 'var(--status-success-text)' }} />
                 <span>Secure authentication powered by Supabase</span>
               </div>
             </div>

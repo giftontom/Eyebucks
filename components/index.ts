@@ -23,3 +23,5 @@ export { Toast, useToast } from './Toast';
 export { VideoPlayer } from './VideoPlayer';
 export type { VideoPlayerHandle, QualityLevel } from './VideoPlayer';
 export { VideoUploader } from './VideoUploader';
+export { WishlistButton } from './WishlistButton';
+export { ShareButton } from './ShareButton';

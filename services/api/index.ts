@@ -20,3 +20,5 @@ export type { Review, ReviewSummary, ReviewsResponse } from './reviews.api';
 export { usersApi, mapUserProfile } from './users.api';
 export { couponsApi } from './coupons.api';
 export type { Coupon } from './coupons.api';
+export { wishlistApi } from './wishlist.api';
+export type { WishlistEntry } from './wishlist.api';

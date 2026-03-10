@@ -1,4 +1,4 @@
-import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
@@ -15,13 +15,13 @@ export const PurchaseSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
   const courseId = searchParams.get('courseId');
   const orderId = searchParams.get('orderId');
+  const bundleWarning = searchParams.get('bundleWarning');
   const [showConfetti, setShowConfetti] = useState(true);
   const [course, setCourse] = useState<Course | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Hide confetti after 3 seconds
     const timer = setTimeout(() => setShowConfetti(false), 3000);
     return () => clearTimeout(timer);
   }, []);
@@ -43,7 +43,7 @@ export const PurchaseSuccess: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <Loader2 className="animate-spin text-brand-600" size={48} />
       </div>
     );
@@ -51,10 +51,10 @@ export const PurchaseSuccess: React.FC = () => {
 
   if (!course) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="min-h-screen flex items-center justify-center t-bg">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-neutral-900 mb-4">Course not found</h2>
-          <Link to="/" className="text-brand-600 hover:underline">Return to homepage</Link>
+          <h2 className="text-2xl font-bold t-text mb-4">Course not found</h2>
+          <Link to="/" className="text-brand-400 hover:text-brand-300 font-medium">Return to homepage</Link>
         </div>
       </div>
     );
@@ -108,14 +108,13 @@ export const PurchaseSuccess: React.FC = () => {
         logger.debug('Error sharing:', err);
       }
     } else {
-      // Fallback - copy to clipboard
       navigator.clipboard.writeText(shareData.url);
       alert('Link copied to clipboard!');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 relative overflow-hidden">
+    <div className="min-h-screen t-bg relative overflow-hidden">
       {/* Confetti Animation */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
@@ -140,19 +139,38 @@ export const PurchaseSuccess: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
         {/* Success Icon */}
         <div className="text-center mb-8 animate-fade-in-up">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-6 animate-scale-in">
-            <CheckCircle2 size={56} className="text-green-600" />
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-500/10 rounded-full mb-6 animate-scale-in">
+            <CheckCircle2 size={56} className="text-green-400" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-neutral-900 mb-4">
+          <h1 className="text-4xl md:text-5xl font-black t-text mb-4">
             Welcome to the Course!
           </h1>
-          <p className="text-xl text-neutral-600 max-w-2xl mx-auto">
-            Your enrollment is confirmed. You now have <span className="font-bold text-green-600">lifetime access</span> to all course materials.
+          <p className="text-xl t-text-2 max-w-2xl mx-auto">
+            Your enrollment is confirmed. You now have <span className="font-bold text-green-400">lifetime access</span> to all course materials.
           </p>
         </div>
 
+        {/* Bundle warning card */}
+        {bundleWarning && (
+          <div className="mb-8 p-5 t-status-warning border rounded-2xl animate-fade-in-up">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold mb-1">Partial Enrollment Issue</p>
+                <p className="text-sm mb-3">{bundleWarning}</p>
+                <a
+                  href="mailto:support@eyebuckz.com?subject=Bundle Enrollment Issue"
+                  className="text-sm font-bold underline hover:no-underline"
+                >
+                  Contact Support →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Course Card */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-neutral-200 overflow-hidden mb-8 animate-fade-in-up delay-100">
+        <div className="t-card t-border border rounded-3xl shadow-2xl overflow-hidden mb-8 animate-fade-in-up">
           <div className="grid md:grid-cols-5 gap-6">
             {/* Course Image */}
             <div className="md:col-span-2 relative aspect-[4/3] md:aspect-auto">
@@ -171,24 +189,24 @@ export const PurchaseSuccess: React.FC = () => {
 
             {/* Course Details */}
             <div className="md:col-span-3 p-8">
-              <h2 className="text-2xl font-bold text-neutral-900 mb-4">{course.title}</h2>
-              <p className="text-neutral-600 mb-6 line-clamp-2">{course.description}</p>
+              <h2 className="text-2xl font-bold t-text mb-4">{course.title}</h2>
+              <p className="t-text-2 mb-6 line-clamp-2">{course.description}</p>
 
               <div className="space-y-3 mb-6">
-                <div className="flex items-center gap-3 text-sm text-neutral-600">
-                  <CheckCircle2 size={18} className="text-green-600" />
+                <div className="flex items-center gap-3 text-sm t-text-2">
+                  <CheckCircle2 size={18} className="text-green-400" />
                   <span>{(course.chapters?.length || 0)} comprehensive lessons</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-neutral-600">
-                  <CheckCircle2 size={18} className="text-green-600" />
+                <div className="flex items-center gap-3 text-sm t-text-2">
+                  <CheckCircle2 size={18} className="text-green-400" />
                   <span>Lifetime access to all materials</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-neutral-600">
-                  <CheckCircle2 size={18} className="text-green-600" />
+                <div className="flex items-center gap-3 text-sm t-text-2">
+                  <CheckCircle2 size={18} className="text-green-400" />
                   <span>Certificate of completion</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-neutral-600">
-                  <CheckCircle2 size={18} className="text-green-600" />
+                <div className="flex items-center gap-3 text-sm t-text-2">
+                  <CheckCircle2 size={18} className="text-green-400" />
                   <span>Auto-save progress across devices</span>
                 </div>
               </div>
@@ -196,7 +214,7 @@ export const PurchaseSuccess: React.FC = () => {
               <div className="flex flex-wrap gap-4">
                 <button
                   onClick={handleStartLearning}
-                  className="flex-1 sm:flex-none bg-brand-600 hover:bg-brand-700 text-white px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 group"
+                  className="flex-1 sm:flex-none bg-brand-600 hover:bg-brand-500 text-white px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg hover:-translate-y-0.5 group"
                 >
                   <Play size={20} fill="currentColor" />
                   Start Learning Now
@@ -205,10 +223,10 @@ export const PurchaseSuccess: React.FC = () => {
 
                 <Link
                   to="/dashboard"
-                  className="flex-1 sm:flex-none bg-neutral-100 hover:bg-neutral-200 text-neutral-900 px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all"
+                  className="flex-1 sm:flex-none t-card hover:bg-[var(--surface-hover)] t-border border t-text px-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all"
                 >
                   <LayoutGrid size={20} />
-                  View All Courses
+                  My Dashboard
                 </Link>
               </div>
             </div>
@@ -216,55 +234,51 @@ export const PurchaseSuccess: React.FC = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 gap-6 animate-fade-in-up delay-200">
-          {/* Download Receipt */}
+        <div className="grid md:grid-cols-2 gap-6 animate-fade-in-up">
           <div
             onClick={handleDownloadReceipt}
-            className="bg-white rounded-2xl p-6 border border-neutral-200 hover:shadow-lg transition-all cursor-pointer group"
+            className="t-card t-border border rounded-2xl p-6 hover:bg-[var(--surface-hover)] transition-all cursor-pointer group"
           >
             <div className="flex items-start gap-4">
-              <div className="bg-blue-100 p-3 rounded-xl group-hover:bg-blue-200 transition-colors">
-                <Download size={24} className="text-blue-600" />
+              <div className="bg-blue-500/10 p-3 rounded-xl group-hover:bg-blue-500/20 transition-colors">
+                <Download size={24} style={{ color: 'var(--status-info-text)' }} />
               </div>
               <div>
-                <h3 className="font-bold text-neutral-900 mb-1">Receipt & Invoice</h3>
-                <p className="text-sm text-neutral-600 mb-3">Download your purchase confirmation for records</p>
-                <button className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-                  Download Receipt
-                  <ArrowRight size={14} />
-                </button>
+                <h3 className="font-bold t-text mb-1">Receipt & Invoice</h3>
+                <p className="text-sm t-text-2 mb-3">Download your purchase confirmation for records</p>
+                <span className="text-sm text-brand-400 font-medium flex items-center gap-1">
+                  Download Receipt <ArrowRight size={14} />
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Share */}
           <div
             onClick={handleShareSuccess}
-            className="bg-white rounded-2xl p-6 border border-neutral-200 hover:shadow-lg transition-all cursor-pointer group"
+            className="t-card t-border border rounded-2xl p-6 hover:bg-[var(--surface-hover)] transition-all cursor-pointer group"
           >
             <div className="flex items-start gap-4">
-              <div className="bg-purple-100 p-3 rounded-xl group-hover:bg-purple-200 transition-colors">
-                <Share2 size={24} className="text-purple-600" />
+              <div className="bg-purple-500/10 p-3 rounded-xl group-hover:bg-purple-500/20 transition-colors">
+                <Share2 size={24} className="text-purple-400" />
               </div>
               <div>
-                <h3 className="font-bold text-neutral-900 mb-1">Share Your Achievement</h3>
-                <p className="text-sm text-neutral-600 mb-3">Let others know you're learning something new!</p>
-                <button className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-                  Share on Social
-                  <ArrowRight size={14} />
-                </button>
+                <h3 className="font-bold t-text mb-1">Share Your Achievement</h3>
+                <p className="text-sm t-text-2 mb-3">Let others know you're learning something new!</p>
+                <span className="text-sm text-brand-400 font-medium flex items-center gap-1">
+                  Share on Social <ArrowRight size={14} />
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Next Steps */}
-        <div className="mt-12 bg-gradient-to-r from-brand-600 to-brand-700 rounded-2xl p-8 text-white text-center animate-fade-in-up delay-300">
+        <div className="mt-12 bg-brand-600 rounded-2xl p-8 text-white text-center animate-fade-in-up">
           <h3 className="text-2xl font-bold mb-4">What's Next?</h3>
           <p className="text-brand-100 mb-6 max-w-2xl mx-auto">
             Start with the first lesson, take notes, and practice what you learn. Your progress will be automatically saved so you can pick up where you left off anytime.
           </p>
-          <div className="flex flex-wrap justify-center gap-4 text-sm">
+          <div className="flex flex-wrap justify-center gap-4 text-sm text-brand-100">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={16} />
               <span>30-Day Money Back Guarantee</span>
@@ -290,12 +304,8 @@ export const PurchaseSuccess: React.FC = () => {
         }
 
         @keyframes scale-in {
-          0% {
-            transform: scale(0) rotate(-180deg);
-          }
-          100% {
-            transform: scale(1) rotate(0deg);
-          }
+          0% { transform: scale(0) rotate(-180deg); }
+          100% { transform: scale(1) rotate(0deg); }
         }
 
         .animate-scale-in {

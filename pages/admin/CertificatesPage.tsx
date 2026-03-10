@@ -83,12 +83,12 @@ export const CertificatesPage: React.FC = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-slate-900">Certificate Manager</h3>
+      <div className="t-card t-border border rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b t-border flex justify-between items-center">
+          <h3 className="text-xl font-bold t-text">Certificate Manager</h3>
           <button
             onClick={openIssueModal}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
+            className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
           >
             <FileText size={16} /> Issue Manually
           </button>
@@ -96,10 +96,10 @@ export const CertificatesPage: React.FC = () => {
 
         <DataTable
           columns={[
-            { key: 'number', label: 'Certificate Number', className: 'pl-6', render: (c: AdminCertificate) => <span className="font-mono text-slate-400 text-xs">{c.certificateNumber}</span> },
-            { key: 'student', label: 'Student', render: (c: AdminCertificate) => <span className="font-medium text-slate-900">{c.studentName}</span> },
-            { key: 'course', label: 'Course', render: (c: AdminCertificate) => <span className="text-slate-600">{c.courseTitle}</span> },
-            { key: 'date', label: 'Issue Date', render: (c: AdminCertificate) => <span className="text-slate-500">{new Date(c.issueDate).toLocaleDateString('en-IN')}</span> },
+            { key: 'number', label: 'Certificate Number', className: 'pl-6', render: (c: AdminCertificate) => <span className="font-mono t-text-3 text-xs">{c.certificateNumber}</span> },
+            { key: 'student', label: 'Student', render: (c: AdminCertificate) => <span className="font-medium t-text">{c.studentName}</span> },
+            { key: 'course', label: 'Course', render: (c: AdminCertificate) => <span className="t-text-2">{c.courseTitle}</span> },
+            { key: 'date', label: 'Issue Date', render: (c: AdminCertificate) => <span className="t-text-2">{new Date(c.issueDate).toLocaleDateString('en-IN')}</span> },
             { key: 'status', label: 'Status', render: (c: AdminCertificate) => <StatusBadge status={c.status} /> },
             {
               key: 'action',
@@ -108,12 +108,13 @@ export const CertificatesPage: React.FC = () => {
               render: (c: AdminCertificate) => c.status === 'ACTIVE' ? (
                 <button
                   onClick={() => { setCertToRevoke({ id: c.id, studentName: c.studentName, courseTitle: c.courseTitle }); setShowRevokeModal(true); }}
-                  className="text-red-600 hover:text-red-700 font-medium"
+                  className="font-medium text-sm hover:opacity-70"
+                  style={{ color: 'var(--status-danger-text)' }}
                 >
                   Revoke
                 </button>
               ) : (
-                <span className="text-slate-400 italic text-sm">Revoked</span>
+                <span className="t-text-3 italic text-sm">Revoked</span>
               ),
             },
           ]}
@@ -135,9 +136,9 @@ export const CertificatesPage: React.FC = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Select User *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Select User *</label>
             <select
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
             >
@@ -148,9 +149,9 @@ export const CertificatesPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Select Course *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Select Course *</label>
             <select
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               value={selectedCourseId}
               onChange={(e) => setSelectedCourseId(e.target.value)}
             >
@@ -160,21 +161,21 @@ export const CertificatesPage: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
+          <div className="t-status-warning border rounded-lg p-3 text-xs">
             This will issue a certificate without verifying course completion. Use responsibly.
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => setShowIssueModal(false)}
-            className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+            className="flex-1 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2 rounded-lg font-medium transition"
           >
             Cancel
           </button>
           <button
             onClick={handleIssue}
             disabled={!selectedUserId || !selectedCourseId}
-            className="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-brand-600 hover:bg-brand-500 text-white py-2 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Issue Certificate
           </button>
@@ -189,32 +190,32 @@ export const CertificatesPage: React.FC = () => {
       >
         {certToRevoke && (
           <>
-            <p className="text-slate-600 mb-4">
-              Revoking certificate for <span className="font-bold text-slate-900">{certToRevoke.studentName}</span> - <span className="font-medium text-slate-700">{certToRevoke.courseTitle}</span>
+            <p className="t-text-2 mb-4">
+              Revoking certificate for <span className="font-bold t-text">{certToRevoke.studentName}</span> - <span className="font-medium">{certToRevoke.courseTitle}</span>
             </p>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Reason for Revocation</label>
+              <label className="block text-sm font-medium t-text-2 mb-2">Reason for Revocation</label>
               <textarea
                 value={revokeReason}
                 onChange={(e) => setRevokeReason(e.target.value)}
                 placeholder="Explain why this certificate is being revoked..."
                 rows={4}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 mb-4">
+            <div className="t-status-danger border rounded-lg p-3 text-xs mb-4">
               This action cannot be undone. The certificate will be permanently revoked.
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowRevokeModal(false); setCertToRevoke(null); setRevokeReason(''); }}
-                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 py-2 rounded-lg font-medium transition"
+                className="flex-1 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2 rounded-lg font-medium transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRevoke}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-medium transition"
+                className="flex-1 t-status-danger border hover:opacity-80 py-2 rounded-lg font-medium transition"
               >
                 Revoke Certificate
               </button>

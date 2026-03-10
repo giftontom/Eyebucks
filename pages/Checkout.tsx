@@ -6,6 +6,7 @@ import { Button, Input } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useScript } from '../hooks/useScript';
 import { coursesApi, enrollmentsApi, checkoutApi, couponsApi } from '../services/api';
+import { supabase } from '../services/supabase';
 import { CourseType } from '../types';
 import { logger } from '../utils/logger';
 
@@ -249,6 +250,14 @@ export const Checkout: React.FC = () => {
     if (!validateForm()) {return;}
 
     try {
+      // Refresh session before calling Edge Function to avoid "Invalid JWT" on expired tokens
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        setErrorMessage('Your session expired. Please log in again.');
+        await login();
+        return;
+      }
+
       // Step 1: Create Order
       setStatus('CREATING_ORDER');
 
@@ -334,18 +343,16 @@ export const Checkout: React.FC = () => {
       if (verifyResponse.verified) {
         logger.info('[Checkout] Payment verified, enrollment created:', verifyResponse.enrollmentId);
 
-        if (verifyResponse.bundleWarning && verifyResponse.failedCourseIds?.length) {
-          setWarningMessage(
-            `${verifyResponse.bundleWarning}. Please contact support with these course IDs: ${verifyResponse.failedCourseIds.join(', ')}`
-          );
-        }
-
         setStatus('SUCCESS');
 
-        // Redirect to success page after brief delay (longer if there's a warning)
+        // Redirect to success page after brief delay
         setTimeout(() => {
-          navigate(`/success?courseId=${course.id}&orderId=${orderId}`);
-        }, verifyResponse.bundleWarning ? 4000 : 1500);
+          const params = new URLSearchParams({ courseId: course.id, orderId });
+          if (verifyResponse.bundleWarning && verifyResponse.failedCourseIds?.length) {
+            params.set('bundleWarning', `${verifyResponse.bundleWarning}. Failed course IDs: ${verifyResponse.failedCourseIds.join(', ')}`);
+          }
+          navigate(`/success?${params.toString()}`);
+        }, 1500);
       } else {
         throw new Error('Payment verification failed');
       }
@@ -429,9 +436,9 @@ export const Checkout: React.FC = () => {
         <div className="p-8 relative t-bg">
           {status === 'SUCCESS' ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 animate-fade-in">
-              <CheckCircle2 size={64} className="text-green-400 mb-4" />
+              <CheckCircle2 size={64} className="mb-4" style={{ color: 'var(--status-success-text)' }} />
               <h3 className="text-2xl font-bold text-white">Payment Successful!</h3>
-              <p className="text-gray-300 mt-2">Redirecting to your studio...</p>
+              <p className="text-white/70 mt-2">Redirecting to your studio...</p>
             </div>
           ) : (
             <>

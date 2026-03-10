@@ -7,6 +7,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { verifyAuth } from '../_shared/auth.ts';
 import { generateCertificateNumber } from '../_shared/certificates.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { sendEmail } from '../_shared/email.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
@@ -84,6 +85,7 @@ serve(async (req) => {
 
         if (userProfile && course) {
           const certNumber = generateCertificateNumber();
+          const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
 
           await supabaseAdmin.from('certificates').insert({
             user_id: user.id,
@@ -104,6 +106,25 @@ serve(async (req) => {
             message: `Congratulations! You've completed ${course.title} and earned a certificate!`,
             link: '/dashboard',
           });
+
+          // Send completion email (non-blocking)
+          if (userProfile.email) {
+            sendEmail(
+              userProfile.email,
+              `You've completed ${course.title}! 🎓`,
+              `
+                <h2>Congratulations, ${userProfile.name}!</h2>
+                <p>You've successfully completed <strong>${course.title}</strong> on Eyebuckz.</p>
+                <p>Your certificate (No. ${certNumber}) is ready to download from your dashboard.</p>
+                <p style="margin-top:24px;">
+                  <a href="${appUrl}/#/dashboard" style="background:#e53935;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">
+                    View Certificate
+                  </a>
+                </p>
+                <p style="margin-top:32px;color:#888;font-size:12px;">Keep learning — explore more courses at <a href="${appUrl}">eyebuckz.com</a></p>
+              `
+            );
+          }
         }
       }
     }
