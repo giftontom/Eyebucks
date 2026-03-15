@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 import { mapUserProfile } from '../services/api/users.api';
 import { supabase } from '../services/supabase';
+import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
 import type { User } from '../types';
@@ -42,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const mappedUser = mapUserProfile(profile);
     setUser(mappedUser);
+    analytics.identify(mappedUser.id, { email: mappedUser.email, role: mappedUser.role });
 
     // Update last login
     await supabase
@@ -98,18 +100,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             }
           } catch (enforceErr) {
+            // Lenient: unexpected throws (e.g. cold-start Edge Function error) should not block login
             logger.error('[AuthContext] Session enforce threw:', enforceErr);
           }
 
           // Retry with exponential backoff to wait for auth trigger to create profile
-          const retryLoadProfile = async (userId: string, attempt = 0) => {
+          const retryLoadProfile = async (userId: string): Promise<void> => {
             const delays = [200, 400, 800, 1600, 3000];
-            const result = await loadUserProfile(userId);
-            if (!result && attempt < delays.length) {
-              setTimeout(() => retryLoadProfile(userId, attempt + 1), delays[attempt]);
+            for (let attempt = 0; attempt < delays.length; attempt++) {
+              const result = await loadUserProfile(userId);
+              if (result) { return; }
+              if (attempt < delays.length) {
+                await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+              }
             }
+            logger.error('[AuthContext] Failed to load user profile after all retries. User ID:', userId);
           };
-          retryLoadProfile(newSession.user.id);
+          retryLoadProfile(newSession.user.id).catch(err =>
+            logger.error('[AuthContext] retryLoadProfile threw:', err)
+          );
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -199,6 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    analytics.reset();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

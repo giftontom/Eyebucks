@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_courses: {
         Row: {
           bundle_id: string
@@ -979,6 +1023,7 @@ export type CompositeTypes<
 export type CertificateRow = Database['public']['Tables']['certificates']['Row']
 export type CourseRow = Database['public']['Tables']['courses']['Row']
 export type CourseUpdate = Database['public']['Tables']['courses']['Update']
+export type ModuleInsert = Database['public']['Tables']['modules']['Insert']
 export type ModuleUpdate = Database['public']['Tables']['modules']['Update']
 export type UserUpdate = Database['public']['Tables']['users']['Update']
 export type EnrollmentRow = Database['public']['Tables']['enrollments']['Row']

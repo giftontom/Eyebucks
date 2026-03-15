@@ -7,7 +7,7 @@ export const Terms: React.FC = () => {
       <Link to="/" className="text-brand-600 hover:text-brand-700 text-sm font-medium mb-8 inline-block">&larr; Back to Home</Link>
 
       <h1 className="text-4xl font-bold t-text mb-8">Terms of Service</h1>
-      <p className="t-text-3 mb-8">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      <p className="t-text-3 mb-8">Last updated: March 14, 2026</p>
 
       <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6 t-text-2 leading-relaxed">
         <section>
@@ -26,8 +26,21 @@ export const Terms: React.FC = () => {
         </section>
 
         <section>
-          <h2 className="text-2xl font-bold t-text mt-8 mb-4">4. Payment & Refunds</h2>
-          <p>All payments are processed securely through Razorpay. Prices are displayed in Indian Rupees (INR). Each purchase grants lifetime access to the course. Refund requests may be considered on a case-by-case basis within 30 days of purchase by contacting our support team.</p>
+          <h2 className="text-2xl font-bold t-text mt-8 mb-4">4. Payment & Pricing</h2>
+          <p>All payments are processed securely through Razorpay. Prices are displayed in Indian Rupees (INR). Each purchase grants lifetime access to the purchased course.</p>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-bold t-text mt-8 mb-4">4a. Refund Policy</h2>
+          <p className="mb-3">We want you to be fully satisfied with your purchase. Our refund policy is as follows:</p>
+          <ul className="list-disc pl-6 space-y-2">
+            <li><strong>Eligibility window:</strong> Refund requests must be submitted within <strong>7 days</strong> of purchase.</li>
+            <li><strong>Completion limit:</strong> Refunds are only available if you have completed <strong>20% or less</strong> of the course content. Once more than 20% of modules are completed, the course is considered accessed and no refund will be issued.</li>
+            <li><strong>How to request:</strong> Contact our support team at <a href="mailto:support@eyebuckz.com" className="text-brand-600 hover:underline">support@eyebuckz.com</a> with your order ID and reason for the refund.</li>
+            <li><strong>Processing time:</strong> Approved refunds are processed within 2–3 business days and may take an additional 5–7 business days to reflect in your account, depending on your bank.</li>
+            <li><strong>Access revocation:</strong> Upon approval of a refund, your access to the course will be revoked and any certificate of completion will be invalidated.</li>
+            <li><strong>Non-refundable situations:</strong> Refunds will not be issued after 7 days of purchase, if more than 20% of the course has been completed, or for duplicate purchases where the second enrollment was made in error (contact us immediately for duplicate cases).</li>
+          </ul>
         </section>
 
         <section>

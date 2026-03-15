@@ -14,8 +14,17 @@ import type {
 } from '../../types';
 import type {
   CourseRow, ModuleRow, UserRow, CourseUpdate, UserUpdate, SiteContentUpdate,
-  SiteContentRow, ModuleUpdate, EnrollmentRow, CertificateRow, Json,
+  SiteContentRow, ModuleInsert, ModuleUpdate, EnrollmentRow, CertificateRow, Json,
 } from '../../types/supabase';
+
+// Escape special characters that could alter PostgREST .or() filter logic
+function escapeOrFilter(value: string): string {
+  return value.replace(/[(),"'\\]/g, '\\$&');
+}
+
+// Typed helper for custom RPCs not yet in generated schema types
+const customRpc = (fn: string, args?: Record<string, unknown>) =>
+  supabase.rpc(fn as never, args as never) as unknown as Promise<{ error: { message: string } | null }>;
 
 // Query result types for joined queries
 type UserWithEnrollments = UserRow & { enrollments: { id: string }[] };
@@ -89,7 +98,8 @@ export const adminApi = {
       .select('*, enrollments(id)', { count: 'exact' });
 
     if (params?.search) {
-      query = query.or(`name.ilike.%${params.search}%,email.ilike.%${params.search}%`);
+      const s = escapeOrFilter(params.search);
+      query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%`);
     }
     if (params?.role) {
       query = query.eq('role', params.role as 'USER' | 'ADMIN');
@@ -386,7 +396,7 @@ export const adminApi = {
       is_free_preview: moduleData.isFreePreview || false,
       order_index: nextOrder,
       ...(moduleData.videoId ? { video_id: moduleData.videoId } : {}),
-    } as any;
+    } satisfies ModuleInsert;
 
     const { data, error } = await supabase
       .from('modules')
@@ -436,12 +446,12 @@ export const adminApi = {
     // Query video_id before deleting the module (video_id added in migration 014)
     const { data: moduleData } = await supabase
       .from('modules')
-      .select('video_id' as any)
+      .select('video_id')
       .eq('id', moduleId)
       .eq('course_id', courseId)
       .maybeSingle();
 
-    const videoGuid = (moduleData as any)?.video_id as string | undefined;
+    const videoGuid = moduleData?.video_id ?? undefined;
 
     const { error } = await supabase
       .from('modules')
@@ -467,22 +477,14 @@ export const adminApi = {
     success: boolean;
     message: string;
   }> {
-    // Use atomic RPC, fallback to sequential updates if RPC not available
-    const { error: rpcError } = await (supabase.rpc as any)('reorder_modules', {
+    // Atomic RPC — surface errors rather than falling back to non-atomic sequential updates
+    const { error: rpcError } = await customRpc('reorder_modules', {
       p_course_id: courseId,
       p_module_ids: moduleIds,
     });
 
     if (rpcError) {
-      // Fallback: sequential updates
-      const updates = moduleIds.map((id, index) =>
-        supabase
-          .from('modules')
-          .update({ order_index: index + 1 })
-          .eq('id', id)
-          .eq('course_id', courseId)
-      );
-      await Promise.all(updates);
+      throw new Error(rpcError.message || 'Failed to reorder modules');
     }
 
     return { success: true, message: 'Modules reordered' };
@@ -504,34 +506,14 @@ export const adminApi = {
   },
 
   async setBundleCourses(bundleId: string, courseIds: string[]): Promise<{ success: boolean; message: string }> {
-    // Use atomic RPC, fallback to delete+insert if RPC not available
-    const { error: rpcError } = await (supabase.rpc as any)('set_bundle_courses', {
+    // Atomic RPC — surface errors rather than falling back to non-atomic delete+insert
+    const { error: rpcError } = await customRpc('set_bundle_courses', {
       p_bundle_id: bundleId,
       p_course_ids: courseIds,
     });
 
     if (rpcError) {
-      // Fallback: delete + insert
-      const { error: deleteError } = await supabase
-        .from('bundle_courses')
-        .delete()
-        .eq('bundle_id', bundleId);
-
-      if (deleteError) {throw new Error(deleteError.message);}
-
-      if (courseIds.length > 0) {
-        const rows = courseIds.map((courseId, index) => ({
-          bundle_id: bundleId,
-          course_id: courseId,
-          order_index: index,
-        }));
-
-        const { error: insertError } = await supabase
-          .from('bundle_courses')
-          .insert(rows);
-
-        if (insertError) {throw new Error(insertError.message);}
-      }
+      throw new Error(rpcError.message || 'Failed to update bundle courses');
     }
 
     return { success: true, message: 'Bundle courses updated' };
@@ -749,8 +731,9 @@ export const adminApi = {
       .select('*, users(name, email), courses(title)', { count: 'exact' });
 
     if (params?.search) {
+      const s = escapeOrFilter(params.search);
       query = query.or(
-        `receipt_number.ilike.%${params.search}%,razorpay_payment_id.ilike.%${params.search}%`
+        `receipt_number.ilike.%${s}%,razorpay_payment_id.ilike.%${s}%`
       );
     }
 
@@ -821,7 +804,7 @@ export const adminApi = {
       .select('*, users:user_id(name, email, avatar), courses:course_id(title)', { count: 'exact' });
 
     if (params?.search) {
-      query = query.or(`comment.ilike.%${params.search}%`);
+      query = query.or(`comment.ilike.%${escapeOrFilter(params.search)}%`);
     }
 
     const { data, error, count } = await query

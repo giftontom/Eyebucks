@@ -47,37 +47,36 @@ export const reviewsApi = {
   ): Promise<ReviewsResponse> {
     const offset = (page - 1) * limit;
 
-    const { data: reviews, error, count } = await supabase
-      .from('reviews')
-      .select(`
-        id, user_id, rating, comment, helpful, created_at, updated_at,
-        users:user_id (name, avatar)
-      `, { count: 'exact' })
-      .eq('course_id', courseId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    const [reviewsResult, summaryResult] = await Promise.all([
+      supabase
+        .from('reviews')
+        .select(`
+          id, user_id, rating, comment, helpful, created_at, updated_at,
+          users:user_id (name, avatar)
+        `, { count: 'exact' })
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.rpc as any)('get_review_summary', { p_course_id: courseId }),
+    ]);
 
-    if (error) {throw new Error(error.message);}
+    if (reviewsResult.error) {throw new Error(reviewsResult.error.message);}
 
-    const { data: allReviews } = await supabase
-      .from('reviews')
-      .select('rating')
-      .eq('course_id', courseId);
+    const summary = summaryResult.data as {
+      total: number;
+      average_rating: number;
+      distribution: { '5': number; '4': number; '3': number; '2': number; '1': number };
+    } | null;
 
-    const total = allReviews?.length || 0;
-    const avgRating = total > 0
-      ? allReviews!.reduce((sum, r) => sum + r.rating, 0) / total
-      : 0;
-    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    allReviews?.forEach(r => {
-      if (r.rating >= 1 && r.rating <= 5) {
-        distribution[r.rating]++;
-      }
-    });
+    const total = reviewsResult.count || 0;
+    const avgRating = summary?.average_rating ?? 0;
+    const dist = summary?.distribution ?? { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 };
+    const distribution = { 5: dist['5'], 4: dist['4'], 3: dist['3'], 2: dist['2'], 1: dist['1'] };
 
     return {
       success: true,
-      reviews: (reviews || []).map((r: ReviewQueryRow) => ({
+      reviews: (reviewsResult.data || []).map((r: ReviewQueryRow) => ({
         id: r.id,
         userId: r.user_id,
         rating: r.rating,
@@ -88,7 +87,7 @@ export const reviewsApi = {
         updatedAt: r.updated_at,
       })),
       summary: { total, averageRating: avgRating, distribution },
-      pagination: { hasMore: (count || 0) > offset + limit },
+      pagination: { hasMore: total > offset + limit },
     };
   },
 

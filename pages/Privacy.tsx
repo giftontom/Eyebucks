@@ -7,7 +7,7 @@ export const Privacy: React.FC = () => {
       <Link to="/" className="text-brand-600 hover:text-brand-700 text-sm font-medium mb-8 inline-block">&larr; Back to Home</Link>
 
       <h1 className="text-4xl font-bold t-text mb-8">Privacy Policy</h1>
-      <p className="t-text-3 mb-8">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+      <p className="t-text-3 mb-8">Last updated: March 14, 2026</p>
 
       <div className="prose prose-neutral dark:prose-invert max-w-none space-y-6 t-text-2 leading-relaxed">
         <section>
