@@ -62,7 +62,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.checkout-webhook]
-verify_jwt = false  # Webhooks come from Razorpay, no JWT
+verify_jwt = false  # Webhooks come from Razorpay, not authenticated users
 
 [functions.video-signed-url]
 verify_jwt = true
@@ -74,4 +74,16 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.progress-complete]
+verify_jwt = true
+
+[functions.coupon-apply]
+verify_jwt = true
+
+[functions.refund-process]
+verify_jwt = true
+
+[functions.session-enforce]
+verify_jwt = true
+
+[functions.video-cleanup]
 verify_jwt = true

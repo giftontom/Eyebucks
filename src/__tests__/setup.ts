@@ -2,6 +2,31 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { expect, afterEach, vi } from 'vitest';
 
+// Mock posthog-js to avoid loading the large bundle in tests
+vi.mock('posthog-js', () => ({
+  default: {
+    init: vi.fn(),
+    capture: vi.fn(),
+    identify: vi.fn(),
+    reset: vi.fn(),
+    opt_out_capturing: vi.fn(),
+  },
+}));
+
+// Mock hls.js to avoid loading the large media bundle in tests
+vi.mock('hls.js', () => ({
+  default: class MockHls {
+    static isSupported() { return false; }
+    on() {}
+    off() {}
+    loadSource() {}
+    attachMedia() {}
+    destroy() {}
+    levels = [];
+    currentLevel = -1;
+  },
+}));
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();

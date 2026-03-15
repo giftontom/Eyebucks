@@ -181,5 +181,44 @@ describe('paymentsApi', () => {
       await paymentsApi.getAdminPayments({ status: 'refunded' });
       expect(mockSupabase.from).toHaveBeenCalledWith('payments');
     });
+
+    it('should filter by search term', async () => {
+      const orMock = vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({
+          range: vi.fn().mockResolvedValue({ data: null, error: null, count: 0 }),
+        }),
+      });
+
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({ or: orMock }),
+      });
+
+      const result = await paymentsApi.getAdminPayments({ search: 'REC-001' });
+      expect(result.total).toBe(0);
+      expect(result.payments).toEqual([]);
+    });
+
+    it('should return all without filters', async () => {
+      const mockPaymentRow = {
+        id: 'p1', user_id: 'u1', course_id: 'c1', razorpay_order_id: null,
+        razorpay_payment_id: null, amount: 99900, currency: 'INR', status: 'captured',
+        method: null, receipt_number: null, refund_id: null, refund_amount: null,
+        refund_reason: null, refunded_at: null, metadata: {}, enrollment_id: null,
+        created_at: '2024-01-01', updated_at: '2024-01-01',
+        courses: null, users: null,
+      };
+
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            range: vi.fn().mockResolvedValue({ data: [mockPaymentRow], error: null, count: 1 }),
+          }),
+        }),
+      });
+
+      const result = await paymentsApi.getAdminPayments();
+      expect(result.total).toBe(1);
+      expect(result.payments[0].amount).toBe(99900);
+    });
   });
 });

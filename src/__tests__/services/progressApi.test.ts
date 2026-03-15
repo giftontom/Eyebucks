@@ -218,6 +218,40 @@ describe('progressApi', () => {
       const result = await progressApi.getProgress('c');
       expect(result).toEqual([]);
     });
+
+    it('should return progress array for authenticated user', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+      const progressRow = {
+        module_id: 'm1', timestamp: 100, completed: true, completed_at: '2024-01-01',
+        watch_time: 300, view_count: 2, last_updated_at: '2024-01-01', updated_at: '2024-01-01',
+      };
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [progressRow], error: null }),
+          }),
+        }),
+      });
+
+      const result = await progressApi.getProgress('c1');
+      expect(result).toHaveLength(1);
+      expect(result[0].moduleId).toBe('m1');
+      expect(result[0].completed).toBe(true);
+    });
+
+    it('should return empty on error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+          }),
+        }),
+      });
+
+      const result = await progressApi.getProgress('c1');
+      expect(result).toEqual([]);
+    });
   });
 
   describe('getCourseStats', () => {
@@ -246,6 +280,99 @@ describe('progressApi', () => {
         p_course_id: 'c',
       });
       expect(stats.completedModules).toBe(5);
+    });
+
+    it('should return default stats when RPC returns error', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } });
+
+      const stats = await progressApi.getCourseStats('c');
+      expect(stats.overallPercent).toBe(0);
+    });
+  });
+
+  describe('checkCompletion', () => {
+    it('should return false when duration is 0', async () => {
+      const result = await progressApi.checkCompletion('c', 'm', 100, 0);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when below threshold', async () => {
+      const result = await progressApi.checkCompletion('c', 'm', 50, 100);
+      expect(result).toBe(false);
+    });
+
+    it('should return false when already completed', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+      mockChainedQuery({ data: {
+        module_id: 'm', timestamp: 95, completed: true, completed_at: '2024-01-01',
+        watch_time: 100, view_count: 1, last_updated_at: '2024-01-01', updated_at: '2024-01-01',
+      }, error: null });
+
+      const result = await progressApi.checkCompletion('c', 'm', 96, 100);
+      expect(result).toBe(false);
+    });
+
+    it('should mark complete and return true at threshold', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+      // getModuleProgress returns incomplete
+      mockChainedQuery({ data: {
+        module_id: 'm', timestamp: 0, completed: false, completed_at: null,
+        watch_time: 0, view_count: 1, last_updated_at: '2024-01-01', updated_at: '2024-01-01',
+      }, error: null });
+      // markComplete → functions.invoke
+      mockSupabase.functions.invoke.mockResolvedValue({ data: { success: true }, error: null });
+
+      const result = await progressApi.checkCompletion('c', 'm', 96, 100);
+      expect(result).toBe(true);
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('progress-complete', expect.any(Object));
+    });
+  });
+
+  describe('saveProgress', () => {
+    it('should return early when not authenticated', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
+      await progressApi.saveProgress('c', 'm', 100);
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it('should insert new progress when no existing record', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+      const insertMock = vi.fn().mockResolvedValue({ error: null });
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          }),
+        }),
+        insert: insertMock,
+      });
+
+      await progressApi.saveProgress('c', 'm', 100);
+      expect(insertMock).toHaveBeenCalled();
+    });
+
+    it('should call increment_view_count RPC when existing record', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'p1' }, error: null }),
+              }),
+            }),
+          }),
+        }),
+      });
+      mockSupabase.rpc.mockResolvedValue({ error: null });
+
+      await progressApi.saveProgress('c', 'm', 100);
+      expect(mockSupabase.rpc).toHaveBeenCalled();
     });
   });
 });

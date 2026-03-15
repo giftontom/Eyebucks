@@ -4,6 +4,7 @@ const { mockSupabase } = vi.hoisted(() => {
   const mockSupabase = {
     auth: { getUser: vi.fn() },
     from: vi.fn(),
+    rpc: vi.fn(),
   };
   return { mockSupabase };
 });
@@ -110,80 +111,71 @@ describe('reviewsApi', () => {
 
   describe('getCourseReviews', () => {
     it('should return reviews with summary', async () => {
-      // First call: paginated reviews
-      // Second call: all reviews for summary
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  range: vi.fn().mockResolvedValue({
-                    data: [
-                      {
-                        id: 'r1',
-                        user_id: 'u1',
-                        rating: 5,
-                        comment: 'Great',
-                        helpful: 3,
-                        created_at: '2024-01-01',
-                        updated_at: '2024-01-01',
-                        users: { name: 'Alice', avatar: 'a.jpg' },
-                      },
-                    ],
-                    error: null,
-                    count: 1,
-                  }),
-                }),
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              range: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'r1',
+                    user_id: 'u1',
+                    rating: 5,
+                    comment: 'Great',
+                    helpful: 3,
+                    created_at: '2024-01-01',
+                    updated_at: '2024-01-01',
+                    users: { name: 'Alice', avatar: 'a.jpg' },
+                  },
+                ],
+                error: null,
+                count: 1,
               }),
             }),
-          };
-        }
-        // Second call for all ratings
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ rating: 5 }, { rating: 4 }, { rating: 5 }],
-            }),
           }),
-        };
+        }),
+      });
+
+      mockSupabase.rpc.mockResolvedValue({
+        data: {
+          total: 3,
+          average_rating: 4.67,
+          distribution: { '5': 2, '4': 1, '3': 0, '2': 0, '1': 0 },
+        },
+        error: null,
       });
 
       const result = await reviewsApi.getCourseReviews('course-1');
       expect(result.reviews).toHaveLength(1);
       expect(result.reviews[0].user.name).toBe('Alice');
-      expect(result.summary.total).toBe(3);
+      expect(result.summary.total).toBe(1); // from paginated count
       expect(result.summary.averageRating).toBeCloseTo(4.67, 1);
       expect(result.summary.distribution[5]).toBe(2);
       expect(result.summary.distribution[4]).toBe(1);
     });
 
     it('should return empty reviews for course with no reviews', async () => {
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  range: vi.fn().mockResolvedValue({
-                    data: [],
-                    error: null,
-                    count: 0,
-                  }),
-                }),
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              range: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+                count: 0,
               }),
             }),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({ data: [] }),
           }),
-        };
+        }),
+      });
+
+      mockSupabase.rpc.mockResolvedValue({
+        data: {
+          total: 0,
+          average_rating: 0,
+          distribution: { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 },
+        },
+        error: null,
       });
 
       const result = await reviewsApi.getCourseReviews('empty-course');
