@@ -2,13 +2,14 @@ import { Play, Star, ArrowRight, Users, CheckCircle2, Layers, X, Plus, Award, Gl
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { Badge, Button, WishlistButton } from '../components';
+import { useAuth } from '../context/AuthContext';
 import { useStorefrontFilters } from '../hooks/useStorefrontFilters';
+import { Badge, Button, WishlistButton } from '../components';
 import { HeroCarousel } from '../components/HeroCarousel';
 import { CourseCardSkeleton } from '../components/CourseCardSkeleton';
-import { useAuth } from '../context/AuthContext';
 import { coursesApi, siteContentApi } from '../services/api';
 import { CourseType } from '../types';
+import { logger } from '../utils/logger';
 
 import type { Course } from '../types';
 
@@ -148,7 +149,7 @@ export const Storefront: React.FC = () => {
     setIsLoading(true);
     coursesApi.getCourses()
       .then(res => { setCourses(res.courses); })
-      .catch(err => { console.error('[Storefront] Failed to load courses:', err); setLoadError(true); })
+      .catch(err => { logger.error('[Storefront] Failed to load courses:', err); setLoadError(true); })
       .finally(() => setIsLoading(false));
   };
 
@@ -157,14 +158,17 @@ export const Storefront: React.FC = () => {
   useEffect(() => {
     siteContentApi.getBySection('faq').then(items => {
       if (items.length > 0) {setFaqs(items.map(i => ({ q: i.title, a: i.body })));}
-    }).catch(() => {});
+    }).catch((err) => logger.warn('[Storefront] Failed to load FAQs:', err));
     siteContentApi.getBySection('testimonial').then(items => {
-      if (items.length > 0) {setTestimonials(items.map(i => ({
-        name: i.title, text: i.body,
-        role: (i.metadata as any)?.role || '',
-        image: (i.metadata as any)?.image || '',
-      })));}
-    }).catch(() => {});
+      if (items.length > 0) {setTestimonials(items.map(i => {
+        const meta = i.metadata as Record<string, string> | null;
+        return {
+          name: i.title, text: i.body,
+          role: meta?.role || '',
+          image: meta?.image || '',
+        };
+      }));}
+    }).catch((err) => logger.warn('[Storefront] Failed to load testimonials:', err));
   }, []);
 
   const handleBuy = React.useCallback((courseId: string) => {
@@ -374,7 +378,7 @@ export const Storefront: React.FC = () => {
                   {(['ALL', 'BUNDLE', 'MODULE'] as const).map(type => (
                     <button
                       key={type}
-                      onClick={() => setTypeFilter(type as any)}
+                      onClick={() => setTypeFilter(type)}
                       className={`px-5 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${
                         filters.typeFilter === type
                           ? 'bg-white/10 dark:bg-white/10 bg-black/10 t-text shadow-md'

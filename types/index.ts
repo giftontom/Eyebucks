@@ -7,8 +7,10 @@
 // USER TYPES
 // ============================================
 
+/** Maps to `user_role` DB ENUM. All new users default to 'USER'; only DB triggers or admin actions set 'ADMIN'. */
 export type Role = 'USER' | 'ADMIN';
 
+/** User profile synced from `auth.users` via DB trigger. `phone_e164` is required by ProtectedRoute's PhoneGateModal. */
 export interface User {
   id: string;
   name: string;
@@ -27,10 +29,13 @@ export interface User {
 // COURSE TYPES
 // ============================================
 
+/** BUNDLE = a collection of MODULE courses; MODULE = a standalone course with video chapters. */
 export const CourseType = { BUNDLE: 'BUNDLE', MODULE: 'MODULE' } as const;
 export type CourseType = (typeof CourseType)[keyof typeof CourseType];
+/** PUBLISHED = visible in storefront; DRAFT = hidden from students. */
 export type CourseStatus = 'PUBLISHED' | 'DRAFT';
 
+/** Course catalog entry. `price` is in paise (₹1 = 100 paise). `slug` is UNIQUE in DB. */
 export interface Course {
   id: string;
   slug: string;
@@ -83,6 +88,7 @@ export interface CourseWithModules extends Course {
 // MODULE TYPES
 // ============================================
 
+/** A video chapter within a course. `videoId` is a Bunny.net GUID (not a URL) — pass to `useVideoUrl`. */
 export interface Module {
   id: string;
   courseId: string;
@@ -102,8 +108,10 @@ export interface Module {
 // ENROLLMENT TYPES
 // ============================================
 
+/** PENDING = payment started but not yet verified; ACTIVE = paid + access granted; EXPIRED/REVOKED = no access. */
 export type EnrollmentStatus = 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'PENDING';
 
+/** User's access record for a course. `expiresAt` null = no expiry (lifetime access). */
 export interface Enrollment {
   id: string;
   userId: string;
@@ -137,6 +145,7 @@ export interface EnrollmentWithCourse extends Enrollment {
 // PROGRESS TYPES
 // ============================================
 
+/** Per-module video watch record. `timestamp` is the last watched position in seconds. `completed` = reached 95% threshold. */
 export interface Progress {
   id: string;
   userId: string;
@@ -162,8 +171,10 @@ export interface ProgressStats {
 // CERTIFICATE TYPES
 // ============================================
 
+/** ACTIVE = valid certificate; REVOKED = invalidated by admin. */
 export type CertificateStatus = 'ACTIVE' | 'REVOKED';
 
+/** Course completion certificate. `downloadUrl` is a Supabase Storage public URL. `pdf_data` (in DB) is base64. */
 export interface Certificate {
   id: string;
   userId: string;
@@ -340,7 +351,7 @@ export interface UserUpdateData {
 
 export interface SiteContentItem {
   id: string;
-  section: 'faq' | 'testimonial' | 'showcase' | 'banner';
+  section: 'faq' | 'testimonial' | 'showcase' | 'banner' | 'settings';
   title: string;
   body: string;
   metadata: Record<string, unknown>;

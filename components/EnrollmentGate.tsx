@@ -2,12 +2,24 @@ import { Lock, ArrowRight, CheckCircle2, Star, Users } from 'lucide-react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
+/**
+ * Props for the EnrollmentGate component.
+ *
+ * Rendered by the Learn page when `useAccessControl` returns `hasAccess: false`.
+ * The gate is a full-screen paywall that navigates to the Checkout or CourseDetails page.
+ */
 interface EnrollmentGateProps {
+  /** UUID of the course — used for the checkout and back-navigation URLs. */
   courseId: string;
+  /** Course display name shown in the gate header. */
   courseTitle: string;
+  /** Course price in paise (1 INR = 100 paise). Displayed as `₹{price/100}`. */
   coursePrice: number;
+  /** URL of the course thumbnail displayed as the gate background image. */
   courseThumbnail: string;
+  /** Short course description shown in the gate body. */
   courseDescription: string;
+  /** Total number of modules — used for the "N lessons" copy. */
   totalModules: number;
 }
 

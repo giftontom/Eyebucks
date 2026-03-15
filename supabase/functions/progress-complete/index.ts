@@ -13,6 +13,31 @@ import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 const COMPLETION_THRESHOLD = 0.95; // 95% watch threshold — must match frontend
 
+/**
+ * progress-complete Edge Function — marks a module complete and triggers course completion logic.
+ *
+ * Auth: JWT required.
+ * Method: POST
+ *
+ * Request body:
+ * ```json
+ * { "moduleId": "uuid", "courseId": "uuid", "currentTime": 285, "duration": 300 }
+ * ```
+ *
+ * `currentTime` and `duration` are optional but recommended. If provided, the function
+ * validates that the user has watched at least `COMPLETION_THRESHOLD` (95%) of the video.
+ *
+ * Response (success):
+ * ```json
+ * { "success": true, "progress": { ... }, "stats": { "completedModules": 5, "totalModules": 8, "overallPercent": 62 } }
+ * ```
+ *
+ * Side effects:
+ * - Calls `complete_module(user_id, module_id, course_id)` RPC atomically
+ * - If `overallPercent >= 100`: upserts a row in `certificates` (ignoreDuplicates for concurrent safety),
+ *   inserts `certificate` notification, sends completion email via Resend
+ * - At 25%, 50%, 75% milestones: inserts `milestone` notification (idempotent check)
+ */
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -87,16 +112,25 @@ serve(async (req) => {
           const certNumber = generateCertificateNumber();
           const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
 
-          await supabaseAdmin.from('certificates').insert({
-            user_id: user.id,
-            course_id: courseId,
-            certificate_number: certNumber,
-            student_name: userProfile.name,
-            course_title: course.title,
-            issue_date: new Date().toISOString(),
-            completion_date: new Date().toISOString(),
-            status: 'ACTIVE',
-          });
+          // Use upsert with ignoreDuplicates to handle concurrent requests safely.
+          // The unique constraint on (user_id, course_id) prevents duplicate certificates.
+          const { error: certInsertError } = await supabaseAdmin
+            .from('certificates')
+            .upsert({
+              user_id: user.id,
+              course_id: courseId,
+              certificate_number: certNumber,
+              student_name: userProfile.name,
+              course_title: course.title,
+              issue_date: new Date().toISOString(),
+              completion_date: new Date().toISOString(),
+              status: 'ACTIVE',
+            }, { onConflict: 'user_id,course_id', ignoreDuplicates: true });
+
+          // If a concurrent request already inserted, skip notification/email
+          if (certInsertError) {
+            console.error('[Progress] Certificate insert error:', certInsertError);
+          } else {
 
           // Create certificate notification
           await supabaseAdmin.from('notifications').insert({
@@ -125,25 +159,36 @@ serve(async (req) => {
               `
             );
           }
+          } // end else (certInsertError)
         }
       }
     }
 
-    // Create milestone notification for partial completion
-    if (result) {
+    // Create milestone notification on first crossing of 25%, 50%, 75%
+    if (result && result.percent < 100) {
       const milestones = [25, 50, 75];
       const percent = result.percent;
 
       for (const milestone of milestones) {
-        if (percent >= milestone && percent < milestone + (100 / result.total_modules)) {
-          await supabaseAdmin.from('notifications').insert({
-            user_id: user.id,
-            type: 'milestone',
-            title: `${milestone}% Complete!`,
-            message: `You're ${milestone}% through the course. Keep going!`,
-            link: `/learn/${courseId}`,
-          });
-          break;
+        if (percent >= milestone) {
+          // Check if this milestone notification was already sent
+          const { data: existing } = await supabaseAdmin
+            .from('notifications')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('type', 'milestone')
+            .eq('title', `${milestone}% Complete!`)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabaseAdmin.from('notifications').insert({
+              user_id: user.id,
+              type: 'milestone',
+              title: `${milestone}% Complete!`,
+              message: `You're ${milestone}% through the course. Keep going!`,
+              link: `/learn/${courseId}`,
+            });
+          }
         }
       }
     }

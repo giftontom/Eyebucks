@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 import type { VideoPlayerHandle } from '../components/VideoPlayer';
 
@@ -47,6 +47,7 @@ export function useMobileGestures({
       // Double-tap detected
       if (doubleTapTimeoutRef.current) {clearTimeout(doubleTapTimeoutRef.current);}
       if (videoRef.current) {
+        if (!videoRef.current.duration || videoRef.current.duration <= 0) { return; }
         if (isLeftHalf) {
           videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
           setDoubleTapIndicator({ side: 'left', key: now });
@@ -121,6 +122,10 @@ export function useMobileGestures({
         break;
     }
   }, [videoRef, handlePlayPause, toggleMute, toggleFullScreen, adjustSpeed, setShowQualityMenu, setVolume, setIsMuted]);
+
+  useEffect(() => {
+    return () => { if (doubleTapTimeoutRef.current) { clearTimeout(doubleTapTimeoutRef.current); } };
+  }, []);
 
   return {
     doubleTapIndicator,

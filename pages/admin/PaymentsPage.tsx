@@ -52,7 +52,7 @@ export const PaymentsPage: React.FC = () => {
   useEffect(() => {
     adminApi.getStats()
       .then(res => setTotalRevenue(res.stats.totalRevenue))
-      .catch(() => {});
+      .catch((err) => logger.warn('[PaymentsPage] Failed to load revenue stats:', err));
   }, []);
 
   const handleExportCSV = () => {

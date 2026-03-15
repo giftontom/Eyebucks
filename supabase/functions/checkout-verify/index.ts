@@ -10,6 +10,34 @@ import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
+/**
+ * checkout-verify Edge Function — verifies a Razorpay payment signature and creates enrollment.
+ *
+ * Auth: JWT required (called by the frontend after the Razorpay checkout modal succeeds).
+ * Method: POST
+ *
+ * Request body:
+ * ```json
+ * { "orderId": "order_ABC", "paymentId": "pay_XYZ", "signature": "hmac-hex", "courseId": "uuid" }
+ * ```
+ *
+ * Response (success):
+ * ```json
+ * { "success": true, "verified": true, "enrollmentId": "uuid",
+ *   "bundleWarning": "optional", "failedCourseIds": [] }
+ * ```
+ *
+ * Security: HMAC-SHA256 signature verification using `orderId|paymentId` and
+ * `RAZORPAY_KEY_SECRET`. Also fetches the Razorpay order to verify the paid amount
+ * matches `courses.price` (defense-in-depth against price manipulation).
+ *
+ * Side effects:
+ * - Inserts row in `enrollments` (UNIQUE on user_id+course_id prevents duplicates)
+ * - For BUNDLE courses: upserts enrollment for each bundled course
+ * - Inserts row in `payments`
+ * - Inserts `enrollment` notification in `notifications`
+ * - Sends enrollment welcome email and payment receipt via Resend (non-blocking)
+ */
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -143,9 +171,9 @@ serve(async (req) => {
       }
     }
 
-    // Insert payment record
+    // Insert payment record (must succeed — accounting depends on this)
     const receiptNumber = `EYB-${Date.now().toString(36).toUpperCase()}`;
-    await supabaseAdmin.from('payments').insert({
+    const { error: payError } = await supabaseAdmin.from('payments').insert({
       user_id: user.id,
       course_id: courseId,
       enrollment_id: enrollment.id,
@@ -155,9 +183,11 @@ serve(async (req) => {
       currency: 'INR',
       status: 'captured',
       receipt_number: receiptNumber,
-    }).then(({ error: payError }) => {
-      if (payError) {console.error('[Checkout] Payment record error:', payError);}
     });
+    if (payError) {
+      console.error('[Checkout] Payment record insert failed:', payError);
+      return errorResponse('Enrollment succeeded but payment record could not be saved. Please contact support.', corsHeaders, 500);
+    }
 
     // Get user profile for email
     const { data: userProfile } = await supabaseAdmin

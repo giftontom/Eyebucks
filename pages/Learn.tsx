@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { EnrollmentGate } from '../components/EnrollmentGate';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useToast } from '../components/Toast';
 import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
 import { useAuth } from '../context/AuthContext';
@@ -47,7 +48,7 @@ export const Learn: React.FC = () => {
 
   const videoRef = useRef<VideoPlayerHandle>(null);
 
-  const activeChapterIndex = modules.findIndex(m => m.id === activeChapterId) ?? 0;
+  const activeChapterIndex = Math.max(0, modules.findIndex(m => m.id === activeChapterId));
 
   // --- Hook wiring ---
 
@@ -95,7 +96,7 @@ export const Learn: React.FC = () => {
     courseId: id,
     activeChapterId,
     isPlaying,
-    user: user as any,
+    user,
     videoRef,
     hasAccess,
   });
@@ -157,56 +158,7 @@ export const Learn: React.FC = () => {
     }
   };
 
-  // Global keyboard shortcuts — work even when video container doesn't have focus.
-  // Skipped when focus is in a text input/textarea (e.g. notes editor).
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {return;}
-      if (!videoRef.current) {return;}
-      switch (e.key) {
-        case ' ':
-        case 'k':
-          e.preventDefault();
-          handlePlayPause();
-          break;
-        case 'ArrowLeft':
-        case 'j':
-          e.preventDefault();
-          videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
-          break;
-        case 'ArrowRight':
-        case 'l':
-          e.preventDefault();
-          videoRef.current.currentTime = Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + 10);
-          break;
-        case 'm':
-          e.preventDefault();
-          toggleMute();
-          break;
-        case 'f':
-          e.preventDefault();
-          toggleFullScreen();
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          { const newVol = Math.min(1, (videoRef.current.volume || 0) + 0.1);
-            videoRef.current.volume = newVol;
-            setVolume(newVol);
-            setIsMuted(newVol === 0); }
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          { const newVol = Math.max(0, (videoRef.current.volume || 0) - 0.1);
-            videoRef.current.volume = newVol;
-            setVolume(newVol);
-            setIsMuted(newVol === 0); }
-          break;
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handlePlayPause, toggleMute, toggleFullScreen, setVolume, setIsMuted]);
+  // Keyboard shortcuts are handled by useMobileGestures via onKeyDown on the video container.
 
   // Previous / Next Chapter Logic
   const handlePrev = () => {
@@ -281,17 +233,10 @@ export const Learn: React.FC = () => {
             <p className="t-text-2">{course.description}</p>
           </div>
 
-          {/* Overall progress */}
+          {/* Bundle course count */}
           <div className="t-card border t-border rounded-xl p-6 mb-8">
-            <div className="flex justify-between text-sm t-text-2 mb-2">
-              <span>{bundledCourses.length} Courses in this Bundle</span>
-              <span>{Math.round(progressPercent)}% Overall</span>
-            </div>
-            <div className="w-full t-bg-alt h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-brand-600 to-brand-400 h-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
+            <div className="flex justify-between text-sm t-text-2">
+              <span>{bundledCourses.length} Course{bundledCourses.length !== 1 ? 's' : ''} in this Bundle</span>
             </div>
           </div>
 
@@ -370,6 +315,18 @@ export const Learn: React.FC = () => {
             onContextMenu={(e) => e.preventDefault()}
             tabIndex={0}
         >
+            <ErrorBoundary fallback={
+              <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white gap-4">
+                <Film size={40} className="text-red-400" />
+                <p className="text-sm text-gray-400">Video failed to load</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm rounded-lg transition"
+                >
+                  Reload video
+                </button>
+              </div>
+            }>
             <VideoPlayer
                 ref={videoRef}
                 videoId={extractVideoId(activeModule?.videoUrl)}
@@ -393,6 +350,7 @@ export const Learn: React.FC = () => {
                   }
                 }}
             />
+            </ErrorBoundary>
 
             {/* Tap overlay for play/pause + double-tap skip */}
             <div

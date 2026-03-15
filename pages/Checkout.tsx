@@ -8,6 +8,7 @@ import { useScript } from '../hooks/useScript';
 import { coursesApi, enrollmentsApi, checkoutApi, couponsApi } from '../services/api';
 import { supabase } from '../services/supabase';
 import { CourseType } from '../types';
+import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
 import type { Course } from '../types';
@@ -92,7 +93,14 @@ export const Checkout: React.FC = () => {
       return;
     }
     coursesApi.getCourse(id)
-      .then(res => setCourse(res.course))
+      .then(res => {
+        setCourse(res.course);
+        analytics.track('checkout_started', {
+          course_id: res.course.id,
+          course_title: res.course.title,
+          price: res.course.price,
+        });
+      })
       .catch(err => logger.error('[Checkout] Failed to load course:', err))
       .finally(() => setIsLoadingCourse(false));
   }, [id]);
@@ -210,8 +218,13 @@ export const Checkout: React.FC = () => {
       setCouponDiscount(result.discountPct);
       setCouponUseId(result.couponUseId);
       setCouponApplied(true);
-    } catch (err: any) {
-      setCouponError(err.message || 'Invalid coupon');
+      analytics.track('coupon_applied', {
+        coupon_code: couponInput,
+        discount_pct: result.discountPct,
+        course_id: course?.id,
+      });
+    } catch (err: unknown) {
+      setCouponError(err instanceof Error ? err.message : 'Invalid coupon');
       setCouponDiscount(0);
       setCouponUseId(undefined);
       setCouponApplied(false);
@@ -243,7 +256,11 @@ export const Checkout: React.FC = () => {
     setWarningMessage('');
 
     if (!user) {
-      await login();
+      try {
+        await login();
+      } catch {
+        setErrorMessage('Login cancelled. Please try again.');
+      }
       return;
     }
 
@@ -251,8 +268,8 @@ export const Checkout: React.FC = () => {
 
     try {
       // Refresh session before calling Edge Function to avoid "Invalid JWT" on expired tokens
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
+      const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !session) {
         setErrorMessage('Your session expired. Please log in again.');
         await login();
         return;
@@ -304,9 +321,9 @@ export const Checkout: React.FC = () => {
 
         const razorpay = new window.Razorpay(options);
         razorpay.open();
-      } else {
-        // Mock mode - simulate payment
-        logger.debug('[Checkout] Using mock payment mode');
+      } else if (import.meta.env.DEV) {
+        // Mock mode — only active in development builds
+        logger.debug('[Checkout] Using mock payment mode (DEV only)');
         setStatus('PAYING');
 
         // Simulate payment delay
@@ -321,11 +338,15 @@ export const Checkout: React.FC = () => {
           },
           orderResponse.orderId
         );
+      } else {
+        // Production: Razorpay SDK unavailable — abort payment
+        setStatus('IDLE');
+        setErrorMessage('Payment gateway failed to load. Please refresh the page and try again, or contact support.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[Checkout] Error:', error);
       setStatus('IDLE');
-      setErrorMessage(error.message || 'Payment failed. Please try again.');
+      setErrorMessage(error instanceof Error ? error.message : 'Payment failed. Please try again.');
     }
   };
 
@@ -342,6 +363,14 @@ export const Checkout: React.FC = () => {
 
       if (verifyResponse.verified) {
         logger.info('[Checkout] Payment verified, enrollment created:', verifyResponse.enrollmentId);
+        analytics.track('payment_completed', {
+          course_id: course.id,
+          course_title: course.title,
+          order_id: orderId,
+          amount: course.price,
+          coupon_applied: couponApplied,
+          coupon_discount_pct: couponDiscount,
+        });
 
         setStatus('SUCCESS');
 

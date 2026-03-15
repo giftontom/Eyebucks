@@ -36,7 +36,17 @@ function mapEnrollment(row: EnrollmentRow): Enrollment {
 
 export const enrollmentsApi = {
   /**
-   * Get all enrollments for the current user
+   * Fetches all active enrollments for the current authenticated user, joined with course data.
+   *
+   * @returns Array of `EnrollmentWithCourse` objects ordered by `enrolled_at` descending.
+   *   Returns `[]` if the user is not authenticated.
+   * @throws {Error} If the database query fails.
+   *
+   * @example
+   * ```ts
+   * const enrollments = await enrollmentsApi.getUserEnrollments();
+   * const courseIds = enrollments.map(e => e.courseId);
+   * ```
    */
   async getUserEnrollments(): Promise<EnrollmentWithCourse[]> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -77,7 +87,20 @@ export const enrollmentsApi = {
   },
 
   /**
-   * Check if current user has access to a course
+   * Checks whether the current user has access to a course.
+   *
+   * Returns `true` for ADMIN users (bypasses enrollment check) and for users
+   * with an ACTIVE enrollment for the given course.
+   *
+   * @param courseId - UUID of the course to check.
+   * @returns `true` if the user is an admin or has an active enrollment; `false` otherwise.
+   *   Returns `false` if the user is not authenticated.
+   *
+   * @example
+   * ```ts
+   * const hasAccess = await enrollmentsApi.checkAccess(courseId);
+   * if (!hasAccess) navigate(`/course/${courseId}`);
+   * ```
    */
   async checkAccess(courseId: string): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -104,7 +127,17 @@ export const enrollmentsApi = {
   },
 
   /**
-   * Get a specific enrollment
+   * Fetches the current user's active enrollment for a specific course.
+   *
+   * @param courseId - UUID of the course to look up enrollment for.
+   * @returns The `Enrollment` object if an active enrollment exists; `null` if not enrolled,
+   *   not authenticated, or if the query fails.
+   *
+   * @example
+   * ```ts
+   * const enrollment = await enrollmentsApi.getEnrollment(courseId);
+   * if (enrollment) console.log('Resume at module:', enrollment.currentModule);
+   * ```
    */
   async getEnrollment(courseId: string): Promise<Enrollment | null> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -123,7 +156,11 @@ export const enrollmentsApi = {
   },
 
   /**
-   * Update last accessed time
+   * Updates `last_accessed_at` on an enrollment to the current timestamp.
+   *
+   * Called when a user navigates to the Learn page for a course.
+   *
+   * @param enrollmentId - UUID of the enrollment to update.
    */
   async updateLastAccess(enrollmentId: string): Promise<void> {
     await supabase
@@ -133,7 +170,14 @@ export const enrollmentsApi = {
   },
 
   /**
-   * Update enrollment progress fields
+   * Updates the denormalized progress fields on an enrollment record.
+   *
+   * Only provided fields are updated (partial update pattern). Used by
+   * `useModuleProgress` to keep the enrollment's progress summary in sync
+   * after module completion or current module changes.
+   *
+   * @param enrollmentId - UUID of the enrollment to update.
+   * @param data - Partial progress fields to set. Any omitted fields are left unchanged.
    */
   async updateProgress(enrollmentId: string, data: {
     completedModules?: string[];

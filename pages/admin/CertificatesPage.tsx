@@ -74,8 +74,8 @@ export const CertificatesPage: React.FC = () => {
     }
   };
 
-  const openIssueModal = () => {
-    if (!usersLoaded) {refreshUsers();}
+  const openIssueModal = async () => {
+    if (!usersLoaded) {await refreshUsers();}
     setSelectedUserId('');
     setSelectedCourseId('');
     setShowIssueModal(true);

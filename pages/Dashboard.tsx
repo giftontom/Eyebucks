@@ -109,8 +109,8 @@ export const Dashboard: React.FC = () => {
       if (entries.length === 0) { setSavedCourses([]); return; }
       const courses = await coursesApi.getCoursesByIds(entries.map(e => e.courseId));
       setSavedCourses(courses);
-    }).catch(() => {});
-  }, [user, wishlistIds]);
+    }).catch((err) => logger.warn('[Dashboard] Failed to load wishlist courses:', err));
+  }, [user]);
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -265,7 +265,7 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {enrolledCourses.map(course => {
               const statusLabel = course.progress >= 100 ? 'Completed' : course.progress > 0 ? 'In Progress' : 'Not Started';
-              const statusColor = course.progress >= 100 ? '[color:var(--status-success-text)]' : course.progress > 0 ? 'text-brand-400' : 't-text-3';
+              const statusColor = course.progress >= 100 ? 'text-[var(--status-success-text)]' : course.progress > 0 ? 'text-brand-400' : 't-text-3';
               return (
                 <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden hover:bg-[var(--surface-hover)] transition group duration-300">
                   <div className="relative h-48">

@@ -8,6 +8,10 @@ import type { Progress, ProgressStats } from '../../types';
 import type { ProgressRow } from '../../types/supabase';
 
 const COMPLETION_THRESHOLD = 0.95;
+
+// Typed helper for custom RPCs not yet in generated schema types
+const customRpc = (fn: string, args?: Record<string, unknown>) =>
+  supabase.rpc(fn as never, args as never) as unknown as Promise<{ error: { message: string } | null }>;
 const AUTO_SAVE_INTERVAL = 30000;
 
 interface ModuleProgress {
@@ -37,7 +41,22 @@ function mapProgress(row: ProgressRow): Progress {
 
 export const progressApi = {
   /**
-   * Save progress checkpoint for a module
+   * Saves the video watch position and increments `view_count` for the first save of a session.
+   *
+   * On the first call for a given module in a viewing session, calls the `increment_view_count`
+   * RPC for an atomic increment. If the RPC fails (not yet deployed), falls back to a plain
+   * UPDATE. On subsequent calls within the session, use `updateTimestamp()` instead to avoid
+   * double-counting views.
+   *
+   * @param courseId - UUID of the course containing the module.
+   * @param moduleId - UUID of the module being watched.
+   * @param timestamp - Current video position in seconds.
+   *
+   * @example
+   * ```ts
+   * // Called on first auto-save tick of a viewing session
+   * await progressApi.saveProgress(courseId, moduleId, videoRef.current.currentTime);
+   * ```
    */
   async saveProgress(courseId: string, moduleId: string, timestamp: number): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -54,22 +73,22 @@ export const progressApi = {
 
     if (existing) {
       // Update existing record — use RPC-style raw update for atomic increment
-      await (supabase.rpc as any)('increment_view_count', {
+      const { error: rpcError } = await customRpc('increment_view_count', {
         p_user_id: user.id,
         p_course_id: courseId,
         p_module_id: moduleId,
         p_timestamp: timestamp,
-      }).then(({ error: rpcError }: { error: any }) => {
-        // Fallback if RPC doesn't exist yet
-        if (rpcError) {
-          return supabase
-            .from('progress')
-            .update({ timestamp, last_updated_at: new Date().toISOString() })
-            .eq('user_id', user.id)
-            .eq('course_id', courseId)
-            .eq('module_id', moduleId);
-        }
       });
+
+      // Fallback if RPC doesn't exist yet — must be awaited to avoid silent failure
+      if (rpcError) {
+        await supabase
+          .from('progress')
+          .update({ timestamp, last_updated_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .eq('module_id', moduleId);
+      }
     } else {
       // Insert new record with view_count = 1
       await supabase
@@ -86,8 +105,15 @@ export const progressApi = {
   },
 
   /**
-   * Update progress timestamp without incrementing view_count
-   * Used for subsequent auto-saves within the same viewing session
+   * Updates the video position timestamp without incrementing `view_count`.
+   *
+   * Used for all auto-saves after the first one within a single viewing session.
+   * The `useModuleProgress` hook tracks which modules have had their view counted
+   * and calls this method for subsequent 30-second auto-saves.
+   *
+   * @param courseId - UUID of the course containing the module.
+   * @param moduleId - UUID of the module being watched.
+   * @param timestamp - Current video position in seconds.
    */
   async updateTimestamp(courseId: string, moduleId: string, timestamp: number): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
@@ -102,7 +128,27 @@ export const progressApi = {
   },
 
   /**
-   * Mark a module as completed (calls Edge Function for atomic operation)
+   * Marks a module as complete via the `progress-complete` Edge Function.
+   *
+   * The Edge Function calls the `complete_module()` RPC atomically. If this completes
+   * 100% of the course, `certificate-generate` is triggered and a certificate notification
+   * is sent. Milestone notifications are sent at 25%, 50%, and 75% course completion.
+   *
+   * @param courseId - UUID of the course containing the module.
+   * @param moduleId - UUID of the module to mark complete.
+   * @param currentTime - Optional current video position (seconds); used for server-side
+   *   threshold validation.
+   * @param duration - Optional total video duration (seconds); used for threshold validation.
+   * @returns Object with `success: true`, updated `progress` record, and `stats` summary.
+   * @throws {Error} If the Edge Function returns an error.
+   *
+   * @example
+   * ```ts
+   * const result = await progressApi.markComplete(courseId, moduleId, 285, 300);
+   * if (result.stats?.overallPercent === 100) {
+   *   // Course complete — certificate will be generated
+   * }
+   * ```
    */
   async markComplete(courseId: string, moduleId: string, currentTime?: number, duration?: number): Promise<{
     success: boolean;
@@ -118,7 +164,23 @@ export const progressApi = {
   },
 
   /**
-   * Check if module should be marked complete based on watch progress
+   * Checks if the watch percentage meets the completion threshold and marks the module complete.
+   *
+   * Returns `false` immediately if `duration` is 0 or the watch percentage is below
+   * `COMPLETION_THRESHOLD` (95%). If the threshold is met and the module is not yet
+   * complete, calls `markComplete()`.
+   *
+   * @param courseId - UUID of the course.
+   * @param moduleId - UUID of the module to check.
+   * @param currentTime - Current video position in seconds.
+   * @param duration - Total video duration in seconds.
+   * @returns `true` if the module was newly marked complete; `false` otherwise.
+   *
+   * @example
+   * ```ts
+   * const wasCompleted = await progressApi.checkCompletion(courseId, moduleId, 285, 300);
+   * if (wasCompleted) analytics.track('module_completed', { course_id: courseId });
+   * ```
    */
   async checkCompletion(
     courseId: string,
@@ -202,7 +264,19 @@ export const progressApi = {
   },
 
   /**
-   * Get course stats via RPC
+   * Fetches aggregated progress statistics for the current user and a course via the
+   * `get_progress_stats` RPC.
+   *
+   * @param courseId - UUID of the course.
+   * @returns `ProgressStats` with `completedModules`, `totalModules`, `overallPercent`,
+   *   `totalWatchTime`, and `currentModule`. Returns zeroed stats if the user is not
+   *   authenticated or the RPC fails.
+   *
+   * @example
+   * ```ts
+   * const stats = await progressApi.getCourseStats(courseId);
+   * console.log(`${stats.overallPercent}% complete`);
+   * ```
    */
   async getCourseStats(courseId: string): Promise<ProgressStats> {
     const { data: { user } } = await supabase.auth.getUser();

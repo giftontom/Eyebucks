@@ -54,6 +54,10 @@ export const Profile: React.FC = () => {
     loadPayments();
   }, []);
 
+  useEffect(() => {
+    setNameInput(user?.name || '');
+  }, [user?.name]);
+
   const handleSaveName = async () => {
     if (!nameInput.trim() || nameInput === user?.name) {
       setIsEditingName(false);
@@ -90,22 +94,26 @@ export const Profile: React.FC = () => {
   };
 
   const handleDownloadReceipt = (payment: Payment) => {
+    // Escape user-controlled values before injecting into innerHTML to prevent XSS
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     const receiptHtml = `
       <!DOCTYPE html>
-      <html><head><title>Receipt - ${payment.receiptNumber || payment.id}</title>
+      <html><head><title>Receipt - ${esc(payment.receiptNumber || payment.id)}</title>
       <style>body{font-family:system-ui;max-width:600px;margin:40px auto;padding:20px}h1{color:#1a1a1a}table{width:100%;border-collapse:collapse;margin:20px 0}td{padding:8px 0;border-bottom:1px solid #eee}.total{font-size:1.2em;font-weight:bold}.brand{color:#dc2626}</style>
       </head><body>
       <h1>Payment Receipt</h1>
       <p class="brand"><strong>Eyebuckz Academy</strong></p>
       <hr/>
       <table>
-        <tr><td><strong>Receipt #</strong></td><td>${payment.receiptNumber || '—'}</td></tr>
+        <tr><td><strong>Receipt #</strong></td><td>${esc(payment.receiptNumber || '—')}</td></tr>
         <tr><td><strong>Date</strong></td><td>${new Date(payment.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
-        <tr><td><strong>Student</strong></td><td>${user?.name || '—'}</td></tr>
-        <tr><td><strong>Email</strong></td><td>${user?.email || '—'}</td></tr>
-        <tr><td><strong>Course</strong></td><td>${payment.courseTitle || '—'}</td></tr>
-        <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${payment.razorpayPaymentId || '—'}</td></tr>
-        <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${payment.razorpayOrderId || '—'}</td></tr>
+        <tr><td><strong>Student</strong></td><td>${esc(user?.name || '—')}</td></tr>
+        <tr><td><strong>Email</strong></td><td>${esc(user?.email || '—')}</td></tr>
+        <tr><td><strong>Course</strong></td><td>${esc(payment.courseTitle || '—')}</td></tr>
+        <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${esc(payment.razorpayPaymentId || '—')}</td></tr>
+        <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${esc(payment.razorpayOrderId || '—')}</td></tr>
         <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">₹${(payment.amount / 100).toLocaleString('en-IN')}</td></tr>
       </table>
       <p style="color:#666;font-size:0.85em;margin-top:30px">Thank you for your purchase. This receipt is for your records.</p>

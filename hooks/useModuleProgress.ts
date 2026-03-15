@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { progressApi, AUTO_SAVE_INTERVAL } from '../services/api';
+import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
 import type { VideoPlayerHandle } from '../components/VideoPlayer';
-import type { User } from '@supabase/supabase-js';
+import type { User } from '../types';
 
 interface UseModuleProgressInput {
   courseId?: string;
@@ -23,6 +24,43 @@ interface UseModuleProgressReturn {
   checkCompletion: (currentTime: number, duration: number) => void;
 }
 
+/**
+ * Tracks and persists video watch progress for a course module.
+ *
+ * On mount (when `courseId` changes), loads all module completion statuses and the
+ * overall course completion percentage. When `activeChapterId` changes, loads the resume
+ * position for that module and sets it on the video element.
+ *
+ * While `isPlaying` is true, auto-saves progress every `AUTO_SAVE_INTERVAL` (30 seconds).
+ * The first save of a session calls `progressApi.saveProgress()` (increments `view_count`);
+ * subsequent saves call `progressApi.updateTimestamp()`.
+ *
+ * `checkCompletion()` is an imperative trigger called by the Learn page at the 95%
+ * watch threshold. It guards against concurrent calls with `completionCheckingRef`.
+ *
+ * Cleans up the auto-save interval and completion notification timeout on unmount.
+ *
+ * @param input - Configuration object:
+ *   - `courseId` — UUID of the course being watched
+ *   - `activeChapterId` — UUID of the currently active module
+ *   - `isPlaying` — whether the video is currently playing
+ *   - `user` — the authenticated user (or null)
+ *   - `videoRef` — ref to the VideoPlayer imperative handle
+ *   - `hasAccess` — whether the user has enrollment access
+ * @returns Object with:
+ *   - `progressPercent` — 0–100 overall course completion percentage
+ *   - `moduleCompletionMap` — `Record<moduleId, boolean>` of completed modules
+ *   - `showCompletionNotification` — briefly `true` after a module is marked complete
+ *   - `pendingResumeRef` — ref holding the resume position for the current module
+ *   - `checkCompletion` — imperative function to check and trigger completion
+ *
+ * @example
+ * ```tsx
+ * const { progressPercent, checkCompletion } = useModuleProgress({
+ *   courseId, activeChapterId, isPlaying, user, videoRef, hasAccess
+ * });
+ * ```
+ */
 export function useModuleProgress({
   courseId,
   activeChapterId,
@@ -156,6 +194,10 @@ export function useModuleProgress({
     progressApi.checkCompletion(courseId, activeChapterId, currentTime, duration)
       .then((wasCompleted) => {
         if (wasCompleted) {
+          analytics.track('module_completed', {
+            course_id: courseId,
+            module_id: activeChapterId,
+          });
           setModuleCompletionMap(prev => ({ ...prev, [activeChapterId]: true }));
 
           setShowCompletionNotification(true);

@@ -7,6 +7,8 @@ import {
   CreditCard,
   Star,
   Tag,
+  ClipboardList,
+  Settings,
   Menu,
   X,
 } from 'lucide-react';
@@ -22,6 +24,8 @@ const navItems = [
   { to: '/admin/payments', label: 'Payments', icon: CreditCard },
   { to: '/admin/reviews', label: 'Reviews', icon: Star },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag },
+  { to: '/admin/settings', label: 'Settings', icon: Settings },
+  { to: '/admin/audit-log', label: 'Audit Log', icon: ClipboardList },
 ];
 
 export const AdminSidebar: React.FC = () => {

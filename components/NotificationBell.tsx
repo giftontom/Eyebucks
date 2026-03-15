@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
+import type { Notification } from '../services/api/notifications.api';
+
 const iconMap: Record<string, React.ReactNode> = {
   enrollment: <BookOpen size={16} style={{ color: 'var(--status-success-text)' }} />,
   certificate: <Award size={16} style={{ color: 'var(--status-warning-text)' }} />,
@@ -22,11 +24,23 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+/**
+ * Bell icon button with a real-time notification dropdown.
+ *
+ * Uses `useRealtimeNotifications` to subscribe to INSERT events on the `notifications`
+ * table for the current user. Displays an unread count badge (capped at "99+").
+ * Clicking a notification marks it as read and navigates to `notification.link` if set.
+ *
+ * The dropdown closes on outside click (handled by a mousedown listener on `document`).
+ * The subscription is cleaned up automatically when the hook unmounts.
+ *
+ * No props — user identity is read from `useRealtimeNotifications` which uses `useAuth`.
+ */
 export const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useRealtimeNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, isLoading } = useRealtimeNotifications();
 
   // Close on outside click
   useEffect(() => {
@@ -39,7 +53,7 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
@@ -81,7 +95,17 @@ export const NotificationBell: React.FC = () => {
           </div>
 
           <div className="max-h-[360px] overflow-y-auto">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              [0, 1, 2].map((i) => (
+                <div key={i} className="px-4 py-3 flex gap-3 border-b t-border animate-pulse">
+                  <div className="w-4 h-4 rounded-full bg-[var(--surface-hover)] mt-0.5 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-[var(--surface-hover)] rounded w-3/4" />
+                    <div className="h-2.5 bg-[var(--surface-hover)] rounded w-1/2" />
+                  </div>
+                </div>
+              ))
+            ) : notifications.length === 0 ? (
               <div className="py-10 text-center t-text-2 text-sm">
                 No notifications yet
               </div>
@@ -113,6 +137,16 @@ export const NotificationBell: React.FC = () => {
               ))
             )}
           </div>
+          {!isLoading && notifications.length > 0 && (
+            <div className="border-t t-border px-4 py-2.5 text-center">
+              <button
+                onClick={() => { navigate('/dashboard'); setIsOpen(false); }}
+                className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+              >
+                See all notifications
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -13,7 +13,7 @@ export const Login: React.FC = () => {
   const [error, setError] = useState<string>('');
 
   // Get the return path from location state
-  const returnTo = (location.state as any)?.returnTo || '/';
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo ?? '/';
 
   // If already logged in, redirect
   useEffect(() => {

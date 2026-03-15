@@ -2,6 +2,7 @@ import { Loader2 } from 'lucide-react';
 import React from 'react';
 import { Outlet , Link } from 'react-router-dom';
 
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useAuth } from '../../context/AuthContext';
 
 import { AdminProvider } from './AdminContext';
@@ -38,7 +39,9 @@ export const AdminLayout: React.FC = () => {
       <div className="flex min-h-screen t-bg-alt">
         <AdminSidebar />
         <main className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 overflow-auto min-w-0">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </AdminProvider>

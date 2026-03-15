@@ -7,6 +7,34 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
+/**
+ * checkout-webhook Edge Function — Razorpay async webhook for payment confirmation.
+ *
+ * Auth: NO JWT. This function is called by Razorpay's servers, not the frontend.
+ * Never add JWT verification to this function.
+ *
+ * Authentication is via HMAC-SHA256 on the raw request body using `RAZORPAY_WEBHOOK_SECRET`,
+ * compared against the `X-Razorpay-Signature` header using a timing-safe comparison.
+ *
+ * Method: POST only (returns 405 for other methods).
+ *
+ * This is an async safety net: if the user closes the browser after payment before
+ * `checkout-verify` fires, Razorpay calls this webhook within minutes to ensure the
+ * enrollment is eventually created. The upsert with `ignoreDuplicates: true` makes
+ * this function idempotent — safe to call multiple times for the same payment.
+ *
+ * Handles two events:
+ * - `payment.captured`: creates enrollment + payment record + enrollment notification
+ * - `payment.failed`: records the failed payment + sends failure notification
+ *
+ * Side effects (payment.captured):
+ * - Upserts row in `enrollments` (UNIQUE on user_id+course_id, ignoreDuplicates)
+ * - If new enrollment: inserts row in `payments`, inserts `enrollment` notification
+ *
+ * Side effects (payment.failed):
+ * - Inserts `status='failed'` row in `payments`
+ * - Inserts `announcement` notification informing user of failure
+ */
 serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -44,11 +72,13 @@ serve(async (req) => {
 
     console.log('[Webhook] Received event:', eventType);
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     if (eventType === 'payment.captured') {
       const payment = event.payload.payment.entity;
       const { courseId, userId } = payment.notes || {};
 
-      if (courseId && userId) {
+      if (courseId && userId && UUID_RE.test(courseId) && UUID_RE.test(userId)) {
         // Idempotent upsert — safe to call multiple times for the same payment
         const { data: newEnrollment } = await supabaseAdmin
           .from('enrollments')
@@ -111,7 +141,7 @@ serve(async (req) => {
       const payment = event.payload.payment.entity;
       const { userId, courseId } = payment.notes || {};
 
-      if (userId) {
+      if (userId && UUID_RE.test(userId)) {
         // Insert failed payment record
         await supabaseAdmin.from('payments').insert({
           user_id: userId,

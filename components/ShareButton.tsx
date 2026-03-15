@@ -1,5 +1,7 @@
-import { Share2, Check, Copy } from 'lucide-react';
+import { Share2, Check } from 'lucide-react';
 import React, { useState } from 'react';
+
+import { logger } from '../utils/logger';
 
 interface ShareButtonProps {
   title: string;
@@ -38,8 +40,8 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard unavailable
+    } catch (err: unknown) {
+      logger.warn('[ShareButton] Clipboard write failed:', err);
     }
   };
 

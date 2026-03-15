@@ -125,7 +125,7 @@ export const UsersPage: React.FC = () => {
                 <span className="text-sm t-text-2">{selectedIds.size} selected</span>
                 <select
                   disabled={bulkLoading}
-                  onChange={(e) => { if (e.target.value) { handleBulkAction(e.target.value as any); e.target.value = ''; } }}
+                  onChange={(e) => { if (e.target.value) { handleBulkAction(e.target.value as Parameters<typeof handleBulkAction>[0]); e.target.value = ''; } }}
                   className="bg-brand-600 text-white text-sm rounded-lg px-3 py-1.5 outline-none disabled:opacity-50"
                   defaultValue=""
                 >

@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import posthog from 'posthog-js';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -26,6 +27,24 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   logger.info('[Sentry] Error monitoring initialized');
 } else {
   logger.info('[Sentry] Not configured - skipping error monitoring');
+}
+
+// Initialize PostHog if configured
+if (import.meta.env.VITE_POSTHOG_KEY) {
+  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
+    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+    capture_pageview: true,
+    capture_pageleave: true,
+    loaded: (ph) => {
+      if (import.meta.env.MODE !== 'production') {
+        ph.opt_out_capturing();
+      }
+    },
+  });
+  logger.info('[PostHog] Analytics initialized');
+} else {
+  logger.info('[PostHog] Not configured - skipping analytics');
 }
 
 const rootElement = document.getElementById('root');

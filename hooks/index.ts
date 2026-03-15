@@ -6,3 +6,5 @@ export { useRealtimeNotifications } from './useRealtimeNotifications';
 export { useScript } from './useScript';
 export { useVideoPlayer } from './useVideoPlayer';
 export { useVideoUrl } from './useVideoUrl';
+export { useStorefrontFilters } from './useStorefrontFilters';
+export { useWishlist } from './useWishlist';

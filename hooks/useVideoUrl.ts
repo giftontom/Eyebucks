@@ -13,12 +13,36 @@ interface UseVideoUrlResult {
 }
 
 /**
- * Resolves a playable video URL for a Bunny.net Stream video.
+ * Resolves a playable HLS URL for a Bunny.net Stream video using a two-phase strategy.
  *
- * Strategy:
- * 1. Immediately set the direct CDN URL (works via Referer-based access control)
- * 2. In the background, try the Edge Function for a signed URL (when token auth is enabled)
- * 3. If the Edge Function fails, the direct URL is already loaded — error is reported
+ * **Phase 1 (immediate):** Sets `videoUrl` and `hlsUrl` to the CDN fallback URL so the
+ * video can start loading immediately (Referer-based access control).
+ *
+ * **Phase 2 (background):** Calls the `video-signed-url` Edge Function to get a
+ * SHA256-signed URL with 1-hour expiry. On success, upgrades `hlsUrl` to the signed URL.
+ * If the JWT is expired, attempts a session refresh before retrying.
+ *
+ * **Auto-refresh:** Schedules a refresh 5 minutes before the signed URL expires so
+ * long-running viewing sessions stay authenticated.
+ *
+ * Cleans up the refresh timer on unmount.
+ *
+ * @param videoId - Bunny.net video GUID (stored in `modules.video_id`). If `null` or
+ *   `undefined`, serves `fallbackUrl` directly without calling the Edge Function.
+ * @param moduleId - UUID of the module; included in the Edge Function request for logging.
+ * @param fallbackUrl - CDN URL served immediately and used as fallback if signing fails.
+ * @returns Object with:
+ *   - `videoUrl` — the current URL suitable for a plain `<video src>` (non-HLS)
+ *   - `hlsUrl` — the current HLS playlist URL (`.m3u8`); may be signed or CDN URL
+ *   - `isLoading` — `true` during the initial fetch only (not during background refresh)
+ *   - `error` — error message string if signing failed; `null` on success
+ *   - `refreshUrl` — imperative function to re-fetch the signed URL on demand
+ *
+ * @example
+ * ```tsx
+ * const { hlsUrl, isLoading, error } = useVideoUrl(videoId, moduleId, fallbackUrl);
+ * if (isLoading) return <Spinner />;
+ * ```
  */
 export const useVideoUrl = (
   videoId: string | null | undefined,

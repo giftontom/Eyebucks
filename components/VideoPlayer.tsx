@@ -5,42 +5,95 @@ import React, { useRef, useEffect, forwardRef, useImperativeHandle, useCallback,
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { logger } from '../utils/logger';
 
+/** A single HLS quality level exposed via the `onLevelsLoaded` callback. */
 export interface QualityLevel {
-  index: number;  // HLS level index (-1 = auto)
-  height: number; // e.g. 720, 1080
-  label: string;  // e.g. "720p"
+  /** HLS.js level index. Pass `-1` to `setQualityLevel` for automatic quality selection. */
+  index: number;
+  /** Vertical resolution in pixels (e.g., 720, 1080). */
+  height: number;
+  /** Human-readable label (e.g., `"720p"`). */
+  label: string;
 }
 
+/**
+ * Props for the VideoPlayer component.
+ *
+ * VideoPlayer uses `React.forwardRef` and exposes a `VideoPlayerHandle` imperative API
+ * for play/pause/seek/quality/PiP controls. HLS.js is loaded lazily (only on this component).
+ *
+ * URL resolution is handled by `useVideoUrl`: the CDN URL (`fallbackUrl`) is served
+ * immediately while the signed URL is fetched in the background.
+ */
 interface VideoPlayerProps {
+  /** Bunny.net video GUID (not a URL). Used to fetch the signed HLS URL. */
   videoId?: string;
+  /** Database module UUID — passed to `useVideoUrl` for logging. */
   moduleId?: string;
+  /**
+   * CDN URL served immediately while the signed URL is loading.
+   * Also used as the permanent fallback if the `video-signed-url` Edge Function fails.
+   */
   fallbackUrl: string;
+  /** Additional CSS class names applied to the `<video>` element or loading/error containers. */
   className?: string;
+  /** Whether to show native browser video controls. Default: `false`. */
   controls?: boolean;
+  /** Called on every `timeupdate` event from the video element. */
   onTimeUpdate?: () => void;
+  /** Called when the user clicks the video element. */
   onClick?: () => void;
+  /** Called when the video reaches the end. */
   onEnded?: () => void;
+  /** Called with a human-readable error string when a fatal playback error occurs. */
   onError?: (error: string) => void;
+  /** Called when the video metadata (duration, dimensions) has loaded. */
   onLoadedMetadata?: () => void;
+  /** Called with the new quality label (e.g., `"720p"`) when HLS switches quality levels. */
   onQualityChange?: (quality: string) => void;
+  /** Called once after the HLS manifest is parsed with all available quality levels. */
   onLevelsLoaded?: (levels: QualityLevel[]) => void;
 }
 
+/**
+ * Imperative handle exposed by VideoPlayer via `React.forwardRef`.
+ *
+ * Attach a ref of this type to VideoPlayer to control playback programmatically:
+ * ```tsx
+ * const videoRef = useRef<VideoPlayerHandle>(null);
+ * <VideoPlayer ref={videoRef} ... />
+ * videoRef.current?.play();
+ * ```
+ */
 export interface VideoPlayerHandle {
+  /** Starts playback. Returns a Promise that resolves when playback begins. */
   play: () => Promise<void>;
+  /** Pauses playback. */
   pause: () => void;
+  /** Reloads the video source. */
   load: () => void;
+  /** Re-fetches the signed URL from the Edge Function and swaps the HLS source in-place. */
   refreshUrl: () => Promise<void>;
+  /** Toggles Picture-in-Picture mode. Exits PiP if already active. */
   requestPiP: () => Promise<void>;
+  /** Sets the HLS quality level by index. Pass `-1` for automatic quality selection. */
   setQualityLevel: (index: number) => void;
+  /** Current video playback position in seconds. Settable to seek. */
   currentTime: number;
+  /** Total video duration in seconds. `0` before metadata loads. */
   duration: number;
+  /** `true` if video is currently paused. */
   paused: boolean;
+  /** Current volume (0–1). Settable. */
   volume: number;
+  /** Whether audio is muted. Settable. */
   muted: boolean;
+  /** Current video source URL. Settable. */
   src: string;
+  /** The parent DOM element of the video element, or `null`. */
   parentElement: HTMLElement | null;
+  /** Current playback rate (1 = normal speed). Settable. */
   playbackRate: number;
+  /** End of the currently buffered range in seconds. `0` if nothing is buffered. */
   buffered: number;
 }
 
@@ -202,7 +255,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           const restoreTime = () => {
             if (destroyed) {return;}
             video.currentTime = savedTime;
-            if (!wasPaused) {video.play().catch(() => {});}
+            if (!wasPaused) {video.play().catch((err) => logger.debug('[VideoPlayer] play() interrupted during URL refresh:', err));}
             hlsRef.current?.off(Hls.Events.MANIFEST_PARSED, restoreTime);
           };
           hlsRef.current.on(Hls.Events.MANIFEST_PARSED, restoreTime);

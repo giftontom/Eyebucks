@@ -46,7 +46,14 @@ serve(async (req) => {
     }
 
     if (payment.status === 'refunded') {
-      return errorResponse('Payment already refunded', corsHeaders, 409);
+      // Idempotent: return existing refund info instead of re-processing
+      return jsonResponse({
+        success: true,
+        alreadyRefunded: true,
+        refundId: payment.refund_id,
+        amount: payment.refund_amount,
+        status: 'refunded',
+      }, corsHeaders);
     }
 
     if (payment.status !== 'captured') {
@@ -85,7 +92,7 @@ serve(async (req) => {
     );
 
     if (!rzpResponse.ok) {
-      const rzpError = await rzpResponse.json().catch(() => ({}));
+      const rzpError = await rzpResponse.json().catch((e) => { console.error('[Refund] Failed to parse Razorpay error response:', e); return {}; });
       console.error('[Refund] Razorpay API error:', rzpError);
       return errorResponse(
         rzpError?.error?.description || 'Razorpay refund failed',
@@ -124,6 +131,22 @@ serve(async (req) => {
         .from('enrollments')
         .update({ status: 'REVOKED' })
         .eq('id', payment.enrollment_id);
+    }
+
+    // Revoke any active certificates for this user+course
+    const { error: certError } = await supabaseAdmin
+      .from('certificates')
+      .update({
+        status: 'REVOKED',
+        revoked_at: new Date().toISOString(),
+        revoked_reason: `Refund processed: ${reason}`,
+      })
+      .eq('user_id', payment.user_id)
+      .eq('course_id', payment.course_id)
+      .eq('status', 'ACTIVE');
+
+    if (certError) {
+      console.error('[Refund] Certificate revocation error (non-fatal):', certError);
     }
 
     // Notify user

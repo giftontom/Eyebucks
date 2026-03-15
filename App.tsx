@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import { HelmetProvider } from 'react-helmet-async';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -30,6 +31,7 @@ const PageLoader: React.FC = () => (
 
 const App: React.FC = () => {
   return (
+    <HelmetProvider>
     <ErrorBoundary>
       <ThemeProvider>
       <AuthProvider>
@@ -115,6 +117,7 @@ const App: React.FC = () => {
       </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
+    </HelmetProvider>
   );
 };
 

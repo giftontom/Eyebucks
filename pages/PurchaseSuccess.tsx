@@ -3,7 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import { coursesApi, paymentsApi } from '../services/api';
+import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
 import type { Payment } from '../services/api/payments.api';
@@ -12,6 +14,7 @@ import type { Course } from '../types';
 export const PurchaseSuccess: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast, ToastContainer } = useToast();
   const [searchParams] = useSearchParams();
   const courseId = searchParams.get('courseId');
   const orderId = searchParams.get('orderId');
@@ -20,6 +23,7 @@ export const PurchaseSuccess: React.FC = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [paymentError, setPaymentError] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 3000);
@@ -29,7 +33,14 @@ export const PurchaseSuccess: React.FC = () => {
   useEffect(() => {
     if (!courseId) { setIsLoading(false); return; }
     coursesApi.getCourse(courseId)
-      .then(res => setCourse(res.course))
+      .then(res => {
+        setCourse(res.course);
+        analytics.track('purchase_success_viewed', {
+          course_id: res.course.id,
+          course_title: res.course.title,
+          order_id: orderId,
+        });
+      })
       .catch((err) => logger.error('[PurchaseSuccess] Failed to load course:', err))
       .finally(() => setIsLoading(false));
   }, [courseId]);
@@ -38,7 +49,7 @@ export const PurchaseSuccess: React.FC = () => {
     if (!orderId) {return;}
     paymentsApi.getPaymentByOrder(orderId)
       .then(p => { if (p) {setPayment(p);} })
-      .catch((err) => logger.error('[PurchaseSuccess] Failed to load payment:', err));
+      .catch((err) => { logger.error('[PurchaseSuccess] Failed to load payment:', err); setPaymentError(true); });
   }, [orderId]);
 
   if (isLoading) {
@@ -65,22 +76,26 @@ export const PurchaseSuccess: React.FC = () => {
   };
 
   const handleDownloadReceipt = () => {
+    // Escape user-controlled values before injecting into innerHTML to prevent XSS
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
     const receiptHtml = `
       <!DOCTYPE html>
-      <html><head><title>Receipt - ${payment?.receiptNumber || 'Eyebuckz'}</title>
+      <html><head><title>Receipt - ${esc(payment?.receiptNumber || 'Eyebuckz')}</title>
       <style>body{font-family:system-ui;max-width:600px;margin:40px auto;padding:20px}h1{color:#1a1a1a}table{width:100%;border-collapse:collapse;margin:20px 0}td{padding:8px 0;border-bottom:1px solid #eee}.total{font-size:1.2em;font-weight:bold}.brand{color:#dc2626}</style>
       </head><body>
       <h1>Payment Receipt</h1>
       <p class="brand"><strong>Eyebuckz Academy</strong></p>
       <hr/>
       <table>
-        <tr><td><strong>Receipt #</strong></td><td>${payment?.receiptNumber || '—'}</td></tr>
+        <tr><td><strong>Receipt #</strong></td><td>${esc(payment?.receiptNumber || '—')}</td></tr>
         <tr><td><strong>Date</strong></td><td>${payment ? new Date(payment.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
-        <tr><td><strong>Student</strong></td><td>${user?.name || '—'}</td></tr>
-        <tr><td><strong>Email</strong></td><td>${user?.email || '—'}</td></tr>
-        <tr><td><strong>Course</strong></td><td>${course?.title || payment?.courseTitle || '—'}</td></tr>
-        <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${payment?.razorpayPaymentId || '—'}</td></tr>
-        <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${payment?.razorpayOrderId || orderId || '—'}</td></tr>
+        <tr><td><strong>Student</strong></td><td>${esc(user?.name || '—')}</td></tr>
+        <tr><td><strong>Email</strong></td><td>${esc(user?.email || '—')}</td></tr>
+        <tr><td><strong>Course</strong></td><td>${esc(course?.title || payment?.courseTitle || '—')}</td></tr>
+        <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${esc(payment?.razorpayPaymentId || '—')}</td></tr>
+        <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${esc(payment?.razorpayOrderId || orderId || '—')}</td></tr>
         <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">₹${payment ? (payment.amount / 100).toLocaleString('en-IN') : course ? (course.price / 100).toLocaleString('en-IN') : '—'}</td></tr>
       </table>
       <p style="color:#666;font-size:0.85em;margin-top:30px">Thank you for your purchase. This receipt is for your records.</p>
@@ -108,13 +123,17 @@ export const PurchaseSuccess: React.FC = () => {
         logger.debug('Error sharing:', err);
       }
     } else {
-      navigator.clipboard.writeText(shareData.url);
-      alert('Link copied to clipboard!');
+      navigator.clipboard.writeText(shareData.url).then(() => {
+        showToast('Link copied to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Failed to copy link', 'error');
+      });
     }
   };
 
   return (
     <div className="min-h-screen t-bg relative overflow-hidden">
+      <ToastContainer />
       {/* Confetti Animation */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
@@ -245,7 +264,11 @@ export const PurchaseSuccess: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold t-text mb-1">Receipt & Invoice</h3>
-                <p className="text-sm t-text-2 mb-3">Download your purchase confirmation for records</p>
+                {paymentError ? (
+                  <p className="text-sm t-text-2 mb-3" style={{ color: 'var(--status-danger-text)' }}>Could not load receipt details</p>
+                ) : (
+                  <p className="text-sm t-text-2 mb-3">Download your purchase confirmation for records</p>
+                )}
                 <span className="text-sm text-brand-400 font-medium flex items-center gap-1">
                   Download Receipt <ArrowRight size={14} />
                 </span>

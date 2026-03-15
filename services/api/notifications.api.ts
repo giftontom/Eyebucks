@@ -2,6 +2,7 @@
  * Notifications API - Direct Supabase PostgREST queries
  * Replaces: apiClient notification methods
  */
+import { logger } from '../../utils/logger';
 import { supabase } from '../supabase';
 
 import type { NotificationRow } from '../../types/supabase';
@@ -62,10 +63,11 @@ export const notificationsApi = {
    * Mark a notification as read
    */
   async markAsRead(notificationId: string): Promise<void> {
-    await supabase
+    const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('id', notificationId);
+    if (error) {logger.error('[Notifications] markAsRead failed:', error);}
   },
 
   /**
@@ -75,20 +77,22 @@ export const notificationsApi = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {return;}
 
-    await supabase
+    const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id)
       .eq('read', false);
+    if (error) {logger.error('[Notifications] markAllAsRead failed:', error);}
   },
 
   /**
    * Delete a notification
    */
   async deleteNotification(notificationId: string): Promise<void> {
-    await supabase
+    const { error } = await supabase
       .from('notifications')
       .delete()
       .eq('id', notificationId);
+    if (error) {logger.error('[Notifications] deleteNotification failed:', error);}
   },
 };

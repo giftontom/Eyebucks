@@ -1,5 +1,6 @@
 import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { Button, Badge, WishlistButton, ShareButton } from '../components';
@@ -9,6 +10,7 @@ import { useAccessControl } from '../hooks/useAccessControl';
 import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi } from '../services/api';
 import { CourseType } from '../types';
+import { analytics } from '../utils/analytics';
 
 import type { Course } from '../types';
 
@@ -28,7 +30,15 @@ export const CourseDetails: React.FC = () => {
     setLoadError(null);
     setIsLoadingCourse(true);
     coursesApi.getCourse(id)
-      .then(res => setCourse(res.course))
+      .then(res => {
+        setCourse(res.course);
+        analytics.track('course_viewed', {
+          course_id: res.course.id,
+          course_title: res.course.title,
+          course_type: res.course.type,
+          price: res.course.price,
+        });
+      })
       .catch((err) => setLoadError(err.message || 'Failed to load course'))
       .finally(() => setIsLoadingCourse(false));
   };
@@ -119,8 +129,18 @@ export const CourseDetails: React.FC = () => {
 
   const ctaConfig = getCtaConfig();
 
+  const courseDescription = course.description?.slice(0, 160) || '';
+
   return (
     <div className="pb-24 t-bg">
+      <Helmet>
+        <title>{course.title} — Eyebuckz Academy</title>
+        <meta name="description" content={courseDescription} />
+        <meta property="og:title" content={`${course.title} — Eyebuckz Academy`} />
+        <meta property="og:description" content={courseDescription} />
+        {course.thumbnail && <meta property="og:image" content={course.thumbnail} />}
+        <meta property="og:type" content="product" />
+      </Helmet>
       {/* Video Trailer Header */}
       <div className="relative h-[40vh] md:h-[60vh] bg-black group">
         <video

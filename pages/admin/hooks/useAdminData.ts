@@ -32,8 +32,8 @@ export function useAdminData<T>({
     try {
       const result = await fetchRef.current();
       setData(result);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
       logger.error('useAdminData error:', err);
     } finally {
       setLoading(false);

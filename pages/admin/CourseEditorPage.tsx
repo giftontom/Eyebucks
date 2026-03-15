@@ -60,7 +60,7 @@ export const CourseEditorPage: React.FC = () => {
           thumbnail: course.thumbnail || '',
           type: course.type as CourseType,
           features: course.features.length > 0 ? course.features : [''],
-          heroVideoId: (course as any).heroVideoId || undefined,
+          heroVideoId: course.heroVideoId || undefined,
         });
         setCourseType(course.type as CourseType);
 
@@ -128,6 +128,7 @@ export const CourseEditorPage: React.FC = () => {
         showToast('Course created!', 'success');
         // Navigate to edit page for the new course (to manage modules)
         if (res.course?.id) {
+          await refreshCourses();
           navigate(`/admin/courses/${res.course.id}`, { replace: true });
           return;
         }
