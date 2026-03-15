@@ -48,7 +48,7 @@ supabase link --project-ref <your-project-ref>
 
 ## 4. Run Migrations
 
-The project has 12 sequential migrations in `supabase/migrations/`:
+The project has 21 sequential migrations in `supabase/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -64,6 +64,15 @@ The project has 12 sequential migrations in `supabase/migrations/`:
 | `010_enrollment_expiration.sql` | Enrollment expiry + pg_cron scheduled job |
 | `011_increment_view_count.sql` | Atomic view count increment function |
 | `012_set_bunny_video_urls.sql` | Bunny.net video URL migration |
+| `013_coupons.sql` | Coupons + coupon_uses tables with atomic redemption RPC |
+| `014_wishlists.sql` | Wishlists table with UNIQUE(user_id, course_id) constraint |
+| `015_audit_logs.sql` | Audit log table for admin actions |
+| `016_login_attempts.sql` | Login attempts table for auth audit trail |
+| `017_progress_enhancements.sql` | Progress table enhancements (watch_time, view_count) |
+| `018_notifications_realtime.sql` | Realtime publication for notifications table |
+| `019_rls_additions.sql` | Additional RLS policies for new tables |
+| `020_functions_update.sql` | Updated RPCs: apply_coupon, get_progress_stats |
+| `021_audit_log.sql` | Audit log trigger functions and policies |
 
 ```bash
 # Push migrations to remote Supabase

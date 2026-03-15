@@ -33,8 +33,8 @@ Documentation for the frontend service layer and Supabase Edge Functions.
 
 | Document | Description |
 |----------|-------------|
-| [Service Modules](api/SERVICE_MODULES.md) | All 12 API service modules (courses, enrollments, progress, checkout, admin, notifications, payments, certificates, siteContent, reviews, users, coupons) |
-| [Edge Functions](api/EDGE_FUNCTIONS.md) | All 10 Edge Functions and shared utilities (checkout, video signing, uploads, certificates, progress, refunds, session-enforce) |
+| [Service Modules](api/SERVICE_MODULES.md) | All 13 API service modules (courses, enrollments, progress, checkout, admin, notifications, payments, certificates, siteContent, reviews, users, coupons, wishlist) |
+| [Edge Functions](api/EDGE_FUNCTIONS.md) | All 11 Edge Functions and shared utilities (checkout, video signing, uploads, certificates, progress, refunds, session-enforce, coupon-apply, video-cleanup) |
 
 ### Guides
 
@@ -47,6 +47,9 @@ Step-by-step instructions for development, deployment, and day-to-day operations
 | [Testing](guides/TESTING.md) | Vitest configuration, writing tests, and running the test suite |
 | [Admin Panel](guides/ADMIN_PANEL.md) | Admin panel features, workflows, and page-by-page usage guide |
 | [Troubleshooting](guides/TROUBLESHOOTING.md) | Common issues, error messages, and their solutions |
+| [JSDoc Guide](guides/JSDOC_GUIDE.md) | When and how to write JSDoc comments for this codebase |
+| [Testing Strategy](guides/TESTING_STRATEGY.md) | Testing pyramid, hook/component/E2E patterns, coverage targets |
+| [Performance Guide](guides/PERFORMANCE_GUIDE.md) | Bundle profile, code splitting, query optimization, video strategy |
 
 ### Reference
 
@@ -58,6 +61,28 @@ Component catalog, hooks reference, and user flow diagrams.
 | [Design System](reference/DESIGN_SYSTEM.md) | CSS token reference and UI primitive components (Badge, Button, Input, Card) |
 | [Hooks](reference/HOOKS.md) | All shared and admin hooks with signatures and examples |
 | [User Flows](reference/USER_FLOWS.md) | End-to-end user journey diagrams (enrollment, checkout, learning, certification) |
+
+### Architecture Decision Records
+
+Why key technologies and patterns were chosen.
+
+| Document | Description |
+|----------|-------------|
+| [ADR Index](adr/README.md) | All ADRs with index and template |
+| [ADR-001: Why Supabase](adr/001-why-supabase.md) | Supabase over Express + Prisma |
+| [ADR-002: Why HashRouter](adr/002-why-hashrouter.md) | HashRouter over BrowserRouter |
+| [ADR-003: Why Razorpay](adr/003-why-razorpay.md) | Razorpay for Indian payments |
+| [ADR-004: Why Bunny.net](adr/004-why-bunny-net.md) | Bunny.net for HLS video |
+| [ADR-005: Why Tailwind v4](adr/005-why-tailwind-v4.md) | Tailwind CSS v4 with @theme |
+
+### Operations
+
+Step-by-step runbooks for administrative and incident response tasks.
+
+| Document | Description |
+|----------|-------------|
+| [Admin Runbook](operations/ADMIN_RUNBOOK.md) | User management, course ops, payments, coupons, content |
+| [Incident Response](operations/INCIDENT_RESPONSE.md) | Severity levels, runbooks by symptom, rollback procedures |
 
 ### Project
 
@@ -83,4 +108,4 @@ The following documents describe the **pre-Supabase architecture** (Express + Pr
 
 ---
 
-*Last updated: March 6, 2026*
+*Last updated: March 14, 2026*

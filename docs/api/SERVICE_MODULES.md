@@ -5,7 +5,7 @@ All API modules live in `services/api/` and communicate with Supabase via PostgR
 ```ts
 import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi,
          notificationsApi, paymentsApi, certificatesApi, reviewsApi,
-         siteContentApi, usersApi, couponsApi } from 'services/api';
+         siteContentApi, usersApi, couponsApi, wishlistApi } from 'services/api';
 ```
 
 ---
@@ -24,7 +24,8 @@ import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi,
 10. [siteContent.api.ts](#10-sitecontentapits)
 11. [users.api.ts](#11-usersapits)
 12. [coupons.api.ts](#12-couponsapits)
-13. [Error Handling Patterns](#error-handling-patterns)
+13. [wishlist.api.ts](#13-wishlistapits)
+14. [Error Handling Patterns](#error-handling-patterns)
 
 ---
 
@@ -1236,6 +1237,53 @@ couponsApi.validateCoupon(code: string): Promise<{ discount_pct: number }>
 ```
 
 Validates a coupon code against the `coupons` table and returns the discount percentage if valid. Throws if the code is not found, expired, or inactive.
+
+---
+
+## 13. wishlist.api.ts
+
+**Export:** `wishlistApi`
+**Tables:** `wishlists`
+**Auth required:** Yes (all operations require an authenticated user)
+
+### Functions
+
+#### `list()`
+
+```ts
+wishlistApi.list(): Promise<WishlistEntry[]>
+```
+
+Returns all wishlist entries for the current user. Each entry includes `id`, `courseId`, and `createdAt`.
+Returns an empty array if the user is not authenticated.
+
+#### `add(courseId)`
+
+```ts
+wishlistApi.add(courseId: string): Promise<void>
+```
+
+Adds a course to the current user's wishlist. Uses an INSERT with the UNIQUE constraint on
+`(user_id, course_id)` to prevent duplicates. Throws if the user is not authenticated or the
+course does not exist.
+
+#### `remove(courseId)`
+
+```ts
+wishlistApi.remove(courseId: string): Promise<void>
+```
+
+Removes a course from the current user's wishlist. No-op if the course was not in the wishlist.
+Throws if the user is not authenticated.
+
+#### `isSaved(courseId)`
+
+```ts
+wishlistApi.isSaved(courseId: string): Promise<boolean>
+```
+
+Returns `true` if the course is in the current user's wishlist. Useful for initializing the
+`WishlistButton` state for a single course without loading the full list.
 
 ---
 

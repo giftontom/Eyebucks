@@ -1,8 +1,8 @@
 # Eyebuckz LMS -- Database Schema Reference
 
 > **Database:** Supabase PostgreSQL (with RLS, pg_cron, Storage)
-> **Last updated:** 2026-03-03
-> **Migration count:** 12 (001 through 012)
+> **Last updated:** 2026-03-14
+> **Migration count:** 21 (001 through 021)
 
 ---
 
@@ -37,7 +37,7 @@
 
 ## Tables
 
-12 active tables, 2 dropped (sessions, refresh_tokens -- dropped in migration 009).
+16 active tables, 2 dropped (sessions, refresh_tokens -- dropped in migration 009).
 
 ### 1. `users`
 
@@ -257,6 +257,71 @@ Rate-limiting and audit trail for authentication attempts.
 | `success`    | `BOOLEAN`     | NOT NULL                                            |
 | `fail_reason`| `TEXT`        |                                                     |
 | `attempt_at` | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+
+### 13. `coupons`
+
+Discount codes for course purchases.
+
+| Column         | Type          | Constraints / Default                              |
+|----------------|---------------|-----------------------------------------------------|
+| `id`           | `UUID`        | **PK**, DEFAULT `gen_random_uuid()`                 |
+| `code`         | `TEXT`        | UNIQUE, NOT NULL (uppercase enforced by app)        |
+| `discount_pct` | `INTEGER`     | NOT NULL, CHECK (1–100)                             |
+| `max_uses`     | `INTEGER`     | NOT NULL                                            |
+| `use_count`    | `INTEGER`     | NOT NULL, DEFAULT 0                                 |
+| `expires_at`   | `TIMESTAMPTZ` |                                                     |
+| `is_active`    | `BOOLEAN`     | NOT NULL, DEFAULT true                              |
+| `created_at`   | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+| `updated_at`   | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+
+---
+
+### 14. `coupon_uses`
+
+Atomic redemption records linking coupons to users. The UNIQUE constraint on `(user_id, coupon_id)` prevents double-use.
+
+| Column         | Type          | Constraints / Default                              |
+|----------------|---------------|-----------------------------------------------------|
+| `id`           | `UUID`        | **PK**, DEFAULT `gen_random_uuid()`                 |
+| `coupon_id`    | `UUID`        | FK -> `coupons(id)` ON DELETE CASCADE               |
+| `user_id`      | `UUID`        | FK -> `users(id)` ON DELETE CASCADE                 |
+| `course_id`    | `UUID`        | FK -> `courses(id)` ON DELETE SET NULL              |
+| `discount_pct` | `INTEGER`     | NOT NULL (captured at redemption time)              |
+| `used_at`      | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+| UNIQUE         |               | `(user_id, coupon_id)`                              |
+
+---
+
+### 15. `wishlists`
+
+User favorites (saved courses). The UNIQUE constraint on `(user_id, course_id)` prevents duplicates.
+
+| Column      | Type          | Constraints / Default                              |
+|-------------|---------------|-----------------------------------------------------|
+| `id`        | `UUID`        | **PK**, DEFAULT `gen_random_uuid()`                 |
+| `user_id`   | `UUID`        | FK -> `users(id)` ON DELETE CASCADE                 |
+| `course_id` | `UUID`        | FK -> `courses(id)` ON DELETE CASCADE               |
+| `created_at`| `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+| UNIQUE      |               | `(user_id, course_id)`                              |
+
+---
+
+### 16. `audit_logs`
+
+Admin action log for compliance and debugging. Records every create/update/delete performed by admin users.
+
+| Column        | Type          | Constraints / Default                              |
+|---------------|---------------|-----------------------------------------------------|
+| `id`          | `UUID`        | **PK**, DEFAULT `gen_random_uuid()`                 |
+| `admin_id`    | `UUID`        | FK -> `users(id)` ON DELETE SET NULL                |
+| `action`      | `TEXT`        | NOT NULL (e.g., `'publish_course'`, `'revoke_enrollment'`) |
+| `entity_type` | `TEXT`        | NOT NULL (e.g., `'course'`, `'enrollment'`, `'user'`) |
+| `entity_id`   | `TEXT`        | NOT NULL                                            |
+| `old_value`   | `JSONB`       | Snapshot of record before change                   |
+| `new_value`   | `JSONB`       | Snapshot of record after change                    |
+| `created_at`  | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+
+---
 
 ### Dropped Tables
 
