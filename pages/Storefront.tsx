@@ -189,7 +189,7 @@ export const Storefront: React.FC = () => {
 
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           {/* Announcement pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] backdrop-blur-xl text-[#FF6B6B] text-xs font-bold uppercase tracking-widest mb-8 animate-fade-in-up hover:bg-[rgba(255,59,48,0.15)] transition duration-300 cursor-default">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] backdrop-blur-xl text-brand-700 text-xs font-bold uppercase tracking-widest mb-8 animate-fade-in-up hover:bg-[rgba(255,59,48,0.15)] transition duration-300 cursor-default">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
@@ -264,11 +264,11 @@ export const Storefront: React.FC = () => {
           <div className="flex animate-marquee items-center gap-16 min-w-full px-4 text-sm font-bold t-text-2 uppercase tracking-[0.2em]">
             {[...Array(6)].map((_, i) => (
               <React.Fragment key={i}>
-                <span className="flex items-center gap-3 hover:text-white transition-colors"><Users size={18} className="text-brand-600"/> 10,000+ Students</span>
+                <span className="flex items-center gap-3 t-text dark:hover:text-white hover:text-brand-600 transition-colors"><Users size={18} className="text-brand-600"/> 10,000+ Students</span>
                 <span className="t-text-3">/</span>
-                <span className="flex items-center gap-3 hover:text-white transition-colors"><Star size={18} className="text-yellow-500 fill-yellow-500"/> 4.9/5 Rating</span>
+                <span className="flex items-center gap-3 t-text dark:hover:text-white hover:text-brand-600 transition-colors"><Star size={18} className="text-yellow-500 fill-yellow-500"/> 4.9/5 Rating</span>
                 <span className="t-text-3">/</span>
-                <span className="flex items-center gap-3 hover:text-white transition-colors"><Globe size={18} className="text-blue-500"/> 50+ Countries</span>
+                <span className="flex items-center gap-3 t-text dark:hover:text-white hover:text-brand-600 transition-colors"><Globe size={18} className="text-blue-500"/> 50+ Countries</span>
                 <span className="t-text-3">/</span>
               </React.Fragment>
             ))}

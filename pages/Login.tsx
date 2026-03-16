@@ -242,9 +242,9 @@ export const Login: React.FC = () => {
           {/* Terms */}
           <p className="text-center text-xs t-text-3 mt-6 max-w-md mx-auto">
             By continuing, you agree to our{' '}
-            <Link to="/terms" className="text-brand-500 hover:underline">Terms of Service</Link>
+            <Link to="/terms" className="text-brand-600 underline hover:no-underline">Terms of Service</Link>
             {' '}and{' '}
-            <Link to="/privacy" className="text-brand-500 hover:underline">Privacy Policy</Link>
+            <Link to="/privacy" className="text-brand-600 underline hover:no-underline">Privacy Policy</Link>
           </p>
         </div>
       </div>
