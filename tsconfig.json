@@ -40,6 +40,8 @@
     "server",
     "supabase",
     "node_modules",
-    "dist"
+    "dist",
+    "playwright.config.ts",
+    "e2e"
   ]
 }

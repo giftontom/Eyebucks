@@ -1,8 +1,8 @@
 {
   "ci": {
     "collect": {
-      "url": ["http://localhost:3000/", "http://localhost:3000/#/courses"],
-      "startServerCommand": "npm run dev",
+      "url": ["http://localhost:4000/", "http://localhost:4000/#/courses"],
+      "startServerCommand": "npx vite preview --port 4000",
       "startServerReadyPattern": "Local:"
     },
     "assert": {
