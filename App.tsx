@@ -7,13 +7,13 @@ import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { CourseDetails } from './pages/CourseDetails';
-import { Login } from './pages/Login';
-import { Privacy } from './pages/Privacy';
 import { Storefront } from './pages/Storefront';
-import { Terms } from './pages/Terms';
 
 // Lazy-loaded routes (code splitting)
+const CourseDetails = lazy(() => import('./pages/CourseDetails').then(m => ({ default: m.CourseDetails })));
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const Privacy = lazy(() => import('./pages/Privacy').then(m => ({ default: m.Privacy })));
+const Terms = lazy(() => import('./pages/Terms').then(m => ({ default: m.Terms })));
 const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Learn = lazy(() => import('./pages/Learn').then(m => ({ default: m.Learn })));
@@ -40,10 +40,10 @@ const App: React.FC = () => {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Storefront />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/course/:id" element={<CourseDetails />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
+              <Route path="/login" element={<Suspense fallback={<PageLoader />}><Login /></Suspense>} />
+              <Route path="/course/:id" element={<Suspense fallback={<PageLoader />}><CourseDetails /></Suspense>} />
+              <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
+              <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
               <Route path="/about" element={<Suspense fallback={<PageLoader />}><About /></Suspense>} />
               <Route path="/contact" element={<Suspense fallback={<PageLoader />}><Contact /></Suspense>} />
 

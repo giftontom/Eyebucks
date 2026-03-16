@@ -25,6 +25,7 @@ export default defineConfig(() => {
               'vendor-hls': ['hls.js'],
               'vendor-sentry': ['@sentry/react'],
               'vendor-icons': ['lucide-react'],
+              'vendor-posthog': ['posthog-js'],
             },
           },
         },
