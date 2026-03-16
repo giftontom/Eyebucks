@@ -847,6 +847,7 @@ export type Database = {
         Returns: Json
       }
       get_recent_activity: { Args: { p_limit?: number }; Returns: Json }
+      get_review_summary: { Args: { p_course_id: string }; Returns: Json }
       get_sales_data: {
         Args: { p_days?: number }
         Returns: {
@@ -1018,6 +1019,7 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
 
 // Convenience row type aliases used by API service modules
 export type CertificateRow = Database['public']['Tables']['certificates']['Row']
