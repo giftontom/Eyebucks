@@ -8,6 +8,7 @@ import { verifyAuth, verifyAdmin } from '../_shared/auth.ts';
 import { generateCertificateNumber } from '../_shared/certificates.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/email.ts';
+import { certificateEmail } from '../_shared/emailTemplates.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
@@ -140,13 +141,14 @@ serve(async (req) => {
       const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
       sendEmail(
         targetUser.email,
-        `Your Certificate for ${course.title}`,
-        `
-          <h2>Congratulations, ${targetUser.name}!</h2>
-          <p>You've earned a certificate for completing <strong>${course.title}</strong>.</p>
-          <p>Certificate Number: ${certificateNumber}</p>
-          <p><a href="${appUrl}/#/dashboard">Download Your Certificate</a></p>
-        `
+        `You've completed ${course.title} — Certificate Ready`,
+        certificateEmail({
+          name: targetUser.name,
+          courseTitle: course.title,
+          certificateNumber,
+          dashboardUrl: `${appUrl}/#/dashboard`,
+          appUrl,
+        })
       );
     }
 

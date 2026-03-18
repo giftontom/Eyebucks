@@ -6,6 +6,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { verifyAuth } from '../_shared/auth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/email.ts';
+import { enrollmentWelcomeEmail, paymentReceiptEmail } from '../_shared/emailTemplates.ts';
 import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
@@ -209,33 +210,36 @@ serve(async (req) => {
     if (userProfile?.email) {
       const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
 
-      // Enrollment welcome email
-      sendEmail(
-        userProfile.email,
-        `Welcome to ${course.title}!`,
-        `
-          <h2>Welcome to ${course.title}!</h2>
-          <p>Hi ${userProfile.name},</p>
-          <p>Congratulations! You're now enrolled. Start learning now:</p>
-          <p><a href="${appUrl}/#/learn/${courseId}">Start Learning</a></p>
-        `
-      );
-
-      // Payment receipt email
+      const learnUrl = `${appUrl}/#/learn/${courseId}`;
       const formattedAmount = (course.price / 100).toLocaleString('en-IN', {
         style: 'currency', currency: 'INR',
       });
+
+      // Enrollment welcome email
       sendEmail(
         userProfile.email,
-        `Payment Receipt - ${course.title}`,
-        `
-          <h2>Payment Receipt</h2>
-          <p>Hi ${userProfile.name},</p>
-          <p>Your payment for <strong>${course.title}</strong> has been processed.</p>
-          <p>Order ID: ${orderId}</p>
-          <p>Payment ID: ${paymentId}</p>
-          <p>Amount: ${formattedAmount}</p>
-        `
+        `You're enrolled in ${course.title}!`,
+        enrollmentWelcomeEmail({
+          name: userProfile.name,
+          courseTitle: course.title,
+          learnUrl,
+          appUrl,
+        })
+      );
+
+      // Payment receipt email
+      sendEmail(
+        userProfile.email,
+        `Payment Receipt — ${course.title}`,
+        paymentReceiptEmail({
+          name: userProfile.name,
+          courseTitle: course.title,
+          orderId,
+          paymentId,
+          amount: formattedAmount,
+          learnUrl,
+          appUrl,
+        })
       );
     }
 
