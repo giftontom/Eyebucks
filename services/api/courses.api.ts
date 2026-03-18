@@ -221,7 +221,8 @@ export const coursesApi = {
     if (isUuid) {
       query = query.eq('id', idOrSlug);
     } else {
-      query = query.eq('slug', idOrSlug);
+      // May be a slug OR a non-UUID string ID (e.g., seed data uses readable IDs like 'c3-cinematography')
+      query = query.or(`slug.eq.${idOrSlug},id.eq.${idOrSlug}`);
     }
 
     const { data, error } = await query.single();

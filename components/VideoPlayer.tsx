@@ -120,6 +120,8 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
     const onErrorRef = useRef(onError);
     const onQualityChangeRef = useRef(onQualityChange);
     const onLevelsLoadedRef = useRef(onLevelsLoaded);
+    // Tracks whether HLS already fired an error so the native <video> onError doesn't double-fire
+    const hlsErrorFiredRef = useRef(false);
 
     // Keep refs in sync without triggering effects
     onErrorRef.current = onError;
@@ -244,6 +246,9 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
       prevHlsUrlRef.current = hlsUrl;
       prevModuleIdRef.current = moduleId;
 
+      // Reset HLS error flag for each new source load
+      hlsErrorFiredRef.current = false;
+
       // If HLS URL is available and browser supports it
       if (hlsUrl && Hls.isSupported()) {
         // VP-1: URL refresh (same module, new signed URL) → swap source in-place
@@ -314,6 +319,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                   logger.debug('[HLS] Network error, max retries reached');
                   hls.destroy();
                   if (!destroyed && onErrorRef.current) {
+                    hlsErrorFiredRef.current = true;
                     onErrorRef.current('Network error: unable to load video. Please check your connection.');
                   }
                 }
@@ -327,6 +333,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                   logger.debug('[HLS] Media error, max retries reached');
                   hls.destroy();
                   if (!destroyed && onErrorRef.current) {
+                    hlsErrorFiredRef.current = true;
                     onErrorRef.current('Video playback error. Please try refreshing the page.');
                   }
                 }
@@ -335,6 +342,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                 logger.debug('[HLS] Fatal error, destroying HLS');
                 hls.destroy();
                 if (!destroyed && onErrorRef.current) {
+                  hlsErrorFiredRef.current = true;
                   onErrorRef.current('Failed to load video stream. The video format may not be supported.');
                 }
                 break;
@@ -423,7 +431,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
         onContextMenu={(e) => e.preventDefault()}
         aria-label="Course video player"
         onError={() => {
-          if (videoRef.current?.error && onErrorRef.current && !fetchErrorRef.current) {
+          if (videoRef.current?.error && onErrorRef.current && !fetchErrorRef.current && !hlsErrorFiredRef.current) {
             const code = videoRef.current.error.code;
             const messages: Record<number, string> = {
               1: 'Video loading was aborted.',

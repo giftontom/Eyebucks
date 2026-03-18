@@ -143,10 +143,10 @@ describe('coursesApi', () => {
       expect(result.course.id).toBe('course-1');
     });
 
-    it('should fetch by slug when non-UUID passed', async () => {
+    it('should fetch by slug or string ID when non-UUID passed', async () => {
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
+          or: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({ data: mockCourseRow, error: null }),
           }),
         }),

@@ -97,7 +97,9 @@ export const useVideoUrl = (
           if (retryRefreshError || !retryRefresh.session) {
             logger.error('[Video] Session expired, using direct URL');
             if (mountedRef.current) {
-              setError('Your session has expired. Please log in again.');
+              if (!directHlsUrl) {
+                setError('Your session has expired. Please log in again.');
+              }
               setIsLoading(false);
             }
             return;
@@ -109,7 +111,9 @@ export const useVideoUrl = (
           if (retryError) {
             logger.error('[Video] Signed URL retry failed, using direct URL');
             if (mountedRef.current) {
-              setError(retryError.message || 'Failed to load video');
+              if (!directHlsUrl) {
+                setError(retryError.message || 'Failed to load video');
+              }
               setIsLoading(false);
             }
             return;
@@ -117,16 +121,20 @@ export const useVideoUrl = (
           if (!retryData?.success) {
             logger.error('[Video] Signed URL retry returned error:', retryData?.error);
             if (mountedRef.current) {
-              setError(retryData?.error || 'Failed to load video');
+              if (!directHlsUrl) {
+                setError(retryData?.error || 'Failed to load video');
+              }
               setIsLoading(false);
             }
             return;
           }
           data = retryData;
         } else {
-          logger.error('[Video] Edge Function error, using direct URL:', fnError);
+          logger.error('[Video] Edge Function error, falling back to CDN URL:', fnError);
           if (mountedRef.current) {
-            setError(fnError.message || 'Failed to load video');
+            if (!directHlsUrl) {
+              setError(fnError.message || 'Failed to load video');
+            }
             setIsLoading(false);
           }
           return;
@@ -136,7 +144,9 @@ export const useVideoUrl = (
       if (!data?.success) {
         logger.error('[Video] Edge Function returned error:', data?.error);
         if (mountedRef.current) {
-          setError(data?.error || 'Failed to load video');
+          if (!directHlsUrl) {
+            setError(data?.error || 'Failed to load video');
+          }
           setIsLoading(false);
         }
         return;
