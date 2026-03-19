@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../../services/api', () => ({
   progressApi: {
@@ -129,5 +129,197 @@ describe('useModuleProgress', () => {
     );
     await new Promise(r => setTimeout(r, 50));
     expect(mockProgressApi.getProgress).not.toHaveBeenCalled();
+  });
+
+  // ─── Auto-save timer tests ───────────────────────────────────────────────
+
+  describe('auto-save timer', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockProgressApi.saveProgress.mockResolvedValue(undefined);
+      mockProgressApi.updateTimestamp.mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('calls saveProgress (not updateTimestamp) on first auto-save for a module', async () => {
+      const videoRef = { current: { currentTime: 15, duration: 100 } } as Parameters<typeof useModuleProgress>[0]['videoRef'];
+
+      renderHook(() =>
+        useModuleProgress({
+          courseId: 'course-1',
+          activeChapterId: 'mod-1',
+          isPlaying: true,
+          user: mockUser,
+          videoRef,
+          hasAccess: true,
+        })
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(30000);
+      });
+
+      expect(mockProgressApi.saveProgress).toHaveBeenCalledWith('course-1', 'mod-1', 15);
+      expect(mockProgressApi.updateTimestamp).not.toHaveBeenCalled();
+    });
+
+    it('calls updateTimestamp (not saveProgress) on subsequent auto-saves', async () => {
+      const videoRef = { current: { currentTime: 45, duration: 100 } } as Parameters<typeof useModuleProgress>[0]['videoRef'];
+
+      renderHook(() =>
+        useModuleProgress({
+          courseId: 'course-1',
+          activeChapterId: 'mod-1',
+          isPlaying: true,
+          user: mockUser,
+          videoRef,
+          hasAccess: true,
+        })
+      );
+
+      // First interval — calls saveProgress and marks viewIncremented
+      await act(async () => { vi.advanceTimersByTime(30000); });
+      // Flush the .then() callback that sets viewIncrementedRef
+      await act(async () => {});
+
+      expect(mockProgressApi.saveProgress).toHaveBeenCalledTimes(1);
+
+      // Second interval — should now call updateTimestamp
+      await act(async () => { vi.advanceTimersByTime(30000); });
+      await act(async () => {});
+
+      expect(mockProgressApi.updateTimestamp).toHaveBeenCalledWith('course-1', 'mod-1', 45);
+      expect(mockProgressApi.saveProgress).toHaveBeenCalledTimes(1); // still only once
+    });
+
+    it('does NOT auto-save when isPlaying is false', async () => {
+      const videoRef = { current: { currentTime: 20, duration: 100 } } as Parameters<typeof useModuleProgress>[0]['videoRef'];
+
+      renderHook(() =>
+        useModuleProgress({
+          courseId: 'course-1',
+          activeChapterId: 'mod-1',
+          isPlaying: false,
+          user: mockUser,
+          videoRef,
+          hasAccess: true,
+        })
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(60000); // advance 2 full intervals
+      });
+
+      expect(mockProgressApi.saveProgress).not.toHaveBeenCalled();
+      expect(mockProgressApi.updateTimestamp).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Resume position ─────────────────────────────────────────────────────
+
+  it('sets pendingResumeRef when resume position is greater than 0', async () => {
+    mockProgressApi.getResumePosition.mockResolvedValue(45);
+    const videoRef = { current: { currentTime: 0, duration: 0 } } as Parameters<typeof useModuleProgress>[0]['videoRef'];
+
+    const { result } = renderHook(() =>
+      useModuleProgress({
+        courseId: 'course-1',
+        activeChapterId: 'mod-1',
+        isPlaying: false,
+        user: mockUser,
+        videoRef,
+        hasAccess: true,
+      })
+    );
+
+    await waitFor(() => expect(mockProgressApi.getResumePosition).toHaveBeenCalled());
+    expect(result.current.pendingResumeRef.current).toBe(45);
+  });
+
+  // ─── checkCompletion guard and notification ───────────────────────────────
+
+  it('guards against concurrent checkCompletion calls', async () => {
+    // Make checkCompletion hang so the second call arrives while first is pending
+    let resolveFirst!: (v: boolean) => void;
+    mockProgressApi.checkCompletion.mockReturnValueOnce(
+      new Promise<boolean>(r => { resolveFirst = r; })
+    );
+
+    const { result } = renderHook(() =>
+      useModuleProgress({
+        courseId: 'course-1',
+        activeChapterId: 'mod-1',
+        isPlaying: true,
+        user: mockUser,
+        videoRef: mockVideoRef,
+        hasAccess: true,
+      })
+    );
+
+    act(() => {
+      result.current.checkCompletion(96, 100);
+      result.current.checkCompletion(97, 100); // second call while first is in-flight
+    });
+
+    resolveFirst(false);
+    await waitFor(() => expect(mockProgressApi.checkCompletion).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows completion notification then clears it after 3 seconds', async () => {
+    vi.useFakeTimers();
+    mockProgressApi.checkCompletion.mockResolvedValue(true);
+    mockProgressApi.getCourseStats.mockResolvedValue({ overallPercent: 100 });
+
+    const { result } = renderHook(() =>
+      useModuleProgress({
+        courseId: 'course-1',
+        activeChapterId: 'mod-1',
+        isPlaying: true,
+        user: mockUser,
+        videoRef: mockVideoRef,
+        hasAccess: true,
+      })
+    );
+
+    // Trigger completion check and flush the async promise chain
+    await act(async () => { result.current.checkCompletion(96, 100); });
+    await act(async () => {}); // flush .then() callbacks
+
+    expect(result.current.showCompletionNotification).toBe(true);
+
+    // Advance past the 3s notification timeout
+    await act(async () => { vi.advanceTimersByTime(3000); });
+
+    expect(result.current.showCompletionNotification).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('skips checkCompletion API call when module is already in moduleCompletionMap', async () => {
+    vi.useRealTimers(); // ensure real timers — previous fake-timer tests may have left them active
+    mockProgressApi.getProgress.mockResolvedValue([
+      { moduleId: 'mod-1', completed: true },
+    ]);
+
+    const { result } = renderHook(() =>
+      useModuleProgress({
+        courseId: 'course-1',
+        activeChapterId: 'mod-1',
+        isPlaying: true,
+        user: mockUser,
+        videoRef: mockVideoRef,
+        hasAccess: true,
+      })
+    );
+
+    await waitFor(() => expect(result.current.moduleCompletionMap['mod-1']).toBe(true));
+
+    act(() => {
+      result.current.checkCompletion(96, 100); // past threshold but already completed
+    });
+
+    expect(mockProgressApi.checkCompletion).not.toHaveBeenCalled();
   });
 });
