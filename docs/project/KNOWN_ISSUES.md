@@ -1,240 +1,103 @@
 # Known Issues
 
-Last updated: March 3, 2026
+Last updated: March 21, 2026
 
 ---
 
 ## Bugs
 
-### 1. Privacy/Terms pages show dynamic "Last Updated" date
+### 1. ~~Privacy/Terms pages show dynamic "Last Updated" date~~ — RESOLVED
 
 | | |
 |---|---|
 | **Severity** | Low |
-| **Priority** | Low |
-| **Files** | `pages/Privacy.tsx` (line 10), `pages/Terms.tsx` (line 10) |
+| **Status** | **Resolved — March 2026** |
+| **Files** | `pages/Privacy.tsx`, `pages/Terms.tsx` |
 
-**Description:**
-Both the Privacy Policy and Terms of Service pages render the "Last updated" date using `new Date().toLocaleDateString(...)`. This means the date shown to users changes every day to the current date, which is misleading for a legal document. Users (and regulators) expect this date to reflect the last time the document content was actually revised.
-
-**Code:**
-```tsx
-// pages/Privacy.tsx:10
-<p className="text-neutral-500 mb-8">Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-```
-
-**Suggested fix:**
-Replace `new Date()` with a hardcoded string representing the actual last revision date:
-```tsx
-<p className="text-neutral-500 mb-8">Last updated: March 3, 2026</p>
-```
+**Resolution:** Replaced `new Date().toLocaleDateString(...)` with the hardcoded string `"March 14, 2026"` in both pages. The date will now only change when the document content is actually revised.
 
 ---
 
-### 2. `coursesApi.getCourse()` slug detection uses fragile `startsWith('c')` check
+### 2. ~~`coursesApi.getCourse()` slug detection uses fragile `startsWith('c')` check~~ — RESOLVED
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Priority** | Medium |
-| **File** | `services/api/courses.api.ts` (line 126) |
+| **Status** | **Resolved — March 2026** |
+| **File** | `services/api/courses.api.ts` |
 
-**Description:**
-The `getCourse` function determines whether the `idOrSlug` parameter is a UUID or an ID by checking `isUuid || idOrSlug.startsWith('c')`. The `startsWith('c')` heuristic assumes all non-UUID course IDs begin with the letter "c". Any course slug that happens to start with "c" (e.g., `creative-writing`, `css-fundamentals`) will be incorrectly treated as an ID, causing the query to match against the `id` column instead of the `slug` column, resulting in a "Course not found" error.
-
-**Code:**
-```ts
-// services/api/courses.api.ts:126
-if (isUuid || idOrSlug.startsWith('c')) {
-  query = query.eq('id', idOrSlug);
-} else {
-  query = query.eq('slug', idOrSlug);
-}
-```
-
-**Suggested fix:**
-Remove the `startsWith('c')` branch entirely and rely solely on UUID detection. If the value is a valid UUID, query by `id`; otherwise, query by `slug`. An alternative is to try both in sequence (query by `id` first, then fall back to `slug`):
-```ts
-if (isUuid) {
-  query = query.eq('id', idOrSlug);
-} else {
-  query = query.eq('slug', idOrSlug);
-}
-```
+**Resolution:** Removed the `startsWith('c')` heuristic. The function now uses a UUID regex check only — if the value is a valid UUID it queries by `id`, otherwise it queries by `slug` using `.or(slug.eq.X,id.eq.X)` to handle both formats robustly.
 
 ---
 
-### 3. `reviews.api.ts` fetches ALL reviews twice for summary stats
+### 3. ~~`reviews.api.ts` fetches ALL reviews twice for summary stats~~ — RESOLVED
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Priority** | Medium |
-| **File** | `services/api/reviews.api.ts` (lines 43-69) |
+| **Status** | **Resolved — March 2026** |
+| **File** | `services/api/reviews.api.ts` |
 
-**Description:**
-`getCourseReviews` already fetches reviews with `{ count: 'exact' }` on line 48, which returns the total count via PostgREST without transferring all rows. However, a second unbounded query on lines 55-58 fetches every review for the course just to compute the average rating and rating distribution. For courses with many reviews, this transfers unnecessary data over the network.
-
-**Code:**
-```ts
-// First query (lines 43-51) - paginated, already has count
-const { data: reviews, error, count } = await supabase
-  .from('reviews')
-  .select(`...`, { count: 'exact' })
-  .eq('course_id', courseId)
-  .range(offset, offset + limit - 1);
-
-// Second query (lines 55-58) - fetches ALL reviews again
-const { data: allReviews } = await supabase
-  .from('reviews')
-  .select('rating')
-  .eq('course_id', courseId);
-```
-
-**Suggested fix:**
-Create a Postgres RPC function (or a database view) that computes the summary stats (average rating, rating distribution, total count) server-side, returning a single row. This eliminates the double-fetch entirely:
-```sql
-CREATE FUNCTION get_review_summary(p_course_id uuid)
-RETURNS json AS $$
-  SELECT json_build_object(
-    'total', count(*),
-    'average', coalesce(avg(rating), 0),
-    'distribution', json_build_object(
-      '5', count(*) filter (where rating = 5),
-      '4', count(*) filter (where rating = 4),
-      '3', count(*) filter (where rating = 3),
-      '2', count(*) filter (where rating = 2),
-      '1', count(*) filter (where rating = 1)
-    )
-  ) FROM reviews WHERE course_id = p_course_id;
-$$ LANGUAGE sql STABLE;
-```
+**Resolution:** Created `get_review_summary` Postgres RPC (migration 023) that computes average rating, rating distribution, and total count server-side in a single query. `getCourseReviews` now calls this RPC instead of fetching all rows client-side.
 
 ---
 
 ## Security
 
-### 4. Dev credentials hardcoded in production bundle (Medium)
+### 4. ~~Dev credentials hardcoded in production bundle~~ — RESOLVED
 
 | | |
 |---|---|
 | **Severity** | Medium |
-| **Priority** | Medium |
-| **File** | `context/AuthContext.tsx` (lines 133-165) |
+| **Status** | **Resolved — March 2026** |
+| **File** | `context/AuthContext.tsx` |
 
-**Description:**
-The `loginDev` function contains hardcoded credentials (`admin@eyebuckz.com` / `dev-password-123`) that ship in the production JavaScript bundle. Anyone inspecting the minified source can extract these credentials and use them to authenticate as the admin dev user against the production Supabase instance. Additionally, the function promotes the signed-in user to `ADMIN` role via a direct `users` table update (line 173), which compounds the risk if RLS does not prevent self-promotion (see issue #5).
-
-**Code:**
-```ts
-// context/AuthContext.tsx:133-135
-const loginDev = async (isAdmin: boolean = false) => {
-  const email = isAdmin ? 'admin@eyebuckz.com' : 'test@example.com';
-  const password = 'dev-password-123';
-  // ...
-  // Line 172-174: promotes user to ADMIN
-  if (isAdmin) {
-    await supabase.from('users').update({ role: 'ADMIN' }).eq('id', data.session.user.id);
-  }
-};
-```
-
-**Suggested fix:**
-- Gate the entire `loginDev` function behind a build-time environment check so it is tree-shaken from production builds:
-  ```ts
-  const loginDev = import.meta.env.DEV
-    ? async (isAdmin?: boolean) => { /* ... */ }
-    : async () => { throw new Error('Dev login is not available in production'); };
-  ```
-- Alternatively, remove `loginDev` from the production build entirely using a Vite plugin or conditional import.
-- Ensure the dev credentials do not exist in the production Supabase auth database.
+**Resolution:** `loginDev()` is now wrapped in `import.meta.env.DEV` guard. Vite tree-shakes the entire function (including hardcoded credentials) from production builds. The dev login button in the UI is also conditionally rendered behind the same guard.
 
 ---
 
-### 5. No RLS preventing admin role self-promotion (Low)
+### 5. ~~No RLS preventing admin role self-promotion~~ — RESOLVED
 
 | | |
 |---|---|
 | **Severity** | Low |
-| **Priority** | Low |
-| **File** | `context/AuthContext.tsx` (lines 172-174), RLS policies in `supabase/migrations/` |
+| **Status** | **Resolved — March 2026** |
+| **File** | `supabase/migrations/022_protect_role_column.sql` |
 
-**Description:**
-The `loginDev` function updates the `role` column on the `users` table from the client side using the anon/authenticated Supabase client. If the RLS policy on the `users` table allows authenticated users to update their own row without restricting which columns can be modified, any user could set their own `role` to `'ADMIN'` by crafting a similar Supabase query from the browser console or an API client.
-
-**Suggested fix:**
-Add a column-level restriction in the RLS update policy for the `users` table that prevents non-admin users from modifying the `role` column:
-```sql
-CREATE POLICY "users_update_own" ON users FOR UPDATE
-  USING (auth.uid() = id)
-  WITH CHECK (
-    -- Non-admins cannot change their role
-    (role = (SELECT role FROM users WHERE id = auth.uid()))
-    OR
-    (SELECT is_admin())
-  );
-```
-Alternatively, move admin role assignment to a server-side Edge Function that validates authorization.
+**Resolution:** Added `prevent_role_change` BEFORE UPDATE trigger on the `users` table (migration 022). The trigger raises an exception if a non-admin user attempts to change their own `role` column, blocking self-promotion regardless of RLS policy.
 
 ---
 
-### 6. Filter injection in `admin.api.ts` `.or()` string interpolation (Low)
+### 6. ~~Filter injection in `admin.api.ts` `.or()` string interpolation~~ — RESOLVED
 
 | | |
 |---|---|
 | **Severity** | Low |
-| **Priority** | Low |
-| **File** | `services/api/admin.api.ts` (lines 54, 647-649, 724) |
+| **Status** | **Resolved — March 2026** |
+| **File** | `services/api/admin.api.ts` |
 
-**Description:**
-The admin API builds PostgREST `.or()` filter strings by directly interpolating user-provided search input without sanitization. While PostgREST is not SQL and this does not enable SQL injection, a crafted search string containing PostgREST filter syntax characters (commas, parentheses, dots) could alter the filter logic, potentially exposing unintended data or causing query errors.
-
-**Code:**
-```ts
-// admin.api.ts:54 (getUsers)
-query = query.or(`name.ilike.%${params.search}%,email.ilike.%${params.search}%`);
-
-// admin.api.ts:647-649 (getPayments)
-query = query.or(
-  `receipt_number.ilike.%${params.search}%,razorpay_payment_id.ilike.%${params.search}%`
-);
-
-// admin.api.ts:724 (getReviews)
-query = query.or(`comment.ilike.%${params.search}%`);
-```
-
-The same pattern also appears in `services/api/payments.api.ts` (lines 105-107).
-
-**Suggested fix:**
-Sanitize the search input by escaping or stripping PostgREST special characters before interpolation:
-```ts
-function sanitizeSearch(input: string): string {
-  return input.replace(/[%_(),.*]/g, '');
-}
-```
-Alternatively, use individual `.ilike()` calls chained with Supabase's filter methods instead of string-based `.or()`.
+**Resolution:** Added `escapeOrFilter()` helper function to `admin.api.ts`. All `.or()` string interpolations now pass user input through this sanitizer before building the filter string, stripping PostgREST special characters.
 
 ---
 
 ## Technical Debt
 
-### 7. `supabase.ts` types include dropped `sessions` and `refresh_tokens` tables
+### 7. `types/supabase.ts` includes stale `sessions`/`refresh_tokens` tables (open)
 
 | | |
 |---|---|
 | **Severity** | Low |
 | **Priority** | Low |
-| **File** | `types/supabase.ts` (lines 454-538) |
+| **File** | `types/supabase.ts` |
 
 **Description:**
-The manually maintained `types/supabase.ts` file includes type definitions for `sessions` (lines 454-500) and `refresh_tokens` (lines 501-538) tables. These tables were part of the old custom JWT auth system and were dropped during the migration to Supabase Auth, which manages its own sessions internally. The stale type definitions give the false impression that these tables exist and could lead developers to write queries against non-existent tables.
+`types/supabase.ts` includes type definitions for `sessions` and `refresh_tokens` tables that were dropped during the migration to Supabase Auth. Migrations 022 and 023 have been applied (protect_role_column, get_review_summary_rpc), so the generated types are also out of date for those additions. The file needs full regeneration.
 
-**Suggested fix:**
-Remove the `sessions` and `refresh_tokens` table type definitions. Also consider removing `login_attempts` (lines 539-579) if that table was also part of the old auth system. Regenerate types using `supabase gen types typescript --local > types/supabase.ts` to ensure accuracy.
+**Blocker:** Docker is required to run `supabase gen types typescript --local`. Regenerate when Docker is available: run `/gen-db-types`.
 
 ---
 
-### 8. No server state caching (manual `useEffect`/`useState` everywhere)
+### 8. No server state caching — TanStack Query not started (open)
 
 | | |
 |---|---|
@@ -243,39 +106,53 @@ Remove the `sessions` and `refresh_tokens` table type definitions. Also consider
 | **Files** | All page components (`pages/Dashboard.tsx`, `pages/Learn.tsx`, `pages/Profile.tsx`, `pages/Storefront.tsx`, etc.) |
 
 **Description:**
-Every page that fetches data uses raw `useEffect` + `useState` patterns with no caching, deduplication, or background refetch. This means:
-- Navigating away from a page and returning triggers a full re-fetch every time
-- Multiple components fetching the same data (e.g., user profile, course list) create redundant network requests
-- There is no stale-while-revalidate behavior, so page transitions always show loading spinners
-- Error retry logic must be manually implemented in each component
+Every page that fetches data uses raw `useEffect` + `useState` patterns with no caching, deduplication, or background refetch. Navigating away and returning triggers a full re-fetch every time. No stale-while-revalidate behavior means all page transitions show loading spinners.
 
 **Suggested fix:**
-Adopt a server state library such as TanStack Query (React Query) or SWR. This provides automatic caching, request deduplication, background refetching, stale-while-revalidate, and built-in retry/error handling. Migrate incrementally, starting with the most frequently accessed queries (courses, enrollments, user profile).
+Adopt TanStack Query (React Query). Migrate incrementally, starting with the most frequently accessed queries (courses, enrollments, user profile).
 
 ---
 
-### 9. No error boundaries around admin pages
+### 9. ~~No error boundaries around admin pages~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | Low |
+| **Status** | **Resolved — March 2026** |
+| **File** | `pages/admin/AdminLayout.tsx` |
+
+**Resolution:** `AdminErrorFallback` component added directly to `AdminLayout.tsx`. The outlet is now wrapped in an `ErrorBoundary` that shows a branded error UI with a "Return to Admin Dashboard" link, allowing recovery without a full page reload.
+
+---
+
+### ~~10. Admin page unit test coverage gap~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | Medium |
+| **Status** | **Resolved — March 2026** |
+| **Files** | `pages/admin/` (12 pages: Dashboard, Courses, CourseEditor, Users, UserDetail, Payments, Certificates, Content, Coupons, Reviews, AuditLog, Settings) |
+
+**Resolution:** All 12 admin pages now have unit tests under `src/__tests__/pages/admin/`. Each test file covers render, happy-path interactions, and error states. Total test suite is 450+ tests, all passing.
+
+---
+
+### 11. HashRouter prevents SEO indexing of public pages (decision pending)
 
 | | |
 |---|---|
 | **Severity** | Low |
 | **Priority** | Low |
-| **Files** | `pages/admin/AdminLayout.tsx`, `pages/admin/AdminRoutes.tsx` |
+| **File** | `App.tsx` |
 
 **Description:**
-Admin pages perform complex operations (course CRUD, user management, payment processing, certificate issuance) but have no React error boundary wrapping them. An unhandled exception in any admin sub-page (e.g., a malformed API response, a null reference in a mapping function) will crash the entire admin panel, requiring a full page reload and losing any in-progress work.
+The app uses `HashRouter` (URLs like `/#/course/x`), which was chosen during early development for simplicity with Cloudflare Pages static hosting. Hash-based URLs are not crawled by search engine bots, meaning the Storefront, CourseDetails, and other public pages cannot be indexed. As the product approaches launch, this is a discoverability concern.
 
-**Suggested fix:**
-Add a React error boundary component around the admin route outlet in `AdminLayout.tsx`:
-```tsx
-import { ErrorBoundary } from '../components/ErrorBoundary';
+**Options:**
+- Switch to `BrowserRouter` + configure Cloudflare Pages `_redirects` to serve `index.html` for all routes (standard SPA pattern)
+- Keep HashRouter and accept no SEO (acceptable if growth is paid/referral only)
 
-// In AdminLayout render:
-<ErrorBoundary fallback={<AdminErrorFallback />}>
-  <Outlet />
-</ErrorBoundary>
-```
-The fallback should display the error message and provide a "Go to Admin Dashboard" link so the admin can recover without a full reload.
+Decision is pending product/marketing input.
 
 ---
 
@@ -328,3 +205,33 @@ Issues below were resolved during the codebase standardization refactor (March 2
 ### R8. `helpful` vs `helpful_count` field naming mismatch in reviews
 
 **Resolution:** The select query in `reviews.api.ts` was fixed to use `helpful_count`. The mapper converts the DB column `helpful_count` to the frontend field `helpful` for consistency.
+
+---
+
+### R9. SOW gap — Video trailer on CourseDetails not implemented
+
+**Resolution:** Already built. `pages/CourseDetails.tsx:144-176` renders a `VideoPlayer`
+for `course.heroVideoId` as the course trailer. No code change needed.
+
+---
+
+### R10. SOW gap — Sticky Buy button missing on mobile
+
+**Resolution:** Already built. `pages/CourseDetails.tsx:425-454` uses an `IntersectionObserver`
+on the inline CTA to show a sticky bottom bar on mobile when the CTA scrolls out of view.
+No code change needed.
+
+---
+
+### R11. SOW gap — Right-click disabled on video player
+
+**Resolution:** Already built. `pages/Learn.tsx:315` adds `onContextMenu={e => e.preventDefault()}`
+to the video wrapper element. No code change needed.
+
+---
+
+### R12. SOW gap — Hard session limit (sign out other sessions on login)
+
+**Resolution:** Already built. `supabase/functions/session-enforce/index.ts` calls
+`supabase.auth.admin.signOut(userId, 'others')` on every login, ensuring only one active
+session per user. No code change needed.

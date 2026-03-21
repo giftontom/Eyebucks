@@ -1,6 +1,6 @@
 # Eyebuckz LMS - System Architecture Overview
 
-> Last updated: March 6, 2026
+> Last updated: March 21, 2026
 
 > Target audience: new developers joining the project and architects evaluating the system design.
 
@@ -57,8 +57,8 @@
                     v             |
          +----------+----------+  |
          |   PostgreSQL        |  |
-         |   12 tables         |  |
-         |   14 functions      |  |
+         |   16 tables         |  |
+         |   15 RPC functions  |  |
          |   11 triggers       |  |
          |   49 RLS policies   |  |
          +---------------------+  |
@@ -375,7 +375,7 @@ pages/
   Checkout.tsx          # Razorpay checkout flow
   PurchaseSuccess.tsx   # Post-purchase confirmation
   admin/
-    AdminLayout.tsx     # Admin shell (sidebar + content)
+    AdminLayout.tsx     # Admin shell (sidebar + content + AdminErrorFallback wrapped outlet)
     AdminRoutes.tsx     # Admin sub-routing
     DashboardPage.tsx   # Admin analytics
     ReviewsPage.tsx     # Manage course reviews
@@ -390,9 +390,9 @@ pages/
 
 ### Database Schema
 
-PostgreSQL managed by Supabase with 17 sequential migrations (`001` through `017`).
+PostgreSQL managed by Supabase with 26 sequential migrations (`001` through `026`).
 
-**Core tables (12):**
+**All 16 tables:**
 
 | Table              | Purpose                                  |
 | ------------------ | ---------------------------------------- |
@@ -400,16 +400,20 @@ PostgreSQL managed by Supabase with 17 sequential migrations (`001` through `017
 | `courses`          | Course catalog (title, price, status)    |
 | `modules`          | Course content modules (video_id, order) |
 | `enrollments`      | User-course enrollment records           |
-| `module_progress`  | Per-module completion tracking            |
+| `progress`         | Per-module completion tracking            |
 | `payments`         | Payment transaction records              |
 | `certificates`     | Generated certificate metadata           |
 | `notifications`    | User notification inbox                  |
 | `reviews`          | Course reviews and ratings               |
 | `site_content`     | CMS-managed content blocks               |
-| `bundles`          | Course bundles (multi-course packages)   |
 | `bundle_courses`   | Bundle-to-course junction table          |
+| `coupon_uses`      | Atomic coupon redemption records         |
+| `coupons`          | Discount codes with usage tracking       |
+| `wishlists`        | User course favorites                    |
+| `login_attempts`   | Auth audit trail                         |
+| `audit_logs`       | Admin action log                         |
 
-**Database functions (14):** Includes `is_admin()` for role checks, `handle_new_user()` for auth trigger, progress calculation helpers, and enrollment management functions.
+**Database RPCs (15):** Includes `is_admin()` for role checks, `complete_module()` for atomic completion, `apply_coupon()` for atomic redemption, `get_admin_stats()` for dashboard KPIs, and progress/sales/review summary helpers.
 
 **Triggers (11):** Auto-fire on inserts/updates for profile creation, progress recalculation, notification generation, and timestamp management.
 
@@ -429,7 +433,7 @@ PostgreSQL managed by Supabase with 17 sequential migrations (`001` through `017
 
 ### Edge Functions
 
-10 Deno-runtime Edge Functions deployed to Supabase:
+11 Deno-runtime Edge Functions deployed to Supabase:
 
 | Function               | Auth Required | External API     | Purpose                            |
 | ---------------------- | ------------- | ---------------- | ---------------------------------- |
@@ -441,15 +445,19 @@ PostgreSQL managed by Supabase with 17 sequential migrations (`001` through `017
 | `certificate-generate` | Yes (JWT)     | --               | Generate + store PDF certificate   |
 | `progress-complete`    | Yes (JWT)     | Resend           | Mark module/course complete + email|
 | `refund-process`       | Yes (JWT+Admin)| Razorpay        | Process payment refunds            |
-| `session-enforce`      | Yes (JWT+Admin)| --              | Verify and enforce user session state |
-| `video-cleanup`        | Yes (JWT+Admin)| Bunny.net       | Delete unused video assets         |
+| `session-enforce`      | Yes (JWT)     | --               | Sign out other sessions on login (hard session limit) |
+| `video-cleanup`        | Yes (JWT+Admin)| Bunny.net       | Delete unused video assets from Bunny  |
+| `coupon-apply`         | Yes (JWT)     | --               | Atomic coupon validation via `apply_coupon` RPC |
 
-**Shared utilities** (`supabase/functions/_shared/`, 7 modules):
-- `cors.ts` - CORS header management
-- `auth.ts` - JWT verification helpers
-- `response.ts` - Standardized JSON response builders
-- `email.ts` - Resend email sending
-- Additional helpers for logging, validation, and error handling
+**Shared utilities** (`supabase/functions/_shared/`, 8 modules):
+- `cors.ts` — CORS header management
+- `auth.ts` — JWT verification helpers
+- `response.ts` — Standardized JSON response builders
+- `email.ts` — Resend email sending with retry
+- `emailTemplates.ts` — Branded HTML templates (enrollment, receipt, certificate)
+- `hmac.ts` — HMAC-SHA256 and timing-safe comparison
+- `certificates.ts` — Certificate number generation
+- `supabaseAdmin.ts` — Service-role client factory (bypasses RLS)
 
 **Edge Function conventions:**
 - Return JSON: `{ success: boolean, error?: string, ...data }`
@@ -626,16 +634,16 @@ Project ref: pdengtcdtszpvwhedzxn
 |   +-- admin/                   # Admin panel pages + components
 +-- services/
 |   +-- supabase.ts              # Supabase client singleton
-|   +-- api/                     # 12 typed API modules
+|   +-- api/                     # 13 typed API modules
 +-- types/
 |   +-- index.ts                 # Business types
 |   +-- api.ts                   # Request/response types
 |   +-- supabase.ts              # Auto-generated DB types
 +-- utils/                       # Utility functions
 +-- supabase/
-|   +-- migrations/              # 17 SQL migrations (001-017)
-|   +-- functions/               # 10 Edge Functions
-|   |   +-- _shared/             # 7 shared utilities
+|   +-- migrations/              # 26 SQL migrations (001-026)
+|   +-- functions/               # 11 Edge Functions
+|   |   +-- _shared/             # 8 shared utilities
 |   +-- seed.sql                 # Seed data
 +-- public/                      # Static assets
 +-- dist-maintenance/            # Maintenance mode static page
@@ -651,6 +659,6 @@ Project ref: pdengtcdtszpvwhedzxn
 | New page            | `pages/{Name}.tsx`                 | Add route in `App.tsx`                     |
 | New admin page      | `pages/admin/{Name}Page.tsx`       | Add route in `AdminRoutes.tsx`             |
 | New Edge Function   | `supabase/functions/{kebab-name}/` | Use `_shared/` helpers                     |
-| New DB migration    | `supabase/migrations/{NNN}_{desc}.sql` | Next available number: 018            |
+| New DB migration    | `supabase/migrations/{NNN}_{desc}.sql` | Next available number: 027            |
 | New business type   | `types/index.ts`                   |                                            |
 | New API type        | `types/api.ts`                     |                                            |

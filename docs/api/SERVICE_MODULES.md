@@ -62,9 +62,9 @@ For courses with `type = 'BUNDLE'`, a second query fetches associated courses fr
 async getCourse(idOrSlug: string): Promise<{ success: boolean; course: Course }>
 ```
 
-Fetches a single course by ID or slug. Auto-detects the lookup strategy:
-- **UUID format** (or starts with `'c'`): queries by `id`
-- **Otherwise**: queries by `slug`
+Fetches a single course by ID or slug. Auto-detects the lookup strategy using a UUID regex:
+- **UUID format** (matches `/^[0-9a-f]{8}-[0-9a-f]{4}-/i`): queries by `id`
+- **Otherwise**: queries using `.or(slug.eq.X,id.eq.X)` to handle both slug and non-UUID string IDs robustly
 
 Includes nested `modules` (sorted by `order_index` ascending) and `reviews` (with user names via `users(name)` join).
 
@@ -1035,12 +1035,11 @@ interface ReviewsResponse {
 async getCourseReviews(courseId: string, page: number = 1, limit: number = 10): Promise<ReviewsResponse>
 ```
 
-Returns paginated reviews for a course with computed summary statistics. Performs two queries:
-1. **Paginated reviews:** Joins `users:user_id(name, avatar)` for reviewer info. Ordered by `created_at` descending.
-2. **All ratings:** Fetches just `rating` for all reviews on the course to compute:
-   - `total`: total review count
-   - `averageRating`: mean of all ratings
-   - `distribution`: count per star level (1-5)
+Returns paginated reviews for a course with computed summary statistics. Runs two queries in parallel via `Promise.all`:
+1. **Paginated reviews:** Joins `users:user_id(name, avatar)` for reviewer info. Ordered by `created_at` descending. Uses `{ count: 'exact' }` for total count.
+2. **`get_review_summary` RPC:** Single server-side query returning average rating, star distribution, and total — no client-side aggregation.
+
+> **Note:** The previous double-fetch pattern (fetching all review rows to compute stats client-side) was replaced in migration 023 with the `get_review_summary` Postgres RPC. The RPC returns `{ total, average_rating, distribution: { '5': n, '4': n, '3': n, '2': n, '1': n } }`.
 
 `pagination.hasMore` is `true` when `count > offset + limit`.
 

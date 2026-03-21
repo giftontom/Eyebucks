@@ -23,6 +23,7 @@ Every function (except `checkout-webhook`) requires a valid Supabase JWT in the 
   - [hmac.ts](#4-hmacts)
   - [certificates.ts](#5-certificatests)
   - [email.ts](#6-emailts)
+  - [emailTemplates.ts](#8-emailtemplatests)
   - [supabaseAdmin.ts](#7-supabaseadmints)
 - [Edge Functions](#edge-functions)
   - [checkout-create-order](#1-checkout-create-order)
@@ -34,6 +35,8 @@ Every function (except `checkout-webhook`) requires a valid Supabase JWT in the 
   - [progress-complete](#7-progress-complete)
   - [refund-process](#8-refund-process)
   - [session-enforce](#9-session-enforce)
+  - [coupon-apply](#10-coupon-apply)
+  - [video-cleanup](#11-video-cleanup)
 
 ---
 
@@ -225,6 +228,26 @@ Sends an HTML email asynchronously. Does **not** return a Promise or block the c
 
 ---
 
+### 8. `emailTemplates.ts`
+
+Branded HTML email template factory. All templates return a complete inline-styled HTML string ready to pass to `sendEmail()`.
+
+**Source:** `supabase/functions/_shared/emailTemplates.ts`
+
+#### Exported Functions
+
+| Function | Purpose |
+|----------|---------|
+| `enrollmentWelcomeEmail(opts)` | Welcome email sent immediately after purchase. Contains course title and "Start Learning Now" CTA. |
+| `paymentReceiptEmail(opts)` | Payment receipt with order ID, payment ID, and amount formatted in INR. |
+| `certificateEmail(opts)` | Congratulations email with certificate number and "Download Certificate" CTA. |
+
+All three functions accept an `opts` object and return a fully self-contained HTML string. The layout uses a fixed-width (600px) table structure compatible with major email clients.
+
+**Used by:** `checkout-verify` (enrollment welcome + payment receipt), `certificate-generate` (certificate email).
+
+---
+
 ### 7. `supabaseAdmin.ts`
 
 Service-role Supabase client factory.
@@ -358,8 +381,8 @@ Verifies a Razorpay payment signature, creates enrollment and payment records, a
 2. **Bundle expansion:** If `course.type === 'BUNDLE'`, creates additional enrollments for all courses in `bundle_courses` table (amount `0`, upsert with `ignoreDuplicates`)
 3. **Payment record** inserted with status `captured` and auto-generated receipt number (`EYB-{base36_timestamp}`)
 4. **Notification** created (type `enrollment`)
-5. **Enrollment welcome email** sent via Resend (non-blocking)
-6. **Payment receipt email** sent via Resend (non-blocking, formatted in INR)
+5. **Enrollment welcome email** sent via Resend using `enrollmentWelcomeEmail()` template (non-blocking, branded HTML)
+6. **Payment receipt email** sent via Resend using `paymentReceiptEmail()` template (non-blocking, formatted in INR, includes order/payment IDs)
 
 #### Environment Variables
 
@@ -674,7 +697,7 @@ Generates a certificate record for a completed course and sends a congratulation
 
 1. **Certificate record** inserted with generated `certificate_number`, `student_name`, `course_title`, `status: 'ACTIVE'`
 2. **Notification** created (type `certificate`)
-3. **Congratulations email** sent via Resend with certificate number and dashboard link (non-blocking)
+3. **Congratulations email** sent via Resend using `certificateEmail()` template (non-blocking, branded HTML, includes certificate number)
 
 #### Environment Variables
 
@@ -854,8 +877,8 @@ refunded  -->  refunded     (rejected: 409)
 | `RAZORPAY_KEY_ID` | checkout-create-order, checkout-verify, refund-process | Razorpay API key ID |
 | `RAZORPAY_KEY_SECRET` | checkout-create-order, checkout-verify, refund-process | Razorpay API secret |
 | `RAZORPAY_WEBHOOK_SECRET` | checkout-webhook | Razorpay webhook signing secret |
-| `BUNNY_STREAM_API_KEY` | admin-video-upload | Bunny Stream API key |
-| `BUNNY_STREAM_LIBRARY_ID` | admin-video-upload | Bunny Stream library ID |
+| `BUNNY_STREAM_API_KEY` | admin-video-upload, video-cleanup | Bunny Stream API key |
+| `BUNNY_STREAM_LIBRARY_ID` | admin-video-upload, video-cleanup | Bunny Stream library ID |
 | `BUNNY_STREAM_CDN_HOSTNAME` | video-signed-url, admin-video-upload | Bunny CDN hostname |
 | `BUNNY_STREAM_TOKEN_KEY` | video-signed-url | Bunny token authentication key |
 | `RESEND_API_KEY` | checkout-verify, certificate-generate | Resend email API key |
@@ -876,7 +899,113 @@ Verifies and enforces user session state. Used for server-side session invalidat
 | **Auth** | JWT + Admin role required |
 | **External APIs** | None |
 
+**Behavior:**
+- Calls `supabase.auth.admin.signOut(userId, 'others')` to invalidate all other active sessions for the user.
+- Enforces a hard session limit: only one active session per user at any time.
+- Called by `AuthContext` on every `SIGNED_IN` event with a 3-second timeout.
+- Network errors are treated as non-fatal (lenient failure mode) — auth still completes.
+
 **Deployment note:** Deployed with `--no-verify-jwt` flag (ES256 JWT migration compatibility). JWT verification is performed manually inside the function via `verifyAuth()`.
+
+---
+
+### 10. `coupon-apply`
+
+Atomically validates and redeems a coupon code for a course purchase.
+
+**Source:** `supabase/functions/coupon-apply/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/coupon-apply` |
+| **Auth** | JWT required |
+| **External APIs** | None |
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `code` | `string` | Yes | Coupon code to apply |
+| `courseId` | `string` | Yes | UUID of the course being purchased |
+
+#### Response (200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `boolean` | Always `true` |
+| `couponUseId` | `string` | UUID of the created `coupon_uses` record |
+| `discountPct` | `number` | Discount percentage captured at redemption time |
+| `finalAmount` | `number` | Final price in paise after discount |
+
+#### Validation Logic
+
+Delegates to the `apply_coupon(code, course_id, user_id)` PostgreSQL RPC, which is executed atomically with row-level locking:
+
+1. Validates the coupon is `is_active = true` and not expired
+2. Checks `use_count < max_uses` (or `max_uses` is null for unlimited)
+3. Verifies the user has not already used this coupon for this course
+4. Atomically increments `use_count` and inserts a `coupon_uses` record
+
+#### Error Responses
+
+| Status | Error | Condition |
+|--------|-------|-----------|
+| 400 | `code and courseId are required` | Missing required fields |
+| 400 | `Invalid or expired coupon` | Coupon not found, inactive, expired, or max uses reached |
+| 409 | `Coupon already used` | User has already redeemed this coupon for this course |
+| 404 | `Course not found` | Invalid `courseId` |
+| 500 | `Failed to apply coupon` | `apply_coupon()` RPC error |
+
+---
+
+### 11. `video-cleanup`
+
+Deletes a video from Bunny.net after the corresponding course module has been removed.
+
+**Source:** `supabase/functions/video-cleanup/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/video-cleanup` |
+| **Auth** | JWT + Admin role required |
+| **External APIs** | Bunny.net Stream API |
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `videoId` | `string` | Yes | Bunny.net video GUID to delete |
+
+#### Response (200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `boolean` | Always `true` |
+| `deleted` | `boolean` | `true` if the video was deleted from Bunny |
+| `videoId` | `string` | The deleted video GUID |
+
+#### Flow
+
+1. Verify JWT + admin role
+2. Validate `videoId` is provided
+3. Call Bunny.net Stream API: `DELETE /library/{libraryId}/videos/{videoId}`
+4. Return success (treats 404 from Bunny as success — video may already be deleted)
+
+#### Error Responses
+
+| Status | Error | Condition |
+|--------|-------|-----------|
+| 400 | `videoId is required` | Missing `videoId` |
+| 403 | `Admin access required` | Authenticated user is not an admin |
+| 500 | `Video service not configured` | Missing `BUNNY_STREAM_API_KEY` or `BUNNY_STREAM_LIBRARY_ID` |
+| 502 | `Failed to delete video from Bunny` | Bunny API returned a non-404 error |
+
+#### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `BUNNY_STREAM_API_KEY` | Bunny Stream API key |
+| `BUNNY_STREAM_LIBRARY_ID` | Bunny Stream library ID |
 
 ---
 

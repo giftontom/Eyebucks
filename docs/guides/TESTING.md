@@ -1,6 +1,6 @@
 # Eyebuckz LMS -- Testing Guide
 
-> Last updated: March 3, 2026
+> Last updated: March 21, 2026
 
 This guide covers the testing infrastructure, conventions, and patterns used in the Eyebuckz LMS project. It is intended for contributors writing new tests or maintaining existing ones.
 
@@ -93,16 +93,39 @@ src/
     components/
       EnrollmentGate.test.tsx         # Component tests
       Layout.test.tsx
+      NotificationBell.test.tsx
     hooks/
-      useScript.test.ts              # Hook tests
+      useAccessControl.test.ts       # Hook tests
+      useModuleProgress.test.ts
+      useScript.test.ts
       useVideoUrl.test.ts
+      useWishlist.test.ts
     pages/
-      Dashboard.test.tsx             # Page-level integration tests
+      Checkout.test.tsx              # Page-level integration tests
+      CourseDetails.test.tsx
+      Dashboard.test.tsx
+      Learn.test.tsx
+      Profile.test.tsx
+      PurchaseSuccess.test.tsx
       Storefront.test.tsx
+      admin/
+        AuditLogPage.test.tsx        # Admin page tests (all 12 pages covered)
+        CertificatesPage.test.tsx
+        ContentPage.test.tsx
+        CouponsPage.test.tsx
+        CourseEditorPage.test.tsx
+        CoursesPage.test.tsx
+        DashboardPage.test.tsx
+        PaymentsPage.test.tsx
+        ReviewsPage.test.tsx
+        SettingsPage.test.tsx
+        UserDetailPage.test.tsx
+        UsersPage.test.tsx
     services/
       authService.test.ts            # API service unit tests
       certificatesApi.test.ts
       checkoutApi.test.ts
+      coursesApi.test.ts
       enrollmentService.test.ts
       paymentsApi.test.ts
       progressApi.test.ts
@@ -193,19 +216,23 @@ Replaces browser storage with an in-memory implementation that supports `getItem
 | File | Module Under Test | What It Tests |
 |------|-------------------|---------------|
 | `authService.test.ts` | `services/api/users.api.ts` | `getCurrentUser` (auth check, profile fetch), `updatePhone` (E.164 validation), `updateProfile` |
+| `coursesApi.test.ts` | `services/api/courses.api.ts` | `getCourses` (published filter, bundle expansion), `getCourse` (UUID vs slug detection, not-found), `getCoursesByIds` (batch lookup, empty array), `getCourseModules` (videoId redaction for non-enrolled users, free-preview passthrough) |
 | `enrollmentService.test.ts` | `services/api/enrollments.api.ts` | `getUserEnrollments` (auth guard, data mapping), `checkAccess` (unauthenticated, admin bypass) |
 | `checkoutApi.test.ts` | `services/api/checkout.api.ts` | `createOrder` (Edge Function invocation, error handling), `verifyPayment` (signature verification, bundle warnings), `checkOrderStatus` (pending/completed states) |
 | `paymentsApi.test.ts` | `services/api/payments.api.ts` | `getUserPayments` (pagination, mapping), `getPaymentByOrder` (found/not-found), `processRefund` (Edge Function, Razorpay errors), `getAdminPayments` (status filtering) |
 | `certificatesApi.test.ts` | `services/api/certificates.api.ts` | `getUserCertificates` (auth guard, data mapping, empty state), `getCertificate` (by ID, not found) |
-| `reviewsApi.test.ts` | `services/api/reviews.api.ts` | `createReview` (auth guard, insert), `updateReview` (update, DB errors), `deleteReview` (success, errors), `getCourseReviews` (paginated reviews with rating summary/distribution) |
+| `reviewsApi.test.ts` | `services/api/reviews.api.ts` | `createReview` (auth guard, insert), `updateReview` (update, DB errors), `deleteReview` (success, errors), `getCourseReviews` (paginated reviews + `get_review_summary` RPC for distribution/average) |
 | `progressApi.test.ts` | `services/api/progress.api.ts` | `COMPLETION_THRESHOLD` constant, `saveProgress` (insert vs. update/RPC), `markComplete` (Edge Function), `checkCompletion` (threshold logic, already-completed guard), `getModuleProgress` (data mapping), `getResumePosition`, `getProgress`, `getCourseStats` (RPC call) |
 
 ### Hook Tests (`src/__tests__/hooks/`)
 
 | File | Hook Under Test | What It Tests |
 |------|-----------------|---------------|
-| `useVideoUrl.test.ts` | `hooks/useVideoUrl.ts` | Fallback URL for null videoId, signed URL fetching via Edge Function, error/fallback on failure, auth refresh + retry on 401, session expiration handling, optional moduleId, `success: false` response handling |
+| `useAccessControl.test.ts` | `hooks/useAccessControl.ts` | Returns `hasAccess=true` for admins, enrollment check for regular users, unauthenticated path |
+| `useModuleProgress.test.ts` | `hooks/useModuleProgress.ts` | Auto-save timer (30s interval), completion threshold (95%), `updateTimestamp` on subsequent saves, completion notification display and auto-clear, already-completed guard |
 | `useScript.test.ts` | `hooks/useScript.ts` | Loading state, script load/error events, pre-existing script detection, async attribute, deduplication, cleanup on unmount |
+| `useVideoUrl.test.ts` | `hooks/useVideoUrl.ts` | Fallback URL for null videoId, signed URL fetching via Edge Function, error/fallback on failure, auth refresh + retry on 401, session expiration handling, optional moduleId, `success: false` response handling |
+| `useWishlist.test.ts` | `hooks/useWishlist.ts` | Optimistic add/remove toggle, rollback on failure, toast notification on error |
 
 ### Component Tests (`src/__tests__/components/`)
 
@@ -213,14 +240,39 @@ Replaces browser storage with an in-memory implementation that supports `getItem
 |------|---------------------|---------------|
 | `EnrollmentGate.test.tsx` | `components/EnrollmentGate.tsx` | Course title display, price formatting (paise to rupees), enrollment required message, module count, enroll/view-details buttons |
 | `Layout.test.tsx` | `components/Layout.tsx` | Children rendering, logo/brand display, login button (unauthenticated), user info (authenticated), admin link (admin users) |
+| `NotificationBell.test.tsx` | `components/NotificationBell.tsx` | Renders unread count badge, marks individual and all notifications as read, empty state |
 | `ErrorBoundary.test.tsx` | `components/ErrorBoundary.tsx` | Renders children normally, catches thrown errors, displays fallback UI, does not crash the app |
 
 ### Page Tests (`src/__tests__/pages/`)
 
 | File | Page Under Test | What It Tests |
 |------|-----------------|---------------|
+| `Checkout.test.tsx` | `pages/Checkout.tsx` | Renders course info, price display, coupon flow (apply, discount display, 100% coupon), analytics events, already-enrolled redirect |
+| `CourseDetails.test.tsx` | `pages/CourseDetails.tsx` | Course title/description display, module list, enroll CTA, free-preview badge |
+| `Dashboard.test.tsx` | `pages/Dashboard.tsx` | Displays user enrollments with course data, empty state, API error handling. Mocks `coursesApi.getCoursesByIds()` and `enrollmentsApi` via `vi.mock('services/api')`. |
+| `Learn.test.tsx` | `pages/Learn.tsx` | Module navigation, active module selection, access gate redirect |
+| `Profile.test.tsx` | `pages/Profile.tsx` | User profile card (edit name, phone), certificate list (multiple certs, download link, empty state, error + retry), payment history |
+| `PurchaseSuccess.test.tsx` | `pages/PurchaseSuccess.tsx` | Renders success message, course title, link to learn page |
 | `Storefront.test.tsx` | `pages/Storefront.tsx` | Fetches and displays courses, handles API errors gracefully |
-| `Dashboard.test.tsx` | `pages/Dashboard.tsx` | Displays user enrollments with course data, empty state, API error handling. Mocks `coursesApi.getCoursesByIds()` and `enrollmentsApi` via `vi.mock('services/api')` (not direct Supabase mocks). |
+
+### Admin Page Tests (`src/__tests__/pages/admin/`)
+
+All 12 admin pages are covered. Each test file follows the pattern in `docs/guides/ADMIN_TEST_GUIDE.md`.
+
+| File | Page Under Test | What It Tests |
+|------|-----------------|---------------|
+| `CoursesPage.test.tsx` | `pages/admin/CoursesPage.tsx` | Course list render, publish/draft toggle, archive, restore, error states |
+| `DashboardPage.test.tsx` | `pages/admin/DashboardPage.tsx` | KPI cards, sales chart, recent activity feed, loading/error states |
+| `UsersPage.test.tsx` | `pages/admin/UsersPage.tsx` | User list render, search/filter, pagination |
+| `UserDetailPage.test.tsx` | `pages/admin/UserDetailPage.tsx` | User profile display, enrollment list, manual enroll, revoke enrollment |
+| `PaymentsPage.test.tsx` | `pages/admin/PaymentsPage.tsx` | Payment list render, refund flow, status filter |
+| `CertificatesPage.test.tsx` | `pages/admin/CertificatesPage.tsx` | Certificate list render, issue, revoke |
+| `ContentPage.test.tsx` | `pages/admin/ContentPage.tsx` | Section tabs, edit/save CMS blocks |
+| `CouponsPage.test.tsx` | `pages/admin/CouponsPage.tsx` | Coupon list render, create coupon, deactivate |
+| `ReviewsPage.test.tsx` | `pages/admin/ReviewsPage.tsx` | Review list render, delete review |
+| `AuditLogPage.test.tsx` | `pages/admin/AuditLogPage.tsx` | Audit log list render, pagination |
+| `CourseEditorPage.test.tsx` | `pages/admin/CourseEditorPage.tsx` | Module CRUD, video upload trigger, bundle config |
+| `SettingsPage.test.tsx` | `pages/admin/SettingsPage.tsx` | Load settings, save settings, maintenance mode toggle |
 
 ---
 
@@ -630,15 +682,16 @@ coverage: {
 }
 ```
 
-### What is currently covered
+### Current test inventory
+
+As of March 19, 2026: **36 test files, 316 tests total** (313 passing).
 
 The existing test suite covers:
 
-- **API services** (7 files): `users`, `enrollments`, `checkout`, `payments`, `certificates`, `reviews`, `progress` -- covering auth guards, data mapping, Edge Function invocation, error handling, and query chaining.
-- **Hooks** (2 files): `useVideoUrl` (Edge Function integration, auth refresh, error states), `useScript` (DOM manipulation, lifecycle).
-- **Components** (2 files): `EnrollmentGate` (rendering, formatting), `Layout` (auth-dependent UI).
-- **Pages** (2 files): `Storefront` (data fetching, error handling), `Dashboard` (enrollment display, empty state).
-- **Utilities** (1 file): `ErrorBoundary` (error catching, fallback rendering).
+- **API services** (8 files): `users`, `enrollments`, `checkout`, `payments`, `certificates`, `reviews`, `progress`, `courses` -- covering auth guards, data mapping, Edge Function invocation, error handling, query chaining, and slug/UUID detection.
+- **Hooks** (5 files): `useVideoUrl`, `useScript`, `useAccessControl`, `useModuleProgress`, `useWishlist`.
+- **Components** (3 files): `EnrollmentGate`, `Layout`, `NotificationBell`, `ErrorBoundary`.
+- **Pages** (7 files): `Storefront`, `Dashboard`, `Checkout`, `CourseDetails`, `Learn`, `Profile`, `PurchaseSuccess`.
 
 ### Known gaps
 
@@ -646,19 +699,25 @@ The following areas do not currently have test coverage:
 
 | Area | Key Files |
 |------|-----------|
-| Admin pages | `pages/admin/DashboardPage.tsx`, `pages/admin/ReviewsPage.tsx`, `AdminLayout.tsx` |
+| Admin pages | 11 of 12 `pages/admin/` pages have no unit tests (`CoursesPage` done — see `docs/guides/ADMIN_TEST_GUIDE.md` for the full per-page checklist) |
 | Admin API service | `services/api/admin.api.ts` |
-| Courses API service | `services/api/courses.api.ts` |
 | Site content API | `services/api/siteContent.api.ts` |
 | Notifications API | `services/api/notifications.api.ts` |
 | Auth context | `context/AuthContext.tsx` |
-| Checkout page | `pages/Checkout.tsx` (lazy-loaded) |
-| Learn page | `pages/Learn.tsx` |
-| Profile page | `pages/Profile.tsx` |
 | VideoPlayer component | `components/VideoPlayer.tsx` |
 | VideoUploader component | `components/VideoUploader.tsx` |
 | Supabase client singleton | `services/supabase.ts` |
 | Edge Functions (Deno) | `supabase/functions/` (require separate Deno test runner) |
+
+### Previously failing tests — now resolved
+
+3 tests in `useModuleProgress.test.ts` that were failing due to timer interaction issues are now passing as of commit `7bb0e7c`:
+
+1. `calls updateTimestamp (not saveProgress) on subsequent auto-saves`
+2. `shows completion notification then clears it after 3 seconds`
+3. `skips checkCompletion API call when module is already in moduleCompletionMap`
+
+These were test-side issues (timer/mock setup), not bugs in the hook itself.
 
 ---
 

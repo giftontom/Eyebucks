@@ -1,6 +1,6 @@
 # Eyebuckz LMS -- Deployment Guide
 
-> Last updated: March 3, 2026
+> Last updated: March 21, 2026
 
 ---
 
@@ -244,7 +244,12 @@ Migrations live in `supabase/migrations/` and are numbered sequentially:
 010_enrollment_expiration.sql
 011_increment_view_count.sql
 012_set_bunny_video_urls.sql
+... (013 – 021 cover audit logs, login attempts, wishlists, coupons, notifications, admin search, etc.)
+022_protect_role_column.sql     -- BEFORE UPDATE trigger blocking role self-promotion
+023_get_review_summary_rpc.sql  -- get_review_summary() RPC replacing double-fetch
 ```
+
+**26 migrations applied as of March 2026. Next migration number: 027.**
 
 **Push pending migrations to production:**
 
@@ -264,7 +269,7 @@ supabase migration list
 
 ### 4.3 Edge Functions
 
-Eight Edge Functions handle server-side logic:
+Eleven Edge Functions handle server-side logic:
 
 | Function | Purpose | Auth Required |
 |----------|---------|---------------|
@@ -273,9 +278,12 @@ Eight Edge Functions handle server-side logic:
 | `checkout-create-order` | Create Razorpay payment order | Yes |
 | `checkout-verify` | Verify Razorpay payment signature | Yes |
 | `checkout-webhook` | Razorpay webhook receiver | **No** (Razorpay calls it) |
+| `coupon-apply` | Atomic coupon validation via RPC | Yes |
 | `progress-complete` | Mark module/course progress | Yes |
 | `refund-process` | Process payment refunds | Yes (admin) |
-| `video-signed-url` | Generate signed Bunny.net HLS URLs | Yes |
+| `session-enforce` | Validate/enforce user session on login | Yes (`--no-verify-jwt`) |
+| `video-cleanup` | Delete video from Bunny after module removal | Yes (admin) |
+| `video-signed-url` | Generate signed Bunny.net HLS URLs | Yes (`--no-verify-jwt`) |
 
 **Deploy all functions:**
 

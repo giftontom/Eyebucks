@@ -144,17 +144,32 @@ describe('coursesApi', () => {
     });
 
     it('should fetch by slug or string ID when non-UUID passed', async () => {
+      const orMock = vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: mockCourseRow, error: null }),
+      });
       mockSupabase.from.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          or: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({ data: mockCourseRow, error: null }),
-          }),
-        }),
+        select: vi.fn().mockReturnValue({ or: orMock }),
       });
 
       const result = await coursesApi.getCourse('test-course');
       expect(result.success).toBe(true);
       expect(result.course.slug).toBe('test-course');
+      // Regression: old code used startsWith('c') heuristic — verify .or() contains both slug and id
+      expect(orMock).toHaveBeenCalledWith(expect.stringContaining('slug.eq.test-course'));
+      expect(orMock).toHaveBeenCalledWith(expect.stringContaining('id.eq.test-course'));
+    });
+
+    it('uses .or() for slugs starting with "c" (regression: old startsWith("c") bug)', async () => {
+      const orMock = vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({ data: { ...mockCourseRow, slug: 'cinematography-basics' }, error: null }),
+      });
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({ or: orMock }),
+      });
+
+      const result = await coursesApi.getCourse('cinematography-basics');
+      expect(result.success).toBe(true);
+      expect(orMock).toHaveBeenCalledWith(expect.stringContaining('slug.eq.cinematography-basics'));
     });
 
     it('should throw when course not found (DB returns PGRST116 error)', async () => {
@@ -288,6 +303,87 @@ describe('coursesApi', () => {
       const result = await coursesApi.getCourseModules('course-1');
       expect(result.hasAccess).toBe(true);
       expect(result.modules[0].videoId).toBe('bunny-guid-123');
+    });
+
+    it('admin role has access even without enrollment', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'admin-1' } }, error: null });
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'modules') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: [mockModuleRow], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }), // not enrolled
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        // users table returns ADMIN role
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { role: 'ADMIN' }, error: null }),
+            }),
+          }),
+        };
+      });
+
+      const result = await coursesApi.getCourseModules('course-1');
+      expect(result.hasAccess).toBe(true);
+      expect(result.modules[0].videoId).toBe('bunny-guid-123');
+    });
+
+    it('returns hasAccess false and redacts video when enrollment check errors', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'modules') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue({ data: [mockModuleRow], error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === 'enrollments') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  eq: vi.fn().mockReturnValue({
+                    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: 'Network error' } }),
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { role: 'USER' }, error: null }),
+            }),
+          }),
+        };
+      });
+
+      const result = await coursesApi.getCourseModules('course-1');
+      expect(result.hasAccess).toBe(false);
+      expect(result.modules[0].videoUrl).toBe('');
     });
   });
 });

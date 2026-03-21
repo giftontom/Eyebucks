@@ -123,11 +123,12 @@ function useVideoUrl(
 **Dependencies:** Supabase client (for Edge Function invocation and auth token).
 
 **Behavior:**
-- Calls the `video-signed-url` Edge Function with the video/module ID.
-- Returns both a direct URL and an HLS URL.
-- Automatically refreshes the URL 5 minutes before expiry to prevent playback interruption.
-- Includes auth retry logic: if the token is expired, it attempts a session refresh before retrying.
-- Falls back to `fallbackUrl` if the Edge Function call fails and a fallback is provided.
+- Immediately sets `hlsUrl` to `fallbackUrl` (Referer-based CDN access) so video can begin loading before the signed URL arrives.
+- Calls the `video-signed-url` Edge Function in the background; on success, upgrades `hlsUrl` to the signed URL.
+- If signing fails and `fallbackUrl` is available, keeps using the CDN URL silently (does **not** set `error` — avoids false error display when the CDN URL is functional).
+- Includes auth retry logic: if the JWT is expired, attempts a session refresh before retrying the Edge Function call.
+- Automatically schedules a refresh 5 minutes before the signed URL expires to prevent mid-session expiry.
+- Cleans up the refresh timer on unmount.
 
 ---
 

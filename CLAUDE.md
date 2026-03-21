@@ -167,7 +167,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 024** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 027** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -425,19 +425,25 @@ vi.mock('../../../services/api', () => ({ usersApi: mockApi }));
 ## Known Issues
 
 ### Bugs
-1. **Privacy/Terms pages show `new Date()` as "Last Updated"** — renders today's date every render; should be a static string
-2. **`getCourse()` has fragile `startsWith('c')` heuristic** — any slug starting with 'c' triggers wrong lookup path → "Course not found" error
-3. **`reviews.api.ts` double-fetches** — second unbounded query fetches ALL reviews just to compute average rating; should use an RPC instead
+1. ~~**Privacy/Terms pages show `new Date()` as "Last Updated"**~~ — **RESOLVED** (March 2026): hardcoded to "March 14, 2026" in both pages
+2. ~~**`getCourse()` has fragile `startsWith('c')` heuristic**~~ — **RESOLVED** (March 2026): replaced with UUID regex + `.or(slug.eq,id.eq)` query
+3. ~~**`reviews.api.ts` double-fetches**~~ — **RESOLVED** (March 2026): now calls `get_review_summary` RPC (added in migration 023)
 
 ### Security Gaps
-4. **Dev credentials in production bundle** — `loginDev()` in `AuthContext` contains `admin@eyebuckz.com`/`dev-password-123`; visible in minified JS; must be tree-shaken behind `import.meta.env.DEV`
-5. **No column-level RLS on `role`** — `users_update_own` policy allows updating the `role` column; a user could `UPDATE users SET role='ADMIN'`; fix: BEFORE UPDATE trigger blocking role changes
-6. **PostgREST filter injection** — admin search interpolates user input into `.or()` string; crafted input could alter filter logic; fix: escape special characters before interpolation
+4. ~~**Dev credentials in production bundle**~~ — **RESOLVED** (March 2026): `loginDev()` gated behind `import.meta.env.DEV`; tree-shaken from production builds
+5. ~~**No column-level RLS on `role`**~~ — **RESOLVED** (March 2026): `prevent_role_change` BEFORE UPDATE trigger added in migration 022
+6. ~~**PostgREST filter injection**~~ — **RESOLVED** (March 2026): `escapeOrFilter()` helper added to `admin.api.ts`; all `.or()` interpolations now sanitized
 
 ### Tech Debt
-7. **`types/supabase.ts` has stale `sessions`/`refresh_tokens` tables** — dropped during auth migration; regenerate via `/gen-db-types`
-8. **No server state caching** — every navigation triggers full re-fetch; no deduplication or stale-while-revalidate; opportunity for TanStack Query
-9. **No error boundaries around admin pages** — an admin page crash requires full page reload; fix: wrap `AdminLayout` outlet with `ErrorBoundary`
+7. **`types/supabase.ts` has stale `sessions`/`refresh_tokens` tables** — dropped during auth migration; migrations 022+023 are applied but types not yet regenerated (requires Docker); run `/gen-db-types` when Docker is available
+8. **No server state caching** — every navigation triggers full re-fetch; no deduplication or stale-while-revalidate; opportunity for TanStack Query (not started)
+9. ~~**No error boundaries around admin pages**~~ — **RESOLVED** (March 2026): `AdminErrorFallback` component added to `AdminLayout.tsx` with "Return to Admin Dashboard" link
+
+### Remaining Open Items
+- **`types/supabase.ts` regeneration** — pending Docker availability (item 7 above)
+- **Admin page unit tests** — 0 of 12 admin pages have unit tests; high-value gap before launch
+- **TanStack Query migration** — not started; all pages still use raw `useEffect`/`useState`
+- **HashRouter vs standard routing** — decision not yet made; HashRouter currently prevents SEO indexing of public pages
 
 ---
 
@@ -482,10 +488,11 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **21 sequential SQL migrations (001-021)**; next = 022
+- `supabase/migrations/` — **23 sequential SQL migrations (001-023)**; next = 024
 - `supabase/functions/` — **11 Edge Functions** (see Edge Functions section above)
+- `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate)
 - `types/index.ts` — Business types (25+ interfaces/enums)
-- `types/supabase.ts` — Auto-generated DB types (run `/gen-db-types` to refresh)
+- `types/supabase.ts` — Auto-generated DB types (run `/gen-db-types` to refresh; pending Docker)
 
 ---
 

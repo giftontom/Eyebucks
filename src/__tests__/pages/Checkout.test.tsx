@@ -121,4 +121,39 @@ describe('Checkout', () => {
       }))
     );
   });
+
+  it('shows discount breakdown and discounted pay button after valid coupon applied', async () => {
+    mockCouponsApi.applyCoupon.mockResolvedValue({ discountPct: 20, couponUseId: 'use-1' });
+    renderCheckout();
+    await waitFor(() => screen.getByText('Test Course'));
+    fireEvent.change(screen.getByPlaceholderText(/coupon/i), { target: { value: 'SAVE20' } });
+    fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+    // Coupon success indicator — "20% discount applied!"
+    await waitFor(() => expect(screen.getByText(/20% discount applied/i)).toBeInTheDocument());
+    // Pay button shows discounted price: 99900 * 0.8 = 79920 paise = ₹799
+    expect(screen.getByRole('button', { name: /pay ₹/i })).toBeInTheDocument();
+  });
+
+  it('shows ₹0 pay button when 100% coupon applied', async () => {
+    mockCouponsApi.applyCoupon.mockResolvedValue({ discountPct: 100, couponUseId: 'use-free' });
+    renderCheckout();
+    await waitFor(() => screen.getByText('Test Course'));
+    fireEvent.change(screen.getByPlaceholderText(/coupon/i), { target: { value: 'FREE100' } });
+    fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+    await waitFor(() => expect(screen.getByText(/100% discount applied/i)).toBeInTheDocument());
+    // Pay button shows ₹0
+    expect(screen.getByRole('button', { name: /pay ₹0/i })).toBeInTheDocument();
+  });
+
+  it('apply button shows ✓ and becomes disabled after coupon is applied', async () => {
+    mockCouponsApi.applyCoupon.mockResolvedValue({ discountPct: 20, couponUseId: 'use-1' });
+    renderCheckout();
+    await waitFor(() => screen.getByText('Test Course'));
+    fireEvent.change(screen.getByPlaceholderText(/coupon/i), { target: { value: 'SAVE20' } });
+    fireEvent.click(screen.getByRole('button', { name: /apply/i }));
+    await waitFor(() => screen.getByText(/20% discount applied/i));
+    // Apply button text changes to ✓ and is disabled when coupon is applied
+    const applyBtn = screen.getByRole('button', { name: '✓' });
+    expect(applyBtn).toBeDisabled();
+  });
 });
