@@ -1,6 +1,6 @@
 # Known Issues
 
-Last updated: March 21, 2026
+Last updated: March 26, 2026
 
 ---
 
@@ -80,6 +80,42 @@ Last updated: March 21, 2026
 
 ---
 
+### 6b. ~~Video player broken on dev domain — four compounding issues~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | Critical |
+| **Status** | **Resolved — March 26, 2026** |
+| **Files** | `hooks/useVideoUrl.ts`, `components/VideoPlayer.tsx`, `hooks/useVideoPlayer.ts`, `supabase/functions/video-signed-url/index.ts`, `public/_headers` |
+
+**Root causes and resolutions:**
+
+**1. Phase 1 CDN URL caused spurious HLS errors**
+`useVideoUrl` previously served the unsigned CDN URL immediately (Phase 1) while fetching the signed URL in the background. When Bunny token authentication is enabled, unsigned URLs return 403, which made HLS.js immediately fire a fatal network error before the signed URL arrived.
+*Fix:* Removed Phase 1 CDN URL pre-serve. The hook now only sets the URL state once the signed URL is obtained. CDN URL is kept as a fallback variable only.
+
+**2. Bunny token signing covered only the manifest, not sub-requests**
+The original signed URL was scoped to `/videoId/playlist.m3u8`. HLS.js also fetches sub-manifests (e.g., `/videoId/360p/video.m3u8`) and `.ts` segment files, which were not covered by the token and returned 403.
+*Fix:* Switched from query-parameter token format to **path-based token format** (`bcdn_token=X` embedded in the URL path). Bunny resolves all HLS.js sub-requests relative to the same base path, so the token propagates automatically to every segment and sub-manifest.
+
+**3. Incorrect Bunny SHA256 hash input**
+Bunny Advanced Token Authentication requires: `SHA256(tokenKey + tokenPath + expires + sortedParams)` where `sortedParams = "token_path=/{videoId}/"` (not URL-encoded, appended after expires). The original implementation was missing `sortedParams` from the hash input, producing tokens that Bunny rejected.
+*Fix:* Updated `video-signed-url/index.ts` to use the correct hash format per Bunny documentation.
+
+**4. CSP blocked HLS.js `blob:` URLs**
+HLS.js uses the MediaSource API to feed decoded TS segments into `<video>` via `blob:` URLs. The Content Security Policy lacked an explicit `media-src` directive, so the browser fell back to `default-src 'self'` which blocks `blob:`. This caused the "Video format not supported" (MediaError code 4) error.
+*Fix:* Added `media-src 'self' blob: https://*.b-cdn.net; worker-src blob:;` to `public/_headers`.
+
+**5. Error overlay persisted after HLS recovery**
+`videoError` state was set when the initial 403 error fired and was never cleared even after HLS.js successfully loaded the signed URL. The error overlay remained visible despite successful playback.
+*Fix:* `handleLevelsLoaded` in `hooks/useVideoPlayer.ts` now calls `setVideoError(null)` when HLS.js fires `MANIFEST_PARSED` (confirming successful load).
+
+**6. `hlsErrorFiredRef` race condition in VideoPlayer**
+`hlsErrorFiredRef.current` was set to `true` after the `switch` statement, but `hls.recoverMediaError()` internally calls `video.load()` which triggers the native `<video> onError` event synchronously — before the flag was set. This caused the native error handler to fire and display a second error message.
+*Fix:* Moved `hlsErrorFiredRef.current = true` to the very top of the `data.fatal` block, before any recovery attempt.
+
+---
+
 ## Technical Debt
 
 ### 7. `types/supabase.ts` includes stale `sessions`/`refresh_tokens` tables (open)
@@ -137,22 +173,19 @@ Adopt TanStack Query (React Query). Migrate incrementally, starting with the mos
 
 ---
 
-### 11. HashRouter prevents SEO indexing of public pages (decision pending)
+### 11. ~~HashRouter prevents SEO indexing of public pages~~ — RESOLVED (June 2026)
 
 | | |
 |---|---|
-| **Severity** | Low |
-| **Priority** | Low |
-| **File** | `App.tsx` |
+| **Severity** | ~~Low~~ Resolved |
+| **Priority** | ~~Low~~ Done |
+| **File** | `App.tsx`, `public/_redirects` |
 
 **Description:**
-The app uses `HashRouter` (URLs like `/#/course/x`), which was chosen during early development for simplicity with Cloudflare Pages static hosting. Hash-based URLs are not crawled by search engine bots, meaning the Storefront, CourseDetails, and other public pages cannot be indexed. As the product approaches launch, this is a discoverability concern.
+The app previously used `HashRouter` (URLs like `/#/course/x`), whose hash-based URLs are not crawled by search engine bots, so the Storefront, CourseDetails, and other public pages could not be indexed.
 
-**Options:**
-- Switch to `BrowserRouter` + configure Cloudflare Pages `_redirects` to serve `index.html` for all routes (standard SPA pattern)
-- Keep HashRouter and accept no SEO (acceptable if growth is paid/referral only)
-
-Decision is pending product/marketing input.
+**Resolution:**
+Migrated to `BrowserRouter` (clean URLs like `/course/x`). The SPA deep-link fallback is configured in `public/_redirects` (`/* /index.html 200`), so direct hits and refreshes on any route resolve correctly on Cloudflare Pages. Public pages are now crawlable. See ADR-006 (supersedes ADR-002).
 
 ---
 

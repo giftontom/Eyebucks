@@ -80,7 +80,7 @@ export const CourseEditorPage: React.FC = () => {
     };
 
     loadCourse();
-  }, [courseId, isEditing, courses]);
+  }, [courseId, isEditing]); // courses intentionally omitted — re-running on context refresh overwrites unsaved edits
 
   const handleFormChange = (data: typeof formData) => {
     setFormData(data);
@@ -95,6 +95,21 @@ export const CourseEditorPage: React.FC = () => {
     if (Number(formData.price) <= 0 || isNaN(Number(formData.price))) {
       showToast('Price must be a positive number', 'error');
       return;
+    }
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(formData.slug)) {
+      showToast('Slug must be lowercase letters, numbers, and hyphens only (e.g. "my-course")', 'error');
+      return;
+    }
+    if (formData.thumbnail) {
+      let validThumbnail = false;
+      try {
+        const url = new URL(formData.thumbnail);
+        validThumbnail = url.protocol === 'http:' || url.protocol === 'https:';
+      } catch { validThumbnail = false; }
+      if (!validThumbnail) {
+        showToast('Thumbnail must be a valid URL starting with http:// or https://', 'error');
+        return;
+      }
     }
     if (formData.type === 'BUNDLE' && bundledCourseIds.length === 0) {
       showToast('Please select at least one course for this bundle', 'error');

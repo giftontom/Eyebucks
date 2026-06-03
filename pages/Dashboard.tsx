@@ -1,8 +1,9 @@
 import { PlayCircle, UserCircle, Layers, ArrowRight, TrendingUp, BookOpen, CheckCircle, Heart } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
-import { Badge } from '../components';
+import { Avatar, Badge, Thumbnail } from '../components';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
 import { WishlistButton } from '../components/WishlistButton';
 import { useAuth } from '../context/AuthContext';
@@ -104,12 +105,15 @@ export const Dashboard: React.FC = () => {
 
   // Load saved/wishlist courses
   useEffect(() => {
+    let cancelled = false;
     if (!user) { setSavedCourses([]); return; }
     wishlistApi.list().then(async (entries) => {
+      if (cancelled) return;
       if (entries.length === 0) { setSavedCourses([]); return; }
       const courses = await coursesApi.getCoursesByIds(entries.map(e => e.courseId));
-      setSavedCourses(courses);
+      if (!cancelled) setSavedCourses(courses);
     }).catch((err) => logger.warn('[Dashboard] Failed to load wishlist courses:', err));
+    return () => { cancelled = true; };
   }, [user]);
 
   if (isLoading) {
@@ -131,6 +135,14 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
+    <>
+    <Helmet>
+      <title>My Studio — Eyebuckz Academy</title>
+      <meta name="description" content="Your learning dashboard — track enrolled courses, progress, and saved favorites." />
+      <meta property="og:title" content="My Studio — Eyebuckz Academy" />
+      <meta property="og:description" content="Track your enrolled courses, progress, and saved favorites." />
+      <meta property="og:type" content="website" />
+    </Helmet>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -142,13 +154,7 @@ export const Dashboard: React.FC = () => {
       {/* Profile Card */}
       <div className="t-card t-border border rounded-2xl p-6 mb-8">
         <div className="flex items-center gap-4">
-          {user?.avatar ? (
-            <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full" />
-          ) : (
-            <div className="w-12 h-12 rounded-full bg-brand-600/20 text-brand-400 flex items-center justify-center text-xl font-bold">
-              {user?.name?.[0]?.toUpperCase() || 'U'}
-            </div>
-          )}
+          <Avatar src={user?.avatar} name={user?.name} size={48} />
           <div className="flex-1 min-w-0">
             <p className="font-semibold t-text truncate">{user?.name}</p>
             <p className="text-sm t-text-2 truncate">{user?.email}</p>
@@ -198,7 +204,7 @@ export const Dashboard: React.FC = () => {
               {savedCourses.map(course => (
                 <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden group relative">
                   <Link to={`/course/${course.id}`}>
-                    <img src={course.thumbnail} alt={course.title} className="w-full h-40 object-cover" />
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-40 object-cover" />
                     <div className="p-4">
                       <p className="font-bold t-text leading-tight group-hover:text-brand-400 transition">{course.title}</p>
                       <p className="text-xs t-text-3 mt-1 capitalize">{course.type?.toLowerCase().replace('_', ' ')}</p>
@@ -268,17 +274,33 @@ export const Dashboard: React.FC = () => {
               const statusColor = course.progress >= 100 ? 'text-[var(--status-success-text)]' : course.progress > 0 ? 'text-brand-400' : 't-text-3';
               return (
                 <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden hover:bg-[var(--surface-hover)] transition group duration-300">
-                  <div className="relative h-48">
-                    <img src={course.thumbnail} className="w-full h-full object-cover" alt={course.title} />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
-                      <PlayCircle size={56} className="text-white drop-shadow-lg scale-90 group-hover:scale-100 transition" />
-                    </div>
+                  <Link to={`/learn/${course.id}`} className="relative block h-48 overflow-hidden">
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                     {course.type === CourseType.BUNDLE && (
                       <div className="absolute top-3 left-3">
                         <Badge variant="brand"><Layers size={10} /> BUNDLE</Badge>
                       </div>
                     )}
-                  </div>
+                    {/* Resume / Start CTA overlay */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-[var(--shadow-brand)] transition group-hover:translate-x-0.5">
+                        <PlayCircle size={14} fill="currentColor" className="text-white" />
+                        {course.type === CourseType.BUNDLE
+                          ? 'Open Bundle'
+                          : course.progress >= 100
+                            ? 'Review'
+                            : course.progress > 0
+                              ? 'Resume'
+                              : 'Start'}
+                      </span>
+                      {course.progress > 0 && course.progress < 100 && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white/90 bg-black/40 backdrop-blur-sm px-2 py-1 rounded">
+                          {Math.round(course.progress)}%
+                        </span>
+                      )}
+                    </div>
+                  </Link>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-bold text-lg t-text leading-tight">{course.title}</h3>
@@ -316,7 +338,7 @@ export const Dashboard: React.FC = () => {
                     to={`/course/${course.id}`}
                     className="t-card t-border border rounded-xl overflow-hidden hover:bg-[var(--surface-hover)] transition group"
                   >
-                    <img src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
                     <div className="p-4">
                       <p className="font-semibold t-text text-sm leading-tight mb-1 group-hover:text-brand-400 transition">{course.title}</p>
                       <p className="text-xs t-text-3">₹{(course.price / 100).toLocaleString()}</p>
@@ -345,7 +367,7 @@ export const Dashboard: React.FC = () => {
                     to={`/course/${course.id}`}
                     className="t-card t-border border rounded-xl overflow-hidden hover:bg-[var(--surface-hover)] transition group"
                   >
-                    <img src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
                     <div className="p-4">
                       <p className="font-semibold t-text text-sm leading-tight mb-1 group-hover:text-brand-400 transition">{course.title}</p>
                       <p className="text-xs t-text-3">₹{(course.price / 100).toLocaleString()}</p>
@@ -360,5 +382,6 @@ export const Dashboard: React.FC = () => {
       </>
       )}
     </div>
+    </>
   );
 };

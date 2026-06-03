@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { reviewsApi } from '../services/api';
 import { logger } from '../utils/logger';
 
+import { Avatar } from './Avatar';
 import { ReviewForm } from './ReviewForm';
 import { StarRating } from './StarRating';
 
@@ -104,15 +105,15 @@ export const ReviewList: React.FC<ReviewListProps> = ({
     <div className="space-y-8">
       {/* Summary Section */}
       {summary && summary.total > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="t-card t-border border rounded-lg p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Average Rating */}
             <div className="text-center">
-              <div className="text-5xl font-bold text-gray-900 mb-2">
+              <div className="text-5xl font-bold t-text mb-2">
                 {summary.averageRating.toFixed(1)}
               </div>
               <StarRating value={summary.averageRating} size="lg" readonly />
-              <div className="mt-2 text-sm text-gray-600">
+              <div className="mt-2 text-sm t-text-2">
                 Based on {summary.total} review{summary.total !== 1 ? 's' : ''}
               </div>
             </div>
@@ -126,16 +127,16 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                 return (
                   <div key={stars} className="flex items-center gap-2">
                     <div className="flex items-center gap-1 w-16">
-                      <span className="text-sm font-medium text-gray-700">{stars}</span>
+                      <span className="text-sm font-medium t-text">{stars}</span>
                       <Star className="h-4 w-4 text-yellow-400" fill="currentColor" />
                     </div>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div className="flex-1 t-bg-alt rounded-full h-2">
                       <div
                         className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
-                    <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
+                    <span className="text-sm t-text-2 w-12 text-right">{count}</span>
                   </div>
                 );
               })}
@@ -148,8 +149,8 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       {canReview && !showReviewForm && (
         <button
           onClick={() => setShowReviewForm(true)}
-          className="w-full px-6 py-4 border-2 border-dashed border-gray-300 rounded-lg
-                     text-gray-600 hover:border-brand-500 hover:text-brand-600
+          className="w-full px-6 py-4 border-2 border-dashed t-border rounded-lg
+                     t-text-2 hover:border-brand-500 hover:text-brand-500
                      transition-colors font-medium flex items-center justify-center gap-2"
         >
           <MessageSquare className="h-5 w-5" />
@@ -158,8 +159,8 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       )}
 
       {showReviewForm && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Write Your Review</h3>
+        <div className="t-bg-alt t-border border rounded-lg p-6">
+          <h3 className="t-h4 t-text mb-4">Write Your Review</h3>
           <ReviewForm
             courseId={courseId}
             onSubmit={handleSubmitReview}
@@ -172,10 +173,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
       <div className="space-y-4">
         {isLoading && page === 1 ? (
           <div className="text-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto" />
+            <Loader2 className="h-8 w-8 animate-spin t-text-3 mx-auto" />
           </div>
         ) : reviews.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 t-text-2">
             <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p>No reviews yet. Be the first to review this course!</p>
           </div>
@@ -183,7 +184,7 @@ export const ReviewList: React.FC<ReviewListProps> = ({
           reviews.map((review) => (
             <div
               key={review.id}
-              className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+              className="t-card t-border border rounded-lg p-6 hover:shadow-md transition-shadow"
             >
               {editingReviewId === review.id ? (
                 <ReviewForm
@@ -199,14 +200,10 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   {/* Review Header */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={review.user.avatar}
-                        alt={review.user.name}
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
+                      <Avatar src={review.user?.avatar} name={review.user?.name} size={40} />
                       <div>
-                        <div className="font-medium text-gray-900">{review.user.name}</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="font-medium t-text">{review.user.name}</div>
+                        <div className="text-xs t-text-3">
                           {new Date(review.createdAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
@@ -222,14 +219,14 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                       <div className="flex gap-2">
                         <button
                           onClick={() => setEditingReviewId(review.id)}
-                          className="p-2 text-gray-400 hover:text-brand-600 transition-colors"
+                          className="p-2 t-text-3 hover:text-brand-500 transition-colors"
                           title="Edit review"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteReview(review.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                          className="p-2 t-text-3 hover:text-[color:var(--status-danger-text)] transition-colors"
                           title="Delete review"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -244,11 +241,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({
                   </div>
 
                   {/* Comment */}
-                  <p className="text-gray-700 whitespace-pre-wrap">{review.comment}</p>
+                  <p className="t-text whitespace-pre-wrap">{review.comment}</p>
 
                   {/* Footer */}
-                  <div className="mt-4 flex items-center gap-4 text-sm text-gray-500">
-                    <button className="flex items-center gap-1 hover:text-brand-600 transition-colors">
+                  <div className="mt-4 flex items-center gap-4 text-sm t-text-2">
+                    <button className="flex items-center gap-1 hover:text-brand-500 transition-colors">
                       <ThumbsUp className="h-4 w-4" />
                       <span>Helpful ({review.helpful})</span>
                     </button>
@@ -264,8 +261,8 @@ export const ReviewList: React.FC<ReviewListProps> = ({
           <button
             onClick={() => setPage(page + 1)}
             disabled={isLoading}
-            className="w-full px-6 py-3 border border-gray-300 rounded-lg
-                       text-gray-700 hover:bg-gray-50 disabled:opacity-50
+            className="w-full px-6 py-3 border t-border rounded-lg
+                       t-text hover:bg-[color:var(--surface-hover)] disabled:opacity-50
                        disabled:cursor-not-allowed transition-colors font-medium"
           >
             {isLoading ? (

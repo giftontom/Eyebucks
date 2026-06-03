@@ -140,7 +140,7 @@ export const NotificationBell: React.FC = () => {
           {!isLoading && notifications.length > 0 && (
             <div className="border-t t-border px-4 py-2.5 text-center">
               <button
-                onClick={() => { navigate('/dashboard'); setIsOpen(false); }}
+                onClick={() => { navigate('/notifications'); setIsOpen(false); }}
                 className="text-xs text-brand-600 hover:text-brand-700 font-medium"
               >
                 See all notifications

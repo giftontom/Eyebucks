@@ -1,5 +1,24 @@
 # Eyebuckz LMS - Project Context
 
+## PRODUCTION DEPLOY GUARD — NON-NEGOTIABLE
+
+**Claude MUST NEVER deploy to the production Cloudflare Pages project (`--project-name eyebucks`) without an explicit, unambiguous instruction from the user in the same conversation turn.**
+
+### What counts as explicit confirmation
+- "deploy to production", "deploy to prod", "go live", "ship to eyebuckz.com", "confirmed deploy to prod"
+
+### What does NOT count
+- Any inference from context ("the last deployment was prod, so this must be too")
+- A prior approval in an earlier turn
+- Deploying as part of a larger task unless the user explicitly included "to prod" in that request
+- Casual phrasing: "deploy it", "push it", "deploy the site" — **always ask prod vs dev first**
+
+### Enforcement
+- The `PreToolUse` hook in `.claude/settings.json` blocks `wrangler pages deploy ... eyebucks` (non-dev) unless `CONFIRMED_PROD_DEPLOY=true` is prepended — this acts as a hard wall at the shell level
+- If blocked, Claude must stop and ask the user for explicit confirmation before retrying
+
+---
+
 ## Skill Auto-Invocation Rules
 
 ### PRIMARY RULE — Applies Every Session
@@ -48,7 +67,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 ## Stack
 
-- **Frontend:** React 19 + TypeScript 5.8 + Vite 6 + Tailwind CSS v4 + React Router 7 (HashRouter)
+- **Frontend:** React 19 + TypeScript 5.8 + Vite 6 + Tailwind CSS v4 + React Router 7 (BrowserRouter)
 - **Backend:** Supabase (PostgreSQL, Auth, RLS, Realtime, Edge Functions)
 - **Payments:** Razorpay (Edge Functions handle secrets)
 - **Video:** Bunny.net Stream (HLS, signed URLs via Edge Function)
@@ -75,11 +94,13 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 5. Retries profile load with exponential backoff: 200ms → 400ms → 800ms → 1.6s → 3s
 
 ### Video Pipeline (detailed)
-1. `useVideoUrl(videoId, fallbackUrl)` immediately serves CDN URL (Referer-header based)
-2. Background: calls `video-signed-url` Edge Function → SHA256 token (1hr expiry)
-3. If success: upgrades to signed URL, schedules auto-refresh 5min before expiry
-4. If fail: falls back to CDN URL (works if Bunny token auth not enforced)
-5. `VideoPlayer.tsx`: HLS.js streaming, quality switching, PiP, retry on error (3 attempts)
+1. `useVideoUrl(videoId, moduleId, fallbackUrl)` calls `video-signed-url` Edge Function immediately (does NOT pre-serve unsigned CDN URL — Bunny token auth is enabled, unsigned URLs return 403)
+2. Edge Function generates SHA256 path-based Bunny token: `SHA256(key + "/{videoId}/" + expires + "token_path=/{videoId}/")`; token embedded in URL path so HLS.js sub-requests (sub-manifests, segments) inherit auth automatically
+3. On success: sets signed URL, schedules auto-refresh 5min before 1hr expiry
+4. On fail: falls back to CDN URL (silent if CDN URL works; shows error only if both fail)
+5. `VideoPlayer.tsx`: HLS.js adaptive streaming, quality switching, PiP, in-place URL refresh preserving playback position, retry on error (3 attempts); `hlsErrorFiredRef` prevents double error on HLS recovery
+6. `useVideoPlayer.ts`: clears error overlay when `onLevelsLoaded` fires (HLS success after prior error)
+7. CSP: `public/_headers` must include `media-src 'self' blob: https://*.b-cdn.net; worker-src blob:;` for HLS.js MediaSource API
 
 ### Payment Flow (detailed)
 1. `checkout.api.ts` `createOrder()` → `checkout-create-order` Edge Function → Razorpay order ID
@@ -167,7 +188,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 027** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 028** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -207,7 +228,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `AuditLogPage.tsx` | `/admin/audit` | Admin action log (created_at, action, entity, diff) |
 | `SettingsPage.tsx` | `/admin/settings` | Site-wide settings (maintenance mode, featured course, etc.) |
 
-**Routing:** HashRouter, `React.lazy()` for all protected/admin routes, `Suspense` with `PageLoader` fallback.
+**Routing:** BrowserRouter (SPA fallback via `public/_redirects` → `index.html`), `React.lazy()` for all protected/admin routes, `Suspense` with `PageLoader` fallback.
 
 ---
 
@@ -323,7 +344,7 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `video-cleanup` | JWT + admin | Delete video from Bunny after course module removal |
 | `video-signed-url` | JWT | Generate SHA256 Bunny CDN signed URL (1hr expiry) |
 
-Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `bunny.ts`, `resend.ts`
+Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `certificates.ts`, `email.ts`, `emailTemplates.ts`, `hmac.ts`, `supabaseAdmin.ts`
 
 ---
 
@@ -428,22 +449,29 @@ vi.mock('../../../services/api', () => ({ usersApi: mockApi }));
 1. ~~**Privacy/Terms pages show `new Date()` as "Last Updated"**~~ — **RESOLVED** (March 2026): hardcoded to "March 14, 2026" in both pages
 2. ~~**`getCourse()` has fragile `startsWith('c')` heuristic**~~ — **RESOLVED** (March 2026): replaced with UUID regex + `.or(slug.eq,id.eq)` query
 3. ~~**`reviews.api.ts` double-fetches**~~ — **RESOLVED** (March 2026): now calls `get_review_summary` RPC (added in migration 023)
+4. ~~**Video player broken on dev domain (4 compounding issues)**~~ — **RESOLVED** (March 26, 2026):
+   - `useVideoUrl`: removed Phase 1 CDN URL pre-serve (unsigned → 403 with token auth enabled)
+   - `video-signed-url`: switched to path-based Bunny token so HLS.js sub-requests inherit auth
+   - `video-signed-url`: fixed SHA256 hash input to include `sortedParams = "token_path=/{videoId}/"`
+   - `public/_headers`: added `media-src 'self' blob: https://*.b-cdn.net; worker-src blob:;` for HLS.js MediaSource API
+   - `VideoPlayer.tsx`: moved `hlsErrorFiredRef.current = true` before recovery attempt (race condition fix)
+   - `useVideoPlayer.ts`: `handleLevelsLoaded` now clears `videoError` on successful HLS manifest parse
 
 ### Security Gaps
-4. ~~**Dev credentials in production bundle**~~ — **RESOLVED** (March 2026): `loginDev()` gated behind `import.meta.env.DEV`; tree-shaken from production builds
-5. ~~**No column-level RLS on `role`**~~ — **RESOLVED** (March 2026): `prevent_role_change` BEFORE UPDATE trigger added in migration 022
-6. ~~**PostgREST filter injection**~~ — **RESOLVED** (March 2026): `escapeOrFilter()` helper added to `admin.api.ts`; all `.or()` interpolations now sanitized
+5. ~~**Dev credentials in production bundle**~~ — **RESOLVED** (March 2026): `loginDev()` gated behind `import.meta.env.DEV`; tree-shaken from production builds
+6. ~~**No column-level RLS on `role`**~~ — **RESOLVED** (March 2026): `prevent_role_change` BEFORE UPDATE trigger added in migration 022
+7. ~~**PostgREST filter injection**~~ — **RESOLVED** (March 2026): `escapeOrFilter()` helper added to `admin.api.ts`; all `.or()` interpolations now sanitized
 
 ### Tech Debt
-7. **`types/supabase.ts` has stale `sessions`/`refresh_tokens` tables** — dropped during auth migration; migrations 022+023 are applied but types not yet regenerated (requires Docker); run `/gen-db-types` when Docker is available
-8. **No server state caching** — every navigation triggers full re-fetch; no deduplication or stale-while-revalidate; opportunity for TanStack Query (not started)
-9. ~~**No error boundaries around admin pages**~~ — **RESOLVED** (March 2026): `AdminErrorFallback` component added to `AdminLayout.tsx` with "Return to Admin Dashboard" link
+8. **`types/supabase.ts` has stale `sessions`/`refresh_tokens` tables** — dropped during auth migration; migrations 022+023 are applied but types not yet regenerated (requires Docker); run `/gen-db-types` when Docker is available
+9. **No server state caching** — every navigation triggers full re-fetch; no deduplication or stale-while-revalidate; opportunity for TanStack Query (not started)
+10. ~~**No error boundaries around admin pages**~~ — **RESOLVED** (March 2026): `AdminErrorFallback` component added to `AdminLayout.tsx` with "Return to Admin Dashboard" link
 
 ### Remaining Open Items
-- **`types/supabase.ts` regeneration** — pending Docker availability (item 7 above)
+- **`types/supabase.ts` regeneration** — pending Docker availability (item 8 above)
 - **Admin page unit tests** — 0 of 12 admin pages have unit tests; high-value gap before launch
 - **TanStack Query migration** — not started; all pages still use raw `useEffect`/`useState`
-- **HashRouter vs standard routing** — decision not yet made; HashRouter currently prevents SEO indexing of public pages
+- ~~**HashRouter vs standard routing**~~ — **RESOLVED**: migrated to `BrowserRouter` with SPA fallback (`public/_redirects` → `/* /index.html 200`); public pages are now crawlable (see ADR-006)
 
 ---
 
@@ -483,12 +511,12 @@ supabase functions deploy  # Deploy Edge Functions
 ## Important Files
 
 - `index.tsx` — Entry point (handles OAuth callback before React renders)
-- `App.tsx` — Routes + providers (HashRouter)
+- `App.tsx` — Routes + providers (BrowserRouter)
 - `index.css` — Tailwind v4 entry (`@import "tailwindcss"`) + `@theme {}` token block
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **23 sequential SQL migrations (001-023)**; next = 024
+- `supabase/migrations/` — **27 sequential SQL migrations (001-027)**; next = 028
 - `supabase/functions/` — **11 Edge Functions** (see Edge Functions section above)
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate)
 - `types/index.ts` — Business types (25+ interfaces/enums)
@@ -663,6 +691,7 @@ Comprehensive docs live in `/docs` — consult before writing new architecture o
 
 ```
 docs/
+  adr/                     — Architecture Decision Records (5 ADRs)
   architecture/
     SYSTEM_OVERVIEW.md    — Full tech stack + data flow diagrams
     DATABASE_SCHEMA.md    — All tables, columns, relationships, RLS policies
@@ -671,6 +700,7 @@ docs/
   api/
     SERVICE_MODULES.md    — All 13 API modules with function signatures
     EDGE_FUNCTIONS.md     — All 11 Edge Functions + _shared utilities
+  archive/                 — Archived v1 documentation
   reference/
     COMPONENTS.md         — All components with props + usage examples
     DESIGN_SYSTEM.md      — CSS tokens + Tailwind v4 utility classes
@@ -680,10 +710,20 @@ docs/
     DEVELOPMENT_SETUP.md  — Local dev setup from scratch
     DEPLOYMENT.md         — CF Pages + Supabase deploy process
     TESTING.md            — Vitest config + writing tests
+    TESTING_STRATEGY.md   — Overall testing strategy
     ADMIN_PANEL.md        — Admin features + workflows
+    ADMIN_TEST_GUIDE.md   — Guide for writing admin page tests
+    JSDOC_GUIDE.md        — JSDoc conventions
+    PERFORMANCE_GUIDE.md   — Performance optimization guide
     TROUBLESHOOTING.md    — Common issues + fixes
+  operations/
+    ADMIN_RUNBOOK.md      — Production admin procedures
+    INCIDENT_RESPONSE.md  — Incident response playbook
   project/
     KNOWN_ISSUES.md       — Bugs, security concerns, tech debt tracker
+    LAUNCH_CHECKLIST.md   — Pre-launch verification checklist
+    TASK_OWNERSHIP.md     — AI vs Owner task split
+    TEST_PLAN.md          — Comprehensive test plan
 ```
 
-Root docs: `README.md`, `CODING_STANDARDS.md`, `SECURITY_STANDARDS.md`, `CONTRIBUTING.md`, `SUPABASE_SETUP.md`
+Root docs: `README.md`, `CODING_STANDARDS.md`, `SECURITY_STANDARDS.md`, `CONTRIBUTING.md`, `SUPABASE_SETUP.md`, `DOCUMENTATION_STANDARDS.md`, `CLAUDE.md`

@@ -1,12 +1,24 @@
 import React, { useRef } from 'react';
 
 import { Input } from '../../../components';
+import { Thumbnail } from '../../../components/Thumbnail';
 
 import { BundleCoursePicker } from './BundleCoursePicker';
 
 import type { AdminCourse, CourseFormData, CourseType } from '../../../types';
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** A blank value is allowed (thumbnail is optional); otherwise it must be a real http(s) URL. */
+function isValidHttpUrl(value: string): boolean {
+  if (!value) { return true; }
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 function slugify(text: string): string {
   return text
@@ -44,6 +56,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
   };
 
   const isSlugValid = !formData.slug || SLUG_PATTERN.test(formData.slug);
+  const isThumbnailValid = isValidHttpUrl(formData.thumbnail);
 
   return (
     <div className="space-y-4">
@@ -82,13 +95,26 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         onChange={(e) => update({ price: e.target.value })}
         placeholder="1999"
       />
-      <Input
-        label="Thumbnail URL"
-        type="url"
-        value={formData.thumbnail}
-        onChange={(e) => update({ thumbnail: e.target.value })}
-        placeholder="https://..."
-      />
+      <div>
+        <Input
+          label="Thumbnail URL"
+          type="url"
+          value={formData.thumbnail}
+          onChange={(e) => update({ thumbnail: e.target.value })}
+          placeholder="https://..."
+          error={!isThumbnailValid ? 'Enter a valid image URL starting with http:// or https://' : undefined}
+        />
+        {formData.thumbnail && (
+          <div className="mt-2">
+            <p className="text-xs t-text-3 mb-1.5">Preview</p>
+            <Thumbnail
+              src={isThumbnailValid ? formData.thumbnail : null}
+              alt="Thumbnail preview"
+              className="w-40 aspect-video rounded-lg t-border border object-cover"
+            />
+          </div>
+        )}
+      </div>
       <Input
         label="Hero Video ID"
         type="text"

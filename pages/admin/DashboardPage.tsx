@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 
 import { useToast } from '../../components/Toast';
 import { adminApi } from '../../services/api/admin.api';
+import { formatCompactINR } from '../../utils/format';
 import { logger } from '../../utils/logger';
 
 import { ActivityFeed } from './components/ActivityFeed';
@@ -65,7 +66,7 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           label="Total Sales"
-          value={`₹${stats ? (stats.totalRevenue / 100000).toFixed(1) : '0'}k`}
+          value={formatCompactINR(stats?.totalRevenue ?? 0)}
           subtitle={`${stats?.totalEnrollments || 0} enrollments`}
           icon={<DollarSign size={18} />}
           iconBg="t-status-success"

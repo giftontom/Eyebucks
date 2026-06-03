@@ -1,9 +1,9 @@
-import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, BookOpen, Layers, ArrowRight, ChevronUp, X, PictureInPicture2 } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, Layers, ArrowRight, ChevronUp, X, PictureInPicture2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, Link, Navigate } from 'react-router-dom';
 
-import { EnrollmentGate } from '../components/EnrollmentGate';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { Thumbnail } from '../components/Thumbnail';
 import { useToast } from '../components/Toast';
 import { VideoPlayer, VideoPlayerHandle } from '../components/VideoPlayer';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import { useAccessControl } from '../hooks/useAccessControl';
 import { useMobileGestures } from '../hooks/useMobileGestures';
 import { useModuleNotes } from '../hooks/useModuleNotes';
 import { useModuleProgress } from '../hooks/useModuleProgress';
+import { useOrientation } from '../hooks/useOrientation';
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import { coursesApi } from '../services/api';
 import { CourseType } from '../types';
@@ -30,7 +31,6 @@ function extractVideoId(videoUrl?: string): string | undefined {
 
 export const Learn: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast, ToastContainer } = useToast();
 
@@ -40,7 +40,7 @@ export const Learn: React.FC = () => {
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
 
   // Use access control hook
-  const { hasAccess, isLoading: isCheckingAccess, isAdmin } = useAccessControl(id);
+  const { hasAccess, isLoading: isCheckingAccess } = useAccessControl(id);
   const [activeChapterId, setActiveChapterId] = useState<string | undefined>(undefined);
 
   // Mobile responsiveness
@@ -85,6 +85,31 @@ export const Learn: React.FC = () => {
     handleSelectQuality,
     handleSeekHover,
   } = useVideoPlayer({ videoRef, activeChapterId, showToast });
+
+  // Orientation detection — maximize video in landscape on mobile
+  const { isLandscape, lockToLandscape, unlock: unlockOrientation } = useOrientation();
+  const [isMobileWidth, setIsMobileWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
+  const isMobileLandscape = isLandscape && isMobileWidth;
+
+  // Track screen width for landscape detection
+  useEffect(() => {
+    const handleResize = () => setIsMobileWidth(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Wrap fullscreen toggle to lock orientation in landscape
+  const handleFullScreenWithOrientation = useCallback(async () => {
+    await toggleFullScreen();
+    // After entering fullscreen, lock to landscape for better video experience
+    if (document.fullscreenElement) {
+      lockToLandscape();
+    } else {
+      unlockOrientation();
+    }
+  }, [toggleFullScreen, lockToLandscape, unlockOrientation]);
 
   const {
     progressPercent,
@@ -203,18 +228,10 @@ export const Learn: React.FC = () => {
     );
   }
 
-  // Show enrollment gate if user doesn't have access
+  // Non-enrolled users are redirected to the course details page,
+  // where the sticky CTA + trust badges are the canonical enroll surface.
   if (!hasAccess) {
-    return (
-      <EnrollmentGate
-        courseId={course.id}
-        courseTitle={course.title}
-        coursePrice={course.price}
-        courseThumbnail={course.thumbnail}
-        courseDescription={course.description}
-        totalModules={modules.length}
-      />
-    );
+    return <Navigate to={`/course/${course.id}`} replace />;
   }
 
   // Bundle Hub View — bundles don't have modules, show linked courses instead
@@ -249,13 +266,7 @@ export const Learn: React.FC = () => {
                 className="flex gap-4 p-4 t-card border t-border rounded-xl hover:border-brand-500/40 hover:bg-[var(--surface-hover)] transition group"
               >
                 <div className="w-24 h-16 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
-                  {bc.thumbnail ? (
-                    <img src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center t-text-3">
-                      <BookOpen size={24} />
-                    </div>
-                  )}
+                  <Thumbnail src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold">Course {index + 1}</span>
@@ -429,7 +440,7 @@ export const Learn: React.FC = () => {
                         </button>
 
                         {/* Volume — hidden on mobile (users use hardware volume) */}
-                        <div className="hidden sm:flex items-center gap-2 group/vol pl-4 border-l border-gray-700 ml-4">
+                        <div className="hidden sm:flex items-center gap-2 group/vol pl-4 border-l border-white/20 ml-4">
                             <button onClick={toggleMute} className="p-2" aria-label={isMuted ? 'Unmute' : 'Mute'}>
                                 {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                             </button>
@@ -450,7 +461,7 @@ export const Learn: React.FC = () => {
                         </div>
 
                         {/* Time — compact on mobile */}
-                        <span className="text-[10px] sm:text-xs font-mono text-gray-300">
+                        <span className="text-[10px] sm:text-xs font-mono text-white/60">
                             {Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')} /
                             {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
                         </span>
@@ -514,7 +525,7 @@ export const Learn: React.FC = () => {
                           </button>
                         )}
 
-                        <button onClick={toggleFullScreen} className="p-2 hover:text-brand-500 transition focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" aria-label="Toggle fullscreen">
+                        <button onClick={handleFullScreenWithOrientation} className="p-2 hover:text-brand-500 transition focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" aria-label="Toggle fullscreen">
                              <Maximize size={18} className="sm:w-5 sm:h-5" />
                         </button>
                     </div>
@@ -559,8 +570,8 @@ export const Learn: React.FC = () => {
             )}
         </div>
 
-        {/* Course Progress Bar (Global) */}
-        <div className="t-bg border-b t-border p-4">
+        {/* Course Progress Bar (Global) — hidden in mobile landscape to maximize video */}
+        <div className={`t-bg border-b t-border p-4 ${isMobileLandscape ? 'hidden' : ''}`}>
              <div className="flex justify-between text-xs t-text-2 mb-2 font-medium">
                  <span className="flex items-center gap-2"><Film size={14}/> {course.title}</span>
                  <span>{Math.round(progressPercent)}% Completed</span>
@@ -573,8 +584,8 @@ export const Learn: React.FC = () => {
              </div>
         </div>
 
-        {/* Mobile prev/next module buttons */}
-        <div className="lg:hidden flex items-center gap-2 px-3 pt-2 pb-1 t-bg">
+        {/* Mobile prev/next module buttons — hidden in mobile landscape to maximize video */}
+        <div className={`lg:hidden flex items-center gap-2 px-3 pt-2 pb-1 t-bg ${isMobileLandscape ? 'hidden' : ''}`}>
           <button
             onClick={handlePrev}
             disabled={activeChapterIndex === 0}
@@ -591,10 +602,10 @@ export const Learn: React.FC = () => {
           </button>
         </div>
 
-        {/* Mobile Module Toggle Bar */}
+        {/* Mobile Module Toggle Bar — hidden in mobile landscape to maximize video */}
         <button
           onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          className="lg:hidden sticky bottom-0 w-full t-bg border-t t-border p-3 flex items-center justify-between t-text z-20"
+          className={`lg:hidden sticky bottom-0 w-full t-bg border-t t-border p-3 flex items-center justify-between t-text z-20 ${isMobileLandscape ? 'hidden' : ''}`}
         >
           <span className="text-sm font-medium truncate mr-2">
             Module {String(activeChapterIndex + 1).padStart(2, '0')}: {activeModule?.title}
@@ -605,7 +616,7 @@ export const Learn: React.FC = () => {
 
       {/* Mobile Module Drawer */}
       {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 t-bg border-t t-border rounded-t-2xl max-h-[60vh] overflow-y-auto animate-slide-up">
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 t-bg border-t t-border rounded-t-2xl max-h-[70vh] overflow-y-auto animate-slide-up pb-safe">
           <div className="sticky top-0 t-bg p-4 border-b t-border flex items-center justify-between z-10">
             <h2 className="font-bold t-text">Course Content</h2>
             <button onClick={() => setMobileDrawerOpen(false)} className="t-text-2 p-2">
@@ -686,8 +697,9 @@ export const Learn: React.FC = () => {
 
          {/* Desktop Notes Area */}
          <div className="flex flex-col p-4 border-t t-border t-bg h-1/3">
-            <h3 className="font-bold text-sm mb-2 t-text-2 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</h3>
+            <label htmlFor="module-notes" className="font-bold text-sm mb-2 t-text-2 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</label>
             <textarea
+                id="module-notes"
                 className="flex-grow w-full t-bg t-border border rounded-lg p-3 text-xs t-text-2 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
                 placeholder="Take notes for this module..."
                 value={notes}

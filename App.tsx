@@ -1,13 +1,14 @@
 import React, { Suspense, lazy } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { Storefront } from './pages/Storefront';
+const Storefront = lazy(() => import('./pages/Storefront').then(m => ({ default: m.Storefront })));
+const Courses = lazy(() => import('./pages/Courses').then(m => ({ default: m.Courses })));
 
 // Lazy-loaded routes (code splitting)
 const CourseDetails = lazy(() => import('./pages/CourseDetails').then(m => ({ default: m.CourseDetails })));
@@ -20,6 +21,7 @@ const Learn = lazy(() => import('./pages/Learn').then(m => ({ default: m.Learn }
 const AdminRoutes = lazy(() => import('./pages/admin').then(m => ({ default: m.AdminRoutes })));
 const PurchaseSuccess = lazy(() => import('./pages/PurchaseSuccess').then(m => ({ default: m.PurchaseSuccess })));
 const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })));
 const About = lazy(() => import('./pages/About').then(m => ({ default: m.About })));
 const Contact = lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
 
@@ -35,11 +37,12 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <ThemeProvider>
       <AuthProvider>
-        <HashRouter>
+        <BrowserRouter>
           <Layout>
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<Storefront />} />
+              <Route path="/" element={<Suspense fallback={<PageLoader />}><Storefront /></Suspense>} />
+              <Route path="/courses" element={<Suspense fallback={<PageLoader />}><Courses /></Suspense>} />
               <Route path="/login" element={<Suspense fallback={<PageLoader />}><Login /></Suspense>} />
               <Route path="/course/:id" element={<Suspense fallback={<PageLoader />}><CourseDetails /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
@@ -99,6 +102,16 @@ const App: React.FC = () => {
                 }
               />
               <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<PageLoader />}>
+                      <Notifications />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/success"
                 element={
                   <ProtectedRoute>
@@ -113,7 +126,7 @@ const App: React.FC = () => {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
-        </HashRouter>
+        </BrowserRouter>
       </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

@@ -9,10 +9,9 @@ import {
   Tag,
   ClipboardList,
   Settings,
-  Menu,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
@@ -28,9 +27,14 @@ const navItems = [
   { to: '/admin/audit-log', label: 'Audit Log', icon: ClipboardList },
 ];
 
-export const AdminSidebar: React.FC = () => {
-  const [mobileOpen, setMobileOpen] = useState(false);
+interface AdminSidebarProps {
+  /** Whether the mobile drawer is open (controlled by AdminLayout). */
+  mobileOpen: boolean;
+  /** Close the mobile drawer (called on backdrop click, close button, or nav). */
+  onClose: () => void;
+}
 
+export const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose }) => {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 outline-none ${
       isActive
@@ -46,7 +50,7 @@ export const AdminSidebar: React.FC = () => {
           to={to}
           end={end}
           className={linkClass}
-          onClick={() => setMobileOpen(false)}
+          onClick={onClose}
         >
           <Icon size={18} />
           {label}
@@ -57,26 +61,17 @@ export const AdminSidebar: React.FC = () => {
 
   return (
     <>
-      {/* Mobile hamburger */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2 t-bg t-border border rounded-lg shadow-sm t-text"
-        aria-label="Open menu"
-      >
-        <Menu size={20} />
-      </button>
-
-      {/* Mobile drawer */}
+      {/* Mobile drawer (opened from the sticky sub-header in AdminLayout) */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 t-overlay"
-            onClick={() => setMobileOpen(false)}
+            onClick={onClose}
           />
           <div className="absolute left-0 top-0 bottom-0 w-64 t-bg t-border border-r shadow-xl">
             <div className="flex items-center justify-between px-4 py-4 border-b t-border">
               <span className="font-bold t-text">Admin</span>
-              <button onClick={() => setMobileOpen(false)} aria-label="Close menu">
+              <button onClick={onClose} aria-label="Close menu">
                 <X size={20} className="t-text-2" />
               </button>
             </div>

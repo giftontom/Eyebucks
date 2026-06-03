@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
+import { Avatar } from '../../components/Avatar';
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
 
@@ -101,13 +102,7 @@ export const UserDetailPage: React.FC = () => {
       {/* User profile card */}
       <div className="t-card t-border border rounded-xl shadow-sm p-6">
         <div className="flex items-start gap-4">
-          {user.avatar ? (
-            <img src={user.avatar} alt={user.name} className="w-16 h-16 rounded-full" />
-          ) : (
-            <div className="w-16 h-16 rounded-full t-bg-alt t-border border flex items-center justify-center text-xl font-bold t-text-2">
-              {user.name?.[0]?.toUpperCase() || 'U'}
-            </div>
-          )}
+          <Avatar src={user.avatar} name={user.name} size={64} className="shrink-0" />
           <div className="flex-1">
             <h2 className="text-2xl font-bold t-text">{user.name}</h2>
             <p className="t-text-2">{user.email}</p>

@@ -2,8 +2,9 @@ import { CheckCircle2, Play, LayoutGrid, Download, Share2, ArrowRight, Loader2, 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
-import { useAuth } from '../context/AuthContext';
+import { Thumbnail } from '../components/Thumbnail';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../context/AuthContext';
 import { coursesApi, paymentsApi } from '../services/api';
 import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
@@ -193,7 +194,7 @@ export const PurchaseSuccess: React.FC = () => {
           <div className="grid md:grid-cols-5 gap-6">
             {/* Course Image */}
             <div className="md:col-span-2 relative aspect-[4/3] md:aspect-auto">
-              <img
+              <Thumbnail
                 src={course.thumbnail}
                 alt={course.title}
                 className="w-full h-full object-cover"

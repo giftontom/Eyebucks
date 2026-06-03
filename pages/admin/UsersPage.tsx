@@ -2,11 +2,13 @@ import { Search } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { Avatar } from '../../components/Avatar';
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
 
 import { useAdmin } from './AdminContext';
 import { AdminModal } from './components/AdminModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { DataTable } from './components/DataTable';
 import { StatusBadge } from './components/StatusBadge';
 import { useDebounce } from './hooks/useDebounce';
@@ -31,6 +33,9 @@ export const UsersPage: React.FC = () => {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollUser, setEnrollUser] = useState<AdminUser | null>(null);
   const [enrollCourseId, setEnrollCourseId] = useState('');
+
+  // Role-change confirmation
+  const [pendingRoleChange, setPendingRoleChange] = useState<{ user: AdminUser; newRole: 'USER' | 'ADMIN' } | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -63,6 +68,12 @@ export const UsersPage: React.FC = () => {
     } finally {
       setOperationLoading(false);
     }
+  };
+
+  const confirmRoleChange = async () => {
+    if (!pendingRoleChange) { return; }
+    await handleRoleChange(pendingRoleChange.user.id, pendingRoleChange.newRole);
+    setPendingRoleChange(null);
   };
 
   const handleStatusToggle = async (userId: string, currentActive: boolean) => {
@@ -156,7 +167,7 @@ export const UsersPage: React.FC = () => {
                 placeholder="Search users..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="t-input-bg t-border border rounded-lg pl-10 pr-4 py-2 t-text focus:ring-1 focus:ring-brand-500 outline-none text-sm w-64"
+                className="t-input-bg t-border border rounded-lg pl-10 pr-4 py-2 t-text focus:ring-1 focus:ring-brand-500 outline-none text-sm w-full max-w-64"
               />
             </div>
           </div>
@@ -170,13 +181,7 @@ export const UsersPage: React.FC = () => {
               className: 'pl-6',
               render: (u: AdminUser) => (
                 <div className="flex items-center gap-3">
-                  {u.avatar ? (
-                    <img src={u.avatar} alt={u.name} className="w-8 h-8 rounded-full" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full t-bg-alt t-border border flex items-center justify-center text-xs font-bold t-text-2">
-                      {u.name?.[0]?.toUpperCase() || 'U'}
-                    </div>
-                  )}
+                  <Avatar src={u.avatar} name={u.name} size={32} className="shrink-0" />
                   <div>
                     <button
                       onClick={() => navigate(`/admin/users/${u.id}`)}
@@ -205,7 +210,10 @@ export const UsersPage: React.FC = () => {
                 <select
                   value={u.role}
                   disabled={operationLoading}
-                  onChange={(e) => handleRoleChange(u.id, e.target.value as 'USER' | 'ADMIN')}
+                  onChange={(e) => {
+                    const newRole = e.target.value as 'USER' | 'ADMIN';
+                    if (newRole !== u.role) { setPendingRoleChange({ user: u, newRole }); }
+                  }}
                   className={`px-2 py-1 rounded text-xs font-bold outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed border ${
                     u.role === 'ADMIN' ? 't-status-info' : 't-status-info'
                   }`}
@@ -266,6 +274,20 @@ export const UsersPage: React.FC = () => {
           onSelectionChange={setSelectedIds}
         />
       </div>
+
+      {/* Role-change confirmation */}
+      <ConfirmDialog
+        open={!!pendingRoleChange}
+        onClose={() => setPendingRoleChange(null)}
+        onConfirm={confirmRoleChange}
+        title="Change user role?"
+        message={pendingRoleChange ? (
+          <>Change <strong>{pendingRoleChange.user.name}</strong> from <strong>{pendingRoleChange.user.role}</strong> to <strong>{pendingRoleChange.newRole}</strong>?</>
+        ) : ''}
+        warning={pendingRoleChange?.newRole === 'ADMIN' ? 'Admins get full access to all data, payments, courses, and settings.' : undefined}
+        confirmLabel={pendingRoleChange ? `Make ${pendingRoleChange.newRole}` : 'Confirm'}
+        loading={operationLoading}
+      />
 
       {/* Manual Enroll Modal */}
       <AdminModal

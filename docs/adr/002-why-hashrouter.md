@@ -1,8 +1,13 @@
 # ADR-002: Why HashRouter over BrowserRouter
 
-> **Status:** Accepted
+> **Status:** Superseded
 > **Date:** 2026-03-14 | **Deciders:** core maintainers
-> **Supersedes:** N/A | **Superseded by:** N/A
+> **Supersedes:** N/A | **Superseded by:** [ADR-006](006-browserrouter-for-seo.md)
+
+> ⚠️ **Superseded (June 2026):** The app has migrated to `BrowserRouter` with a Cloudflare Pages
+> SPA fallback (`public/_redirects` → `/* /index.html 200`), following the migration path in the
+> "Revisit Trigger" section below. See [ADR-006](006-browserrouter-for-seo.md) for the new decision.
+> This record is retained for historical context.
 
 ## Context
 
@@ -54,6 +59,23 @@ handling in `index.tsx`.
 ### Risks
 - If the project ever needs SSR or pre-rendering for SEO, migrating to BrowserRouter requires
   updating all `<Link>` hrefs and the Cloudflare Pages routing configuration
+
+## Revisit Trigger (2026-04-19)
+
+The DEEP_REVIEW flagged HashRouter as a pre-launch concern because the Storefront, About,
+Contact, Privacy, and Terms pages are all launch-critical for SEO. If search-engine indexing
+becomes a priority before public launch, the migration path is:
+
+1. Add `/* /index.html 200` to `public/_redirects` (Cloudflare Pages supports SPA fallback)
+2. Swap `HashRouter` → `BrowserRouter` in `App.tsx`
+3. Grep the codebase for `'#/'` and `href="#/"` — rewrite all internal links
+4. Update the OAuth callback handler in `index.tsx` — the hash-based token extraction must
+   either continue to parse `window.location.hash` (which still works under BrowserRouter
+   for the OAuth redirect specifically) or switch to URL search params
+5. Update the Supabase dashboard OAuth redirect URI to the non-hash form
+
+**Decision for now:** Defer. HashRouter stays until SEO-driven indexing is actively required.
+Re-open this ADR when that trigger fires.
 
 ## Links
 

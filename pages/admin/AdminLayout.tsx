@@ -1,5 +1,5 @@
-import { Loader2, AlertTriangle } from 'lucide-react';
-import React from 'react';
+import { Loader2, AlertTriangle, Menu } from 'lucide-react';
+import React, { useState } from 'react';
 import { Outlet , Link } from 'react-router-dom';
 
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -26,6 +26,7 @@ const AdminErrorFallback = (
 
 export const AdminLayout: React.FC = () => {
   const { user, isLoading } = useAuth();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -53,11 +54,26 @@ export const AdminLayout: React.FC = () => {
   return (
     <AdminProvider>
       <div className="flex min-h-screen t-bg-alt">
-        <AdminSidebar />
-        <main className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 overflow-auto min-w-0">
-          <ErrorBoundary fallback={AdminErrorFallback}>
-            <Outlet />
-          </ErrorBoundary>
+        <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+        <main className="flex-1 overflow-auto min-w-0">
+          {/* Mobile sub-header — the desktop sidebar is hidden below `lg`.
+              Sticks just under the global nav (h-20 = top-20); kept below the
+              nav's z-50 so it never occludes / gets occluded by it. */}
+          <div className="lg:hidden sticky top-20 z-30 flex items-center gap-3 px-4 py-3 t-nav t-nav-border border-b backdrop-blur-md">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="-ml-2 p-2 rounded-lg t-text hover:t-card focus-visible:ring-2 focus-visible:ring-brand-500 outline-none"
+              aria-label="Open admin menu"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="font-bold t-text">Admin Portal</span>
+          </div>
+          <div className="p-4 lg:p-8">
+            <ErrorBoundary fallback={AdminErrorFallback}>
+              <Outlet />
+            </ErrorBoundary>
+          </div>
         </main>
       </div>
     </AdminProvider>

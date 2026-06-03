@@ -84,17 +84,17 @@
 /* ─── Semantic colour tokens ─────────────────────────────── */
 /* Light (default) */
 :root {
-  --page-bg:       #ffffff;
-  --page-alt:      #f8fafc;
+  --page-bg:       #f1f4f8;
+  --page-alt:      #e8ecf1;
   --surface:       #ffffff;
   --surface-hover: #f1f5f9;
-  --border:        #e2e8f0;
+  --border:        #d1d5db;
   --text-1:        #0f172a;
   --text-2:        #64748b;
   --text-3:        #6b7280;
-  --input-bg:      #f8fafc;
-  --nav-bg:        rgba(255,255,255,0.9);
-  --nav-border:    #e2e8f0;
+  --input-bg:      #ffffff;
+  --nav-bg:        rgba(255,255,255,0.92);
+  --nav-border:    #cbd5e1;
   --scrollbar-track: #f1f5f9;
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
@@ -151,7 +151,8 @@
 /* ─── Semantic utility classes ───────────────────────────── */
 @utility t-bg        { background-color: var(--page-bg); }
 @utility t-bg-alt    { background-color: var(--page-alt); }
-@utility t-card      { background-color: var(--surface); }
+@utility t-card      { background-color: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+.dark .t-card        { box-shadow: none; }
 @utility t-text      { color: var(--text-1); }
 @utility t-text-2    { color: var(--text-2); }
 @utility t-text-3    { color: var(--text-3); }
@@ -171,6 +172,10 @@
 @utility t-h2 { font-family: var(--font-display); font-size: 2.25rem; font-weight: 800; line-height: 1.1; }
 @utility t-h3 { font-family: var(--font-sans); font-size: 1.5rem; font-weight: 700; line-height: 1.25; }
 @utility t-h4 { font-family: var(--font-sans); font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
+@utility t-eyebrow { font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+@utility t-body    { font-family: var(--font-sans); font-size: 1rem; font-weight: 400; line-height: 1.6; }
+@utility t-body-lg { font-family: var(--font-sans); font-size: 1.125rem; font-weight: 400; line-height: 1.6; }
+@utility t-caption { font-family: var(--font-sans); font-size: 0.875rem; font-weight: 500; color: var(--text-2); }
 
 /* ─── Global styles ──────────────────────────────────────── */
 body {
@@ -192,3 +197,16 @@ html {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar                    { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Reduced motion ─────────────────────────────────────── */
+/* Respect the OS "reduce motion" setting: neutralise animations,
+   transitions, and smooth scrolling site-wide. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  html { scroll-behavior: auto; }
+}

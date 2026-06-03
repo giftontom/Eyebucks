@@ -1,9 +1,9 @@
-import { Play, Volume2, VolumeX, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, BookOpen } from 'lucide-react';
-import React, { useState, useRef, useEffect } from 'react';
+import { Play, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, Award, Clock, Infinity as InfinityIcon, Smartphone } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
-import { Button, Badge, WishlistButton, ShareButton } from '../components';
+import { Button, JsonLd, Thumbnail, TrustBadges } from '../components';
 import { ReviewList } from '../components/ReviewList';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
@@ -11,6 +11,9 @@ import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi } from '../services/api';
 import { CourseType } from '../types';
 import { analytics } from '../utils/analytics';
+
+import { CourseDetailsHero } from './course-details/CourseDetailsHero';
+import { CourseDetailsSidebar } from './course-details/CourseDetailsSidebar';
 
 import type { Course } from '../types';
 
@@ -21,6 +24,7 @@ export const CourseDetails: React.FC = () => {
   const navigate = useNavigate();
   const { user, login } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
+  const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { hasAccess, isLoading: isCheckingAccess, isEnrolled, isAdmin } = useAccessControl(id);
@@ -44,6 +48,17 @@ export const CourseDetails: React.FC = () => {
   };
 
   useEffect(() => { fetchCourse(); }, [id]);
+
+  // Fetch related courses when the main course loads
+  useEffect(() => {
+    if (!course) return;
+    coursesApi.getCourses({ page: 1, pageSize: 4 })
+      .then(res => {
+        setRelatedCourses(res.courses.filter(c => c.id !== course.id).slice(0, 3));
+      })
+      .catch(() => { /* silent — related courses are non-critical */ });
+  }, [course]);
+
   const { videoUrl: heroVideoSrc } = useVideoUrl(course?.heroVideoId, null, FALLBACK_VIDEO);
   const [isMuted, setIsMuted] = useState(true);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
@@ -73,6 +88,35 @@ export const CourseDetails: React.FC = () => {
       observer.disconnect();
     };
   }, []);
+
+  const courseSchema = useMemo(() => {
+    if (!course) return null;
+    const schema: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'Course',
+      name: course.title,
+      description: course.description,
+      provider: {
+        '@type': 'Organization',
+        name: 'Eyebuckz Academy',
+        sameAs: 'https://eyebuckz.com',
+      },
+      offers: {
+        '@type': 'Offer',
+        price: (course.price / 100).toFixed(2),
+        priceCurrency: 'INR',
+      },
+    };
+    if (course.thumbnail) schema.image = course.thumbnail;
+    if (course.rating && course.totalStudents) {
+      schema.aggregateRating = {
+        '@type': 'AggregateRating',
+        ratingValue: course.rating,
+        ratingCount: course.totalStudents,
+      };
+    }
+    return schema;
+  }, [course]);
 
   if (isLoadingCourse) {return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-brand-600" size={48} /></div>;}
   if (loadError) {return (
@@ -141,39 +185,14 @@ export const CourseDetails: React.FC = () => {
         {course.thumbnail && <meta property="og:image" content={course.thumbnail} />}
         <meta property="og:type" content="product" />
       </Helmet>
-      {/* Video Trailer Header */}
-      <div className="relative h-[40vh] md:h-[60vh] bg-black group">
-        <video
-          src={heroVideoSrc || FALLBACK_VIDEO}
-          poster={course.thumbnail || 'https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920'}
-          autoPlay
-          loop
-          muted={isMuted}
-          playsInline
-          className="w-full h-full object-cover opacity-80"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90"></div>
-        <div className="absolute bottom-8 left-0 right-0 max-w-7xl mx-auto px-4 flex justify-between items-end">
-           <div className="animate-fade-in-up w-3/4">
-              <div className="flex items-center gap-2 mb-3">
-                 {course.rating && <Badge variant="warning" className="shadow-lg"><Star size={12} fill="currentColor"/> {course.rating}</Badge>}
-                 <span className="bg-white/20 backdrop-blur text-white px-3 py-0.5 rounded text-xs font-bold border border-white/20">{course.type}</span>
-              </div>
-              <h1 className="text-3xl md:text-6xl font-bold text-white mb-3 leading-tight">{course.title}</h1>
-              <p className="text-sm md:text-xl text-gray-200 hidden md:block">By Eyebuckz Academy</p>
-           </div>
-           <div className="flex items-center gap-2">
-             <WishlistButton courseId={course.id} size={22} className="bg-white/10 p-3 rounded-full hover:bg-white/20 backdrop-blur-md border border-white/10 text-white" />
-             <button
-               onClick={() => setIsMuted(!isMuted)}
-               aria-label={isMuted ? 'Unmute trailer' : 'Mute trailer'}
-               className="bg-white/10 p-3 rounded-full hover:bg-white/20 backdrop-blur-md transition text-white border border-white/10"
-             >
-               {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-             </button>
-           </div>
-        </div>
-      </div>
+      {courseSchema && <JsonLd data={courseSchema} />}
+      <CourseDetailsHero
+        course={course}
+        heroVideoSrc={heroVideoSrc}
+        fallbackVideo={FALLBACK_VIDEO}
+        isMuted={isMuted}
+        onToggleMute={() => setIsMuted(!isMuted)}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Main Content */}
@@ -207,7 +226,7 @@ export const CourseDetails: React.FC = () => {
                 <div className="space-y-6 animate-fade-in">
                     <h2 className="text-2xl font-bold t-text">Course Overview</h2>
                     <p className="t-text-2 leading-relaxed text-lg">
-                    {course.description}. Designed for visual storytellers who want to master the craft. We cover everything from pre-production planning to post-production delivery.
+                    {course.description}
                     </p>
                     
                     <h3 className="text-xl font-bold t-text mt-8 mb-4">What you'll learn</h3>
@@ -220,8 +239,30 @@ export const CourseDetails: React.FC = () => {
                         ))}
                     </div>
 
+                    {/* This course includes */}
+                    <div className="mt-10 p-6 rounded-2xl t-card t-border border">
+                        <h3 className="text-lg font-bold t-text mb-4">This course includes</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5">
+                            {[
+                                course.type === CourseType.BUNDLE
+                                    ? { icon: <Layers size={18} />, text: `${course.bundledCourses?.length || 0} full courses included` }
+                                    : { icon: <Play size={18} />, text: `${course.chapters?.length || 0} on-demand lessons` },
+                                { icon: <InfinityIcon size={18} />, text: 'Full lifetime access' },
+                                { icon: <Smartphone size={18} />, text: 'Access on mobile & desktop' },
+                                { icon: <Award size={18} />, text: 'Certificate of completion' },
+                                { icon: <Clock size={18} />, text: 'Learn at your own pace' },
+                                { icon: <Star size={18} />, text: 'Community & support access' },
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3 t-text-2">
+                                    <span className="text-brand-500 shrink-0">{item.icon}</span>
+                                    <span className="text-sm">{item.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Mobile Enroll Button (Main CTA) */}
-                    <div className="mt-8 lg:hidden">
+                    <div className="mt-8 lg:hidden space-y-4">
                        <Button
                           ref={mainCtaRef}
                           onClick={handleCTA}
@@ -233,6 +274,7 @@ export const CourseDetails: React.FC = () => {
                         >
                           {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ₹${(course.price / 100).toLocaleString()}`}
                         </Button>
+                        {!hasAccess && <TrustBadges variant="grid" />}
                     </div>
                 </div>
             )}
@@ -292,13 +334,7 @@ export const CourseDetails: React.FC = () => {
                                 className="flex gap-4 p-4 border t-border rounded-xl hover:border-brand-500/30 hover:shadow-md transition cursor-pointer group t-bg"
                             >
                                 <div className="w-24 h-24 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
-                                    {bc.thumbnail ? (
-                                        <img src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center t-text-2">
-                                            <BookOpen size={24} />
-                                        </div>
-                                    )}
+                                    <Thumbnail src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
@@ -351,76 +387,44 @@ export const CourseDetails: React.FC = () => {
 
         {/* Desktop Sidebar (Always Visible) */}
         <div className="hidden lg:block">
-          <div className="sticky top-24 t-card border t-border rounded-2xl p-6 shadow-xl shadow-black/10">
-            {!hasAccess && (
-              <>
-                <h3 className="text-4xl font-bold t-text mb-2">₹{(course.price / 100).toLocaleString()}</h3>
-                <p className="t-text-2 text-sm mb-8">One-time payment. Lifetime access.</p>
-              </>
-            )}
-            {hasAccess && (
-              <div className="t-status-success border rounded-xl p-4 mb-6">
-                <p className="font-bold text-sm flex items-center gap-2">
-                  <Zap size={16} />
-                  You're enrolled in this course
-                </p>
-              </div>
-            )}
-
-            <Button
-              onClick={handleCTA}
-              disabled={ctaConfig.disabled}
-              variant="primary"
-              size="lg"
-              fullWidth
-              rightIcon={ctaConfig.icon}
-              className="mb-4 hover:-translate-y-1"
-            >
-              {ctaConfig.text}
-            </Button>
-            
-            {course.type === CourseType.BUNDLE && course.bundledCourses && course.bundledCourses.length > 0 && (
-              <div className="mt-6 border-t t-border pt-6">
-                <h4 className="text-sm font-bold t-text mb-3 flex items-center gap-2">
-                  <Layers size={16} className="text-brand-600" /> Includes {course.bundledCourses.length} Courses
-                </h4>
-                <div className="space-y-2">
-                  {course.bundledCourses.map((bc) => (
-                    <div key={bc.id} className="flex items-center gap-2 text-sm t-text-2">
-                      <BookOpen size={14} className="text-brand-500 flex-shrink-0" />
-                      <span className="truncate">{bc.title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 mt-4">
-              <WishlistButton courseId={course.id} className="flex-1 t-card t-border border py-2 rounded-lg justify-center hover:border-brand-500/50 t-text-2" />
-              <ShareButton
-                title={course.title}
-                text={`Check out ${course.title} on Eyebuckz`}
-                className="flex-1 t-card t-border border py-2 rounded-lg justify-center hover:border-brand-500/50 t-text-2"
-              />
-            </div>
-
-            <div className="space-y-4 mt-8 border-t t-border pt-6">
-                <div className="flex items-center gap-3 text-sm t-text-2">
-                    <User size={18} className="text-brand-600" />
-                    <span>Beginner to Advanced</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm t-text-2">
-                    <Zap size={18} className="text-brand-600" />
-                    <span>Instant Access</span>
-                </div>
-                 <div className="flex items-center gap-3 text-sm t-text-2">
-                    <Lock size={18} className="text-brand-600" />
-                    <span>Secure Payment</span>
-                </div>
-            </div>
-          </div>
+          <CourseDetailsSidebar
+            course={course}
+            hasAccess={hasAccess}
+            ctaConfig={ctaConfig}
+            onCta={handleCTA}
+          />
         </div>
       </div>
+
+      {/* Related Courses */}
+      {relatedCourses.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
+          <h2 className="text-2xl font-bold t-text mb-8">You Might Also Like</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {relatedCourses.map(c => (
+              <Link key={c.id} to={`/course/${c.id}`} className="group t-card rounded-2xl overflow-hidden t-border border hover:border-brand-500/30 transition-all duration-300 hover:-translate-y-1">
+                <div className="aspect-video t-bg-alt overflow-hidden">
+                  <Thumbnail src={c.thumbnail} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                </div>
+                <div className="p-5">
+                  <div className="flex items-center gap-3 text-xs t-text-2 mb-2">
+                    {c.rating && (
+                      <span className="flex items-center gap-1"><Star size={12} className="text-yellow-500" fill="currentColor" />{c.rating}</span>
+                    )}
+                    <span>{c.type === CourseType.BUNDLE ? `${c.bundledCourses?.length || 0} Courses` : `${c.chapters?.length || 0} Lessons`}</span>
+                  </div>
+                  <h3 className="font-bold t-text group-hover:text-brand-600 transition-colors mb-1 truncate">{c.title}</h3>
+                  <p className="text-sm t-text-2 line-clamp-2 mb-3">{c.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold t-text">₹{(c.price / 100).toLocaleString()}</span>
+                    <span className="text-brand-600 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">View Course <ArrowRight size={14} /></span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
       <div className={`fixed bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.15)] safe-pb transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>

@@ -15,42 +15,17 @@ const MobileBottomNav: React.FC = () => {
     return null;
   }
 
-  const isActive = (route: string) => {
-    if (route === '/' ) {return path === '/';}
-    return path.startsWith(route);
-  };
-
-  const handleNav = (route: string, requiresAuth: boolean) => {
-    if (requiresAuth && !user) {
-      navigate('/login');
-    } else {
-      navigate(route);
-    }
-  };
-
   const tabs = [
-    { label: 'Home', route: '/', auth: false, icon: 'home', center: false, scroll: false },
-    { label: 'Courses', route: '/', auth: false, icon: 'explore', center: false, scroll: true },
-    { label: 'My Learning', route: '/dashboard', auth: true, icon: 'courses', center: true, scroll: false },
-    { label: 'Alerts', route: '/notifications', auth: true, icon: 'alerts', center: false, scroll: false },
-    { label: 'Profile', route: '/profile', auth: true, icon: 'profile', center: false, scroll: false },
+    { label: 'Home', route: '/', auth: false, icon: 'home', center: false },
+    { label: 'Courses', route: '/courses', auth: false, icon: 'explore', center: false },
+    { label: 'My Learning', route: '/dashboard', auth: true, icon: 'courses', center: true },
+    { label: 'Alerts', route: '/notifications', auth: true, icon: 'alerts', center: false },
+    { label: 'Profile', route: '/profile', auth: true, icon: 'profile', center: false },
   ] as const;
 
   const handleTabClick = (tab: typeof tabs[number]) => {
     if (tab.auth && !user) {
       navigate('/login');
-      return;
-    }
-    if (tab.icon === 'explore') {
-      if (path === '/') {
-        document.getElementById('courses')?.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        navigate('/#courses');
-      }
-      return;
-    }
-    if (tab.icon === 'alerts') {
-      navigate('/dashboard');
       return;
     }
     navigate(tab.route);
@@ -65,9 +40,7 @@ const MobileBottomNav: React.FC = () => {
       <div className="[background-color:color-mix(in_srgb,var(--page-bg)_85%,transparent)] backdrop-blur-2xl border-t t-border">
         <div className="flex items-end justify-around px-2 h-[72px]">
           {tabs.map((tab) => {
-            const active = tab.icon === 'explore'
-              ? false
-              : path === tab.route;
+            const active = path === tab.route;
 
             if (tab.center) {
               return (
@@ -111,7 +84,7 @@ const MobileBottomNav: React.FC = () => {
                 >
                   <TabIcon name={tab.icon} />
                 </div>
-                <span className={`text-xs mt-1 font-medium ${active ? 'text-brand-400' : 't-text-3'}`}>
+                <span className={`text-xs mt-1 font-medium ${active ? 'text-brand-400' : 't-text-2'}`}>
                   {tab.label}
                 </span>
                 {active && (
@@ -163,4 +136,4 @@ const TabIcon: React.FC<{ name: string }> = ({ name }) => {
   }
 };
 
-export default MobileBottomNav;
+export { MobileBottomNav };

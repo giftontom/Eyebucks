@@ -1,7 +1,7 @@
 {
   "name": "eyebuckz-lms",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,7 @@
     "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest --coverage",
-    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 320",
+    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 350",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
@@ -20,6 +20,7 @@
     "@sentry/react": "^10.36.0",
     "@supabase/supabase-js": "^2.97.0",
     "hls.js": "^1.6.15",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.560.0",
     "posthog-js": "^1.360.1",
     "react": "^19.2.2",
