@@ -37,8 +37,8 @@ const MobileBottomNav: React.FC = () => {
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label="Mobile navigation"
     >
-      <div className="[background-color:color-mix(in_srgb,var(--page-bg)_85%,transparent)] backdrop-blur-2xl border-t t-border">
-        <div className="flex items-end justify-around px-2 h-[72px]">
+      <div className="[background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border">
+        <div className="flex items-end justify-around px-1 h-[76px]">
           {tabs.map((tab) => {
             const active = path === tab.route;
 
@@ -47,24 +47,24 @@ const MobileBottomNav: React.FC = () => {
                 <button
                   key={tab.label}
                   onClick={() => handleTabClick(tab)}
-                  className="flex flex-col items-center justify-center -mt-5 relative group focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 rounded-full outline-none"
+                  className="flex flex-col items-center justify-center -mt-6 relative group focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--page-bg)] rounded-full outline-none transition-all duration-200"
                   aria-label={tab.label}
                   aria-current={active ? 'page' : undefined}
                 >
                   {/* Elevated center button */}
-                  <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform duration-200 ${
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 ${
                     active
-                      ? 'bg-brand-500 scale-110'
+                      ? 'bg-brand-500 scale-110 shadow-2xl'
                       : 'bg-brand-600 group-active:scale-95'
                   }`}
-                    style={{ boxShadow: active ? 'var(--shadow-brand)' : '0 4px 12px rgba(0,0,0,0.5)' }}
+                    style={{ boxShadow: active ? 'var(--shadow-brand)' : '0 6px 16px rgba(0,0,0,0.4)' }}
                   >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                     </svg>
                   </div>
-                  <span className={`text-xs mt-1 mb-1 font-semibold ${active ? 'text-brand-400' : 't-text-2'}`}>
+                  <span className={`text-xs font-bold mt-2 ${active ? 'text-brand-400' : 't-text-3'}`}>
                     {tab.label}
                   </span>
                 </button>
@@ -75,20 +75,20 @@ const MobileBottomNav: React.FC = () => {
               <button
                 key={tab.label}
                 onClick={() => handleTabClick(tab)}
-                className="flex flex-col items-center justify-center py-2 px-3 relative group focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 rounded-lg outline-none"
+                className="flex flex-col items-center justify-center py-2 px-3 relative group focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--page-bg)] rounded-xl outline-none transition-all duration-200"
                 aria-label={tab.label}
                 aria-current={active ? 'page' : undefined}
               >
                 <div className={`transition-all duration-200 ${active ? 'text-brand-400 scale-110' : 't-text-3 group-active:scale-90'}`}
-                  style={active ? { filter: 'drop-shadow(0 0 6px rgba(255,59,48,0.5))' } : undefined}
+                  style={active ? { filter: 'drop-shadow(0 0 4px rgba(239, 68, 68, 0.3))' } : undefined}
                 >
                   <TabIcon name={tab.icon} />
                 </div>
-                <span className={`text-xs mt-1 font-medium ${active ? 'text-brand-400' : 't-text-2'}`}>
+                <span className={`text-xs mt-1.5 font-semibold ${active ? 'text-brand-400' : 't-text-3'}`}>
                   {tab.label}
                 </span>
                 {active && (
-                  <div className="absolute -bottom-0 w-1 h-1 rounded-full bg-brand-400" />
+                  <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-brand-400" />
                 )}
               </button>
             );
