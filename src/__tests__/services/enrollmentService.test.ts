@@ -48,8 +48,8 @@ describe('enrollmentsApi', () => {
           order_id: null,
           amount: 9900,
           expires_at: null,
-          completed_modules: [],
-          current_module: null,
+          completed_lessons: [],
+          current_lesson: null,
           overall_percent: 50,
           total_watch_time: 3600,
           created_at: '2024-01-01T00:00:00Z',
@@ -208,7 +208,7 @@ describe('enrollmentsApi', () => {
         id: 'e1', user_id: 'u1', course_id: 'c1', status: 'ACTIVE',
         enrolled_at: '2024-01-01T00:00:00Z', last_accessed_at: null,
         payment_id: 'p1', order_id: 'o1', amount: 9900, expires_at: null,
-        completed_modules: ['m1'], current_module: 'm2', overall_percent: 50,
+        completed_lessons: ['m1'], current_lesson: 'm2', overall_percent: 50,
         total_watch_time: 1800, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z',
       };
 
@@ -268,13 +268,13 @@ describe('enrollmentsApi', () => {
       mockSupabase.from.mockReturnValue({ update: updateMock });
 
       await enrollmentsApi.updateProgress('e1', {
-        completedModules: ['m1', 'm2'],
+        completedLessons: ['m1', 'm2'],
         overallPercent: 75,
         totalWatchTime: 3600,
       });
 
       expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({
-        completed_modules: ['m1', 'm2'],
+        completed_lessons: ['m1', 'm2'],
         overall_percent: 75,
         total_watch_time: 3600,
       }));

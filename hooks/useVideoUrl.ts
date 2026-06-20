@@ -27,9 +27,9 @@ interface UseVideoUrlResult {
  *
  * Cleans up the refresh timer on unmount.
  *
- * @param videoId - Bunny.net video GUID (stored in `modules.video_id`). If `null` or
+ * @param videoId - Bunny.net video GUID (stored in `lessons.video_id`). If `null` or
  *   `undefined`, serves `fallbackUrl` directly without calling the Edge Function.
- * @param moduleId - UUID of the module; included in the Edge Function request for logging.
+ * @param lessonId - UUID of the lesson; sent to the Edge Function for entitlement + logging.
  * @param fallbackUrl - CDN URL served immediately and used as fallback if signing fails.
  * @returns Object with:
  *   - `videoUrl` — the current URL suitable for a plain `<video src>` (non-HLS)
@@ -40,13 +40,13 @@ interface UseVideoUrlResult {
  *
  * @example
  * ```tsx
- * const { hlsUrl, isLoading, error } = useVideoUrl(videoId, moduleId, fallbackUrl);
+ * const { hlsUrl, isLoading, error } = useVideoUrl(videoId, lessonId, fallbackUrl);
  * if (isLoading) return <Spinner />;
  * ```
  */
 export const useVideoUrl = (
   videoId: string | null | undefined,
-  moduleId: string | null | undefined,
+  lessonId: string | null | undefined,
   fallbackUrl: string
 ): UseVideoUrlResult => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -83,7 +83,7 @@ export const useVideoUrl = (
     // Try to get a signed URL from the Edge Function (enhances security when token auth is enabled)
     try {
       const body: Record<string, string> = { videoId };
-      if (moduleId) {body.moduleId = moduleId;}
+      if (lessonId) {body.lessonId = lessonId;}
 
       let { data, error: fnError } = await supabase.functions.invoke('video-signed-url', {
         body,
@@ -187,7 +187,7 @@ export const useVideoUrl = (
         }, 30_000);
       }
     }
-  }, [videoId, moduleId, fallbackUrl]);
+  }, [videoId, lessonId, fallbackUrl]);
 
   const refreshUrl = useCallback(async () => {
     await fetchSignedUrl(false);

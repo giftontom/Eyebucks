@@ -52,7 +52,7 @@ describe('useVideoUrl', () => {
     });
 
     const { result } = renderHook(() =>
-      useVideoUrl('video-123', 'module-1', 'fallback.mp4')
+      useVideoUrl('video-123', 'lesson-1', 'fallback.mp4')
     );
 
     await waitFor(() => {
@@ -63,7 +63,7 @@ describe('useVideoUrl', () => {
     expect(result.current.hlsUrl).toBe('https://cdn.bunny.net/guid/playlist.m3u8');
     expect(result.current.error).toBeNull();
     expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('video-signed-url', {
-      body: { videoId: 'video-123', moduleId: 'module-1' },
+      body: { videoId: 'video-123', lessonId: 'lesson-1' },
     });
   });
 

@@ -1,6 +1,6 @@
-// Eyebuckz LMS: Progress - Complete Module
+// Eyebuckz LMS: Progress - Complete Lesson
 // Replaces: PATCH /api/progress/complete
-// Uses atomic complete_module() database function
+// Uses atomic complete_lesson() database function (per-lesson completion)
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
@@ -21,19 +21,23 @@ const COMPLETION_THRESHOLD = 0.95; // 95% watch threshold — must match fronten
  *
  * Request body:
  * ```json
- * { "moduleId": "uuid", "courseId": "uuid", "currentTime": 285, "duration": 300 }
+ * { "lessonId": "uuid", "courseId": "uuid", "currentTime": 285, "duration": 300, "moduleId": "uuid" }
  * ```
  *
- * `currentTime` and `duration` are optional but recommended. If provided, the function
- * validates that the user has watched at least `COMPLETION_THRESHOLD` (95%) of the video.
+ * `moduleId` is optional (analytics context only). `currentTime` and `duration` are optional
+ * but recommended. If provided, the function validates that the user has watched at least
+ * `COMPLETION_THRESHOLD` (95%) of the video.
  *
  * Response (success):
  * ```json
  * { "success": true, "progress": { ... }, "stats": { "completedModules": 5, "totalModules": 8, "overallPercent": 62 } }
  * ```
+ * (`completedModules`/`totalModules` in `stats` are now LESSON counts — key names kept for
+ * frontend compatibility.)
  *
  * Side effects:
- * - Calls `complete_module(user_id, module_id, course_id)` RPC atomically
+ * - Calls `complete_lesson(user_id, lesson_id, course_id)` RPC atomically (course % is
+ *   computed across all lessons; a course is complete when every lesson is complete)
  * - If `overallPercent >= 100`: upserts a row in `certificates` (ignoreDuplicates for concurrent safety),
  *   inserts `certificate` notification, sends completion email via Resend
  * - At 25%, 50%, 75% milestones: inserts `milestone` notification (idempotent check)
@@ -51,10 +55,10 @@ serve(async (req) => {
     if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
-    const { moduleId, courseId, currentTime, duration } = await req.json();
+    const { lessonId, courseId, currentTime, duration } = await req.json();
 
-    if (!moduleId || !courseId) {
-      return errorResponse('moduleId and courseId are required', corsHeaders, 400);
+    if (!lessonId || !courseId) {
+      return errorResponse('lessonId and courseId are required', corsHeaders, 400);
     }
 
     // Optional: validate watch threshold
@@ -72,15 +76,15 @@ serve(async (req) => {
     const supabaseAdmin = createAdminClient();
 
     // Call atomic database function
-    const { data: result, error: rpcError } = await supabaseAdmin.rpc('complete_module', {
+    const { data: result, error: rpcError } = await supabaseAdmin.rpc('complete_lesson', {
       p_user_id: user.id,
-      p_module_id: moduleId,
+      p_lesson_id: lessonId,
       p_course_id: courseId,
     });
 
     if (rpcError) {
       console.error('[Progress] RPC error:', rpcError);
-      return errorResponse('Failed to complete module', corsHeaders, 500);
+      return errorResponse('Failed to complete lesson', corsHeaders, 500);
     }
 
     // Check if course is now fully completed -> trigger certificate
@@ -198,7 +202,7 @@ serve(async (req) => {
       .from('progress')
       .select('*')
       .eq('user_id', user.id)
-      .eq('module_id', moduleId)
+      .eq('lesson_id', lessonId)
       .single();
 
     return jsonResponse({

@@ -6,7 +6,8 @@ const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 interface UseVideoPlayerInput {
   videoRef: React.RefObject<VideoPlayerHandle | null>;
-  activeChapterId?: string;
+  /** The active LESSON id — used as the reset key when switching videos. */
+  activeLessonId?: string;
   showToast: (msg: string, type: 'success' | 'error' | 'info', duration?: number) => void;
 }
 
@@ -52,7 +53,7 @@ interface UseVideoPlayerReturn {
   handleSeekHover: (e: React.MouseEvent<HTMLInputElement> | React.TouchEvent<HTMLInputElement>) => void;
 }
 
-export function useVideoPlayer({ videoRef, activeChapterId, showToast }: UseVideoPlayerInput): UseVideoPlayerReturn {
+export function useVideoPlayer({ videoRef, activeLessonId, showToast }: UseVideoPlayerInput): UseVideoPlayerReturn {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -71,20 +72,20 @@ export function useVideoPlayer({ videoRef, activeChapterId, showToast }: UseVide
 
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset quality state when switching modules
+  // Reset quality state when switching lessons
   useEffect(() => {
     setQualityLevels([]);
     setSelectedQuality(-1);
     setHlsQuality(null);
     setShowQualityMenu(false);
-  }, [activeChapterId]);
+  }, [activeLessonId]);
 
-  // Sync playback rate when switching modules
+  // Sync playback rate when switching lessons
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
     }
-  }, [activeChapterId, playbackRate, videoRef]);
+  }, [activeLessonId, playbackRate, videoRef]);
 
   // Clean up controls timeout on unmount
   useEffect(() => {

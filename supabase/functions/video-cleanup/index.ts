@@ -113,14 +113,14 @@ serve(async (req) => {
       page++;
     }
 
-    // Query all referenced video IDs from DB
-    const { data: moduleVideoIds, error: moduleError } = await adminClient
-      .from('modules')
+    // Query all referenced video IDs from DB (videos now live on lessons, not modules)
+    const { data: lessonVideoIds, error: lessonError } = await adminClient
+      .from('lessons')
       .select('video_id');
 
-    if (moduleError) {
-      console.error('[VideoCleanup] Module query error:', moduleError);
-      return errorResponse('Failed to query modules', corsHeaders, 500);
+    if (lessonError) {
+      console.error('[VideoCleanup] Lesson query error:', lessonError);
+      return errorResponse('Failed to query lessons', corsHeaders, 500);
     }
 
     const { data: courseHeroIds, error: courseError } = await adminClient
@@ -134,7 +134,7 @@ serve(async (req) => {
 
     // Build set of referenced GUIDs
     const referencedIds = new Set<string>();
-    for (const row of moduleVideoIds || []) {
+    for (const row of lessonVideoIds || []) {
       if (row.video_id) {referencedIds.add(row.video_id);}
     }
     for (const row of courseHeroIds || []) {

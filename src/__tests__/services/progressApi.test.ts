@@ -46,7 +46,7 @@ describe('progressApi', () => {
     it('should do nothing when not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
 
-      await progressApi.saveProgress('course-1', 'module-1', 120);
+      await progressApi.saveProgress('course-1', 'lesson-1', 120);
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -63,13 +63,13 @@ describe('progressApi', () => {
       };
       mockSupabase.from.mockReturnValue(chain);
 
-      await progressApi.saveProgress('course-1', 'module-1', 120);
+      await progressApi.saveProgress('course-1', 'lesson-1', 120);
       expect(mockSupabase.from).toHaveBeenCalledWith('progress');
       expect(chain.insert).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: 'user-1',
           course_id: 'course-1',
-          module_id: 'module-1',
+          lesson_id: 'lesson-1',
           timestamp: 120,
           view_count: 1,
         })
@@ -92,7 +92,7 @@ describe('progressApi', () => {
         Promise.resolve({ data: null, error: null })
       );
 
-      await progressApi.saveProgress('course-1', 'module-1', 120);
+      await progressApi.saveProgress('course-1', 'lesson-1', 120);
       expect(mockSupabase.from).toHaveBeenCalledWith('progress');
     });
   });
@@ -104,9 +104,9 @@ describe('progressApi', () => {
         error: null,
       });
 
-      const result = await progressApi.markComplete('course-1', 'module-1', 570, 600);
+      const result = await progressApi.markComplete('course-1', 'lesson-1', 570, 600);
       expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('progress-complete', {
-        body: { courseId: 'course-1', moduleId: 'module-1', currentTime: 570, duration: 600 },
+        body: { courseId: 'course-1', lessonId: 'lesson-1', currentTime: 570, duration: 600 },
       });
       expect(result.success).toBe(true);
     });
@@ -117,32 +117,32 @@ describe('progressApi', () => {
         error: { message: 'Server error' },
       });
 
-      await expect(progressApi.markComplete('c', 'm')).rejects.toThrow('Server error');
+      await expect(progressApi.markComplete('c', 'l')).rejects.toThrow('Server error');
     });
   });
 
   describe('checkCompletion', () => {
     it('should return false when duration is 0', async () => {
-      const result = await progressApi.checkCompletion('c', 'm', 100, 0);
+      const result = await progressApi.checkCompletion('c', 'l', 100, 0);
       expect(result).toBe(false);
     });
 
     it('should return false when below threshold', async () => {
       // 90% < 95%
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
-      const result = await progressApi.checkCompletion('c', 'm', 90, 100);
+      const result = await progressApi.checkCompletion('c', 'l', 90, 100);
       expect(result).toBe(false);
     });
 
     it('should mark complete when at threshold and not yet completed', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
-      mockChainedQuery({ data: null, error: null }); // getModuleProgress returns null
+      mockChainedQuery({ data: null, error: null }); // getLessonProgress returns null
       mockSupabase.functions.invoke.mockResolvedValue({
         data: { success: true },
         error: null,
       });
 
-      const result = await progressApi.checkCompletion('c', 'm', 96, 100);
+      const result = await progressApi.checkCompletion('c', 'l', 96, 100);
       expect(result).toBe(true);
       expect(mockSupabase.functions.invoke).toHaveBeenCalled();
     });
@@ -150,19 +150,19 @@ describe('progressApi', () => {
     it('should return false when already completed', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
       mockChainedQuery({
-        data: { module_id: 'm', completed: true, timestamp: 96, completed_at: '2024-01-01' },
+        data: { lesson_id: 'l', completed: true, timestamp: 96, completed_at: '2024-01-01' },
         error: null,
       });
 
-      const result = await progressApi.checkCompletion('c', 'm', 96, 100);
+      const result = await progressApi.checkCompletion('c', 'l', 96, 100);
       expect(result).toBe(false);
     });
   });
 
-  describe('getModuleProgress', () => {
+  describe('getLessonProgress', () => {
     it('should return null when not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
-      const result = await progressApi.getModuleProgress('c', 'm');
+      const result = await progressApi.getLessonProgress('c', 'l');
       expect(result).toBeNull();
     });
 
@@ -170,7 +170,7 @@ describe('progressApi', () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
       mockChainedQuery({
         data: {
-          module_id: 'mod-1',
+          lesson_id: 'lesson-1',
           timestamp: 300,
           completed: true,
           completed_at: '2024-06-01T00:00:00Z',
@@ -181,9 +181,9 @@ describe('progressApi', () => {
         error: null,
       });
 
-      const result = await progressApi.getModuleProgress('c', 'mod-1');
+      const result = await progressApi.getLessonProgress('c', 'lesson-1');
       expect(result).toEqual({
-        moduleId: 'mod-1',
+        lessonId: 'lesson-1',
         lastTimestamp: 300,
         completed: true,
         completedAt: '2024-06-01T00:00:00Z',
@@ -197,17 +197,17 @@ describe('progressApi', () => {
   describe('getResumePosition', () => {
     it('should return 0 when no progress exists', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
-      const pos = await progressApi.getResumePosition('c', 'm');
+      const pos = await progressApi.getResumePosition('c', 'l');
       expect(pos).toBe(0);
     });
 
     it('should return last timestamp from progress', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u' } } });
       mockChainedQuery({
-        data: { module_id: 'm', timestamp: 450, completed: false },
+        data: { lesson_id: 'l', timestamp: 450, completed: false },
         error: null,
       });
-      const pos = await progressApi.getResumePosition('c', 'm');
+      const pos = await progressApi.getResumePosition('c', 'l');
       expect(pos).toBe(450);
     });
   });
@@ -222,7 +222,7 @@ describe('progressApi', () => {
     it('should return progress array for authenticated user', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
       const progressRow = {
-        module_id: 'm1', timestamp: 100, completed: true, completed_at: '2024-01-01',
+        lesson_id: 'l1', timestamp: 100, completed: true, completed_at: '2024-01-01',
         watch_time: 300, view_count: 2, last_updated_at: '2024-01-01', updated_at: '2024-01-01',
       };
       mockSupabase.from.mockReturnValue({
@@ -235,7 +235,7 @@ describe('progressApi', () => {
 
       const result = await progressApi.getProgress('c1');
       expect(result).toHaveLength(1);
-      expect(result[0].moduleId).toBe('m1');
+      expect(result[0].lessonId).toBe('l1');
       expect(result[0].completed).toBe(true);
     });
 
@@ -291,48 +291,48 @@ describe('progressApi', () => {
     });
   });
 
-  describe('checkCompletion', () => {
+  describe('checkCompletion (duplicate block — merged into primary above)', () => {
     it('should return false when duration is 0', async () => {
-      const result = await progressApi.checkCompletion('c', 'm', 100, 0);
+      const result = await progressApi.checkCompletion('c', 'l', 100, 0);
       expect(result).toBe(false);
     });
 
     it('should return false when below threshold', async () => {
-      const result = await progressApi.checkCompletion('c', 'm', 50, 100);
+      const result = await progressApi.checkCompletion('c', 'l', 50, 100);
       expect(result).toBe(false);
     });
 
     it('should return false when already completed', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
       mockChainedQuery({ data: {
-        module_id: 'm', timestamp: 95, completed: true, completed_at: '2024-01-01',
+        lesson_id: 'l', timestamp: 95, completed: true, completed_at: '2024-01-01',
         watch_time: 100, view_count: 1, last_updated_at: '2024-01-01', updated_at: '2024-01-01',
       }, error: null });
 
-      const result = await progressApi.checkCompletion('c', 'm', 96, 100);
+      const result = await progressApi.checkCompletion('c', 'l', 96, 100);
       expect(result).toBe(false);
     });
 
     it('should mark complete and return true at threshold', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-      // getModuleProgress returns incomplete
+      // getLessonProgress returns incomplete
       mockChainedQuery({ data: {
-        module_id: 'm', timestamp: 0, completed: false, completed_at: null,
+        lesson_id: 'l', timestamp: 0, completed: false, completed_at: null,
         watch_time: 0, view_count: 1, last_updated_at: '2024-01-01', updated_at: '2024-01-01',
       }, error: null });
       // markComplete → functions.invoke
       mockSupabase.functions.invoke.mockResolvedValue({ data: { success: true }, error: null });
 
-      const result = await progressApi.checkCompletion('c', 'm', 96, 100);
+      const result = await progressApi.checkCompletion('c', 'l', 96, 100);
       expect(result).toBe(true);
       expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('progress-complete', expect.any(Object));
     });
   });
 
-  describe('saveProgress', () => {
+  describe('saveProgress (duplicate block — full chain assertions)', () => {
     it('should return early when not authenticated', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } });
-      await progressApi.saveProgress('c', 'm', 100);
+      await progressApi.saveProgress('c', 'l', 100);
       expect(mockSupabase.from).not.toHaveBeenCalled();
     });
 
@@ -352,7 +352,7 @@ describe('progressApi', () => {
         insert: insertMock,
       });
 
-      await progressApi.saveProgress('c', 'm', 100);
+      await progressApi.saveProgress('c', 'l', 100);
       expect(insertMock).toHaveBeenCalled();
     });
 
@@ -371,7 +371,7 @@ describe('progressApi', () => {
       });
       mockSupabase.rpc.mockResolvedValue({ error: null });
 
-      await progressApi.saveProgress('c', 'm', 100);
+      await progressApi.saveProgress('c', 'l', 100);
       expect(mockSupabase.rpc).toHaveBeenCalled();
     });
   });

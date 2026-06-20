@@ -1,22 +1,34 @@
 /**
  * Courses API - Direct Supabase PostgREST queries
  * Replaces: apiClient.getCourses(), getCourse(), getCourseModules()
+ *
+ * Content hierarchy: course -> modules (chapters) -> lessons (video leaf).
  */
 import { supabase } from '../supabase';
 import { logger } from '../../utils/logger';
 
-import type { Course, Module } from '../../types';
-import type { CourseRow, ModuleRow } from '../../types/supabase';
+import type { Course, Module, Lesson } from '../../types';
+import type { CourseRow, ModuleRow, LessonRow } from '../../types/supabase';
 
 // Query result types for joined queries
-interface CourseQueryModule {
+interface CourseQueryLesson {
   id: string;
   title: string;
   duration: string | null;
   duration_seconds: number;
   video_url: string | null;
+  video_id?: string | null;
   is_free_preview: boolean;
   order_index: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface CourseQueryModule {
+  id: string;
+  title: string;
+  order_index: number;
+  lessons?: CourseQueryLesson[];
   created_at?: string;
   updated_at?: string;
 }
@@ -35,22 +47,43 @@ type CourseQueryRow = CourseRow & {
   reviews?: CourseQueryReview[];
 };
 
-interface BundleQueryCourse {
-  id: string;
-  title: string;
-  slug: string;
-  description?: string;
-  thumbnail: string;
-  price?: number;
-  rating?: number | null;
-  total_students?: number;
-  modules?: { id: string }[];
+/** Count lessons nested under a course's modules (for "N lessons" card stats). */
+function countLessons(modules?: { lessons?: { id: string }[] }[]): number {
+  return (modules || []).reduce((sum, m) => sum + (m.lessons?.length || 0), 0);
 }
 
-interface BundleQueryRow {
-  bundle_id: string;
-  course_id: string;
-  courses: BundleQueryCourse;
+// Map a lesson DB row to the frontend Lesson type
+function mapLesson(row: LessonRow): Lesson {
+  return {
+    id: row.id,
+    moduleId: row.module_id,
+    title: row.title,
+    duration: row.duration || '0:00',
+    durationSeconds: row.duration_seconds || 0,
+    videoUrl: row.video_url || '',
+    videoId: row.video_id || undefined,
+    isFreePreview: row.is_free_preview || false,
+    orderIndex: row.order_index,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+// Map a module (chapter) DB row to the frontend Module type, with nested lessons
+function mapModule(row: ModuleRow & { lessons?: LessonRow[] }): Module {
+  const lessons = (row.lessons || [])
+    .slice()
+    .sort((a, b) => a.order_index - b.order_index)
+    .map(mapLesson);
+  return {
+    id: row.id,
+    courseId: row.course_id,
+    title: row.title,
+    orderIndex: row.order_index,
+    lessons,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
 }
 
 // Map DB row to frontend Course type
@@ -71,13 +104,25 @@ function mapCourse(row: CourseQueryRow): Course {
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     publishedAt: row.published_at ? new Date(row.published_at) : null,
-    chapters: row.modules?.map((m: CourseQueryModule) => ({
-      id: m.id,
-      title: m.title,
-      duration: m.duration,
-      durationSeconds: m.duration_seconds,
-      videoUrl: m.video_url,
-    })),
+    chapters: row.modules
+      ?.slice()
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((m: CourseQueryModule) => ({
+        id: m.id,
+        title: m.title,
+        orderIndex: m.order_index,
+        lessons: (m.lessons || [])
+          .slice()
+          .sort((a, b) => a.order_index - b.order_index)
+          .map((l: CourseQueryLesson) => ({
+            id: l.id,
+            title: l.title,
+            duration: l.duration || '0:00',
+            durationSeconds: l.duration_seconds || 0,
+            isFreePreview: l.is_free_preview || false,
+            videoUrl: l.video_url || undefined,
+          })),
+      })),
     reviews: row.reviews?.map((r: CourseQueryReview) => ({
       id: r.id,
       user: r.users?.name || 'Anonymous',
@@ -88,25 +133,9 @@ function mapCourse(row: CourseQueryRow): Course {
   };
 }
 
-function mapModule(row: ModuleRow): Module {
-  return {
-    id: row.id,
-    courseId: row.course_id,
-    title: row.title,
-    duration: row.duration || '0:00',
-    durationSeconds: row.duration_seconds || 0,
-    videoUrl: row.video_url || '',
-    videoId: row.video_id || undefined,
-    isFreePreview: row.is_free_preview || false,
-    orderIndex: row.order_index,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
-  };
-}
-
 export const coursesApi = {
   /**
-   * Fetches all published courses with their modules and bundle contents.
+   * Fetches all published courses with their chapters/lessons and bundle contents.
    *
    * For BUNDLE-type courses, performs a two-step query to avoid PostgREST FK-hint
    * ambiguity: first fetches bundle_courses links, then fetches the bundled course details.
@@ -114,23 +143,19 @@ export const coursesApi = {
    * @returns Object containing `success: true` and an array of published `Course` objects
    *   ordered by `created_at` descending. Each BUNDLE course includes `bundledCourses`.
    * @throws {Error} If the main courses query fails.
-   *
-   * @example
-   * ```ts
-   * const { courses } = await coursesApi.getCourses();
-   * const bundles = courses.filter(c => c.type === 'BUNDLE');
-   * ```
    */
   async getCourses(): Promise<{ success: boolean; courses: Course[] }> {
     const { data, error } = await supabase
       .from('courses')
-      .select('*, modules(id, title, duration, duration_seconds, video_url, is_free_preview, order_index)')
+      .select('*, modules(id, title, order_index, lessons(id))')
       .eq('status', 'PUBLISHED')
       .order('created_at', { ascending: false });
 
     if (error) {throw new Error(error.message);}
 
-    const courses = (data || []).map(mapCourse);
+    // The list query joins a lighter module/lesson shape than CourseQueryRow's full
+    // lessons; mapCourse only reads ids/titles/order here, so the cast is sound.
+    const courses = ((data || []) as unknown as CourseQueryRow[]).map(mapCourse);
 
     // For BUNDLE courses, fetch bundled course counts (two-step to avoid FK-hint issues)
     const bundleIds = (data || []).filter(c => c.type === 'BUNDLE').map(c => c.id);
@@ -147,7 +172,7 @@ export const coursesApi = {
         const allCourseIds = [...new Set(links.map(r => r.course_id))];
         const { data: bundledData, error: bundledError } = await supabase
           .from('courses')
-          .select('id, title, slug, thumbnail, modules(id)')
+          .select('id, title, slug, thumbnail, modules(id, lessons(id))')
           .in('id', allCourseIds);
 
         if (bundledError) {
@@ -177,7 +202,7 @@ export const coursesApi = {
                     price: 0,
                     rating: null,
                     totalStudents: 0,
-                    moduleCount: (c.modules as {id: string}[])?.length || 0,
+                    lessonCount: countLessons(c.modules as { lessons?: { id: string }[] }[]),
                   };
                 });
             }
@@ -190,21 +215,16 @@ export const coursesApi = {
   },
 
   /**
-   * Fetches a single course by UUID or slug, including all modules and reviews.
+   * Fetches a single course by UUID or slug, including all chapters/lessons and reviews.
    *
    * Uses a UUID regex to detect the lookup strategy: UUID → query by `id`,
-   * non-UUID string → query by `slug`. Modules are sorted by `order_index`.
+   * non-UUID string → query by `slug`. Chapters are sorted by `order_index`, and
+   * each chapter's lessons are sorted by `order_index`.
    * For BUNDLE courses, fetches bundled course details in a second query.
    *
-   * @param idOrSlug - The course UUID (e.g., `'abc-123-...'`) or slug (e.g., `'intro-to-react'`).
-   * @returns Object containing `success: true` and the full `Course` object with modules and reviews.
+   * @param idOrSlug - The course UUID or slug.
+   * @returns Object containing `success: true` and the full `Course` object.
    * @throws {Error} If the course does not exist or the database query fails.
-   *
-   * @example
-   * ```ts
-   * const { course } = await coursesApi.getCourse('intro-to-react');
-   * console.log(course.chapters?.length); // number of modules
-   * ```
    */
   async getCourse(idOrSlug: string): Promise<{ success: boolean; course: Course }> {
     // Try by ID first, then by slug
@@ -212,7 +232,7 @@ export const coursesApi = {
       .from('courses')
       .select(`
         *,
-        modules(id, title, duration, duration_seconds, video_url, is_free_preview, order_index, created_at, updated_at),
+        modules(id, title, order_index, created_at, updated_at, lessons(id, title, duration, duration_seconds, video_url, video_id, is_free_preview, order_index, created_at, updated_at)),
         reviews(id, rating, comment, created_at, user_id, users(name))
       `);
 
@@ -230,12 +250,7 @@ export const coursesApi = {
     if (error) {throw new Error(error.message);}
     if (!data) {throw new Error('Course not found');}
 
-    // Sort modules by order_index
-    if (data.modules) {
-      data.modules.sort((a: CourseQueryModule, b: CourseQueryModule) => a.order_index - b.order_index);
-    }
-
-    const course = mapCourse(data);
+    const course = mapCourse(data as unknown as CourseQueryRow);
 
     // For BUNDLE courses, fetch bundled course details (two-step to avoid FK-hint issues)
     if (data.type === 'BUNDLE') {
@@ -251,7 +266,7 @@ export const coursesApi = {
         const courseIds = links.map(r => r.course_id);
         const { data: bundledData, error: bundledError } = await supabase
           .from('courses')
-          .select('id, title, slug, description, thumbnail, price, rating, total_students, modules(id)')
+          .select('id, title, slug, description, thumbnail, price, rating, total_students, modules(id, lessons(id))')
           .in('id', courseIds);
 
         if (bundledError) {
@@ -271,7 +286,7 @@ export const coursesApi = {
                 price: c.price || 0,
                 rating: c.rating ?? null,
                 totalStudents: c.total_students || 0,
-                moduleCount: (c.modules as {id: string}[])?.length || 0,
+                lessonCount: countLessons(c.modules as { lessons?: { id: string }[] }[]),
               };
             });
         }
@@ -282,29 +297,22 @@ export const coursesApi = {
   },
 
   /**
-   * Fetches all modules for a course, redacting video URLs for non-enrolled users.
+   * Fetches all chapters (modules) with their lessons for a course, redacting video
+   * URLs/GUIDs on locked lessons for non-enrolled users.
    *
    * Checks enrollment and admin role to determine `hasAccess`. If the user does not have
-   * access, `videoUrl` is set to `''` on all non-free-preview modules. Free preview
-   * modules always have their video URL included.
+   * access, `videoUrl`/`videoId` are cleared on every non-free-preview lesson. Free-preview
+   * lessons always keep their video.
    *
    * @param courseId - UUID of the course to fetch modules for.
-   * @returns Object with `modules` array (sorted by `order_index`), `hasAccess` boolean,
-   *   and `success: true`.
+   * @returns Object with `modules` array (each with nested `lessons`, all sorted by
+   *   `order_index`), `hasAccess` boolean, and `success: true`.
    * @throws {Error} If the modules query fails.
-   *
-   * @example
-   * ```ts
-   * const { modules, hasAccess } = await coursesApi.getCourseModules(courseId);
-   * if (!hasAccess) {
-   *   // Only free preview modules will have videoUrl populated
-   * }
-   * ```
    */
   async getCourseModules(courseId: string): Promise<{ success: boolean; modules: Module[]; hasAccess: boolean }> {
     const { data, error } = await supabase
       .from('modules')
-      .select('*')
+      .select('*, lessons(*)')
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
 
@@ -333,15 +341,17 @@ export const coursesApi = {
       hasAccess = !!enrollment || profile?.role === 'ADMIN';
     }
 
-    const modules = (data || []).map(mapModule);
+    const modules = (data || []).map(m => mapModule(m as ModuleRow & { lessons?: LessonRow[] }));
 
-    // Redact video URLs and GUIDs for non-enrolled users (except free previews)
+    // Redact video URLs and GUIDs on locked lessons for non-enrolled users
     if (!hasAccess) {
       modules.forEach(m => {
-        if (!m.isFreePreview) {
-          m.videoUrl = '';
-          m.videoId = undefined;
-        }
+        m.lessons?.forEach(l => {
+          if (!l.isFreePreview) {
+            l.videoUrl = '';
+            l.videoId = undefined;
+          }
+        });
       });
     }
 
@@ -357,11 +367,6 @@ export const coursesApi = {
    * @param ids - Array of course UUIDs to fetch. Returns `[]` immediately if empty.
    * @returns Array of objects with `id`, `title`, `thumbnail`, `type`, and `description`.
    * @throws {Error} If the database query fails.
-   *
-   * @example
-   * ```ts
-   * const courses = await coursesApi.getCoursesByIds(enrollments.map(e => e.courseId));
-   * ```
    */
   async getCoursesByIds(ids: string[]): Promise<{ id: string; title: string; thumbnail: string; type: string; description: string }[]> {
     if (ids.length === 0) {return [];}

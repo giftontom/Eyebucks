@@ -52,13 +52,20 @@ export interface Course {
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
+  /** Curriculum outline: chapters (modules) each containing their lessons (the video leaves). */
   chapters?: Array<{
     id: string;
     title: string;
-    duration: string;
-    durationSeconds: number;
-    isCompleted?: boolean;
-    videoUrl?: string;
+    orderIndex?: number;
+    lessons: Array<{
+      id: string;
+      title: string;
+      duration: string;
+      durationSeconds: number;
+      isFreePreview: boolean;
+      isCompleted?: boolean;
+      videoUrl?: string;
+    }>;
   }>;
   reviews?: Array<{
     id: string;
@@ -76,7 +83,8 @@ export interface Course {
     price: number;
     rating: number | null;
     totalStudents: number;
-    moduleCount: number;
+    /** Total number of lessons across all chapters in the bundled course. */
+    lessonCount: number;
   }>;
 }
 
@@ -85,13 +93,25 @@ export interface CourseWithModules extends Course {
 }
 
 // ============================================
-// MODULE TYPES
+// MODULE TYPES (chapters) + LESSON TYPES (video leaves)
 // ============================================
 
-/** A video chapter within a course. `videoId` is a Bunny.net GUID (not a URL) — pass to `useVideoUrl`. */
+/** A chapter within a MODULE course. Pure grouping — holds no video; its `lessons` do. */
 export interface Module {
   id: string;
   courseId: string;
+  title: string;
+  orderIndex: number;
+  lessons?: Lesson[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** A lesson within a chapter — the video-bearing leaf. `videoId` is a Bunny.net GUID
+ *  (not a URL) — pass to `useVideoUrl`. */
+export interface Lesson {
+  id: string;
+  moduleId: string;
   title: string;
   duration: string;
   durationSeconds: number;
@@ -123,15 +143,15 @@ export interface Enrollment {
   orderId: string | null;
   amount: number;
   expiresAt: Date | null;
-  completedModules: string[];
-  currentModule: string | null;
+  completedLessons: string[];
+  currentLesson: string | null;
   overallPercent: number;
   totalWatchTime: number;
   createdAt: Date;
   updatedAt: Date;
   progress?: {
-    completedModules: string[];
-    currentModule: string | null;
+    completedLessons: string[];
+    currentLesson: string | null;
     overallPercent: number;
     totalWatchTime: number;
   };
@@ -145,12 +165,12 @@ export interface EnrollmentWithCourse extends Enrollment {
 // PROGRESS TYPES
 // ============================================
 
-/** Per-module video watch record. `timestamp` is the last watched position in seconds. `completed` = reached 95% threshold. */
+/** Per-lesson video watch record. `timestamp` is the last watched position in seconds. `completed` = reached 95% threshold. */
 export interface Progress {
   id: string;
   userId: string;
   courseId: string;
-  moduleId: string;
+  lessonId: string;
   timestamp: number;
   completed: boolean;
   completedAt: Date | null;
@@ -159,6 +179,10 @@ export interface Progress {
   lastUpdatedAt: Date;
 }
 
+/** Course progress rollup. Counts are LESSON-based (a course is complete when all
+ *  lessons are complete). Field names are kept module-flavored to match the
+ *  `get_progress_stats` RPC payload — `completedModules`/`totalModules` hold lesson counts,
+ *  `currentModule` holds the current lesson id. */
 export interface ProgressStats {
   overallPercent: number;
   completedModules: number;
@@ -329,7 +353,13 @@ export interface CourseFormData {
   heroVideoId?: string;
 }
 
+/** Admin form for a chapter (module). Chapters group lessons and carry no video. */
 export interface ModuleFormData {
+  title: string;
+}
+
+/** Admin form for a lesson (the video-bearing leaf within a chapter). */
+export interface LessonFormData {
   title: string;
   duration: string;
   videoUrl: string;

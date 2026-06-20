@@ -19,15 +19,15 @@ function mapEnrollment(row: EnrollmentRow): Enrollment {
     orderId: row.order_id,
     amount: row.amount || 0,
     expiresAt: row.expires_at ? new Date(row.expires_at) : null,
-    completedModules: row.completed_modules || [],
-    currentModule: row.current_module,
+    completedLessons: row.completed_lessons || [],
+    currentLesson: row.current_lesson,
     overallPercent: row.overall_percent || 0,
     totalWatchTime: row.total_watch_time || 0,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     progress: {
-      completedModules: row.completed_modules || [],
-      currentModule: row.current_module,
+      completedLessons: row.completed_lessons || [],
+      currentLesson: row.current_lesson,
       overallPercent: row.overall_percent || 0,
       totalWatchTime: row.total_watch_time || 0,
     },
@@ -180,14 +180,14 @@ export const enrollmentsApi = {
    * @param data - Partial progress fields to set. Any omitted fields are left unchanged.
    */
   async updateProgress(enrollmentId: string, data: {
-    completedModules?: string[];
-    currentModule?: string | null;
+    completedLessons?: string[];
+    currentLesson?: string | null;
     overallPercent?: number;
     totalWatchTime?: number;
   }): Promise<void> {
     const update: EnrollmentUpdate = {};
-    if (data.completedModules !== undefined) {update.completed_modules = data.completedModules;}
-    if (data.currentModule !== undefined) {update.current_module = data.currentModule;}
+    if (data.completedLessons !== undefined) {update.completed_lessons = data.completedLessons;}
+    if (data.currentLesson !== undefined) {update.current_lesson = data.currentLesson;}
     if (data.overallPercent !== undefined) {update.overall_percent = data.overallPercent;}
     if (data.totalWatchTime !== undefined) {update.total_watch_time = data.totalWatchTime;}
 

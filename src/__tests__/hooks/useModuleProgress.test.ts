@@ -6,7 +6,7 @@ vi.mock('../../../services/api', () => ({
     getProgress: vi.fn(),
     getCourseStats: vi.fn(),
     getResumePosition: vi.fn(),
-    updateCurrentModule: vi.fn(),
+    updateCurrentLesson: vi.fn(),
     saveProgress: vi.fn(),
     updateTimestamp: vi.fn(),
     checkCompletion: vi.fn(),
@@ -32,27 +32,27 @@ describe('useModuleProgress', () => {
     mockProgressApi.getProgress.mockResolvedValue([]);
     mockProgressApi.getCourseStats.mockResolvedValue({ overallPercent: 0 });
     mockProgressApi.getResumePosition.mockResolvedValue(0);
-    mockProgressApi.updateCurrentModule.mockResolvedValue(undefined);
+    mockProgressApi.updateCurrentLesson.mockResolvedValue(undefined);
     mockProgressApi.checkCompletion.mockResolvedValue(false);
   });
 
-  it('loads completion map on mount', async () => {
+  it('loads lesson completion map on mount', async () => {
     mockProgressApi.getProgress.mockResolvedValue([
-      { moduleId: 'mod-1', completed: true },
-      { moduleId: 'mod-2', completed: false },
+      { lessonId: 'lesson-1', completed: true },
+      { lessonId: 'lesson-2', completed: false },
     ]);
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: false,
         user: mockUser,
         videoRef: mockVideoRef,
         hasAccess: true,
       })
     );
-    await waitFor(() => expect(result.current.moduleCompletionMap['mod-1']).toBe(true));
-    expect(result.current.moduleCompletionMap['mod-2']).toBe(false);
+    await waitFor(() => expect(result.current.lessonCompletionMap['lesson-1']).toBe(true));
+    expect(result.current.lessonCompletionMap['lesson-2']).toBe(false);
   });
 
   it('loads course progress stats on mount', async () => {
@@ -60,7 +60,7 @@ describe('useModuleProgress', () => {
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: false,
         user: mockUser,
         videoRef: mockVideoRef,
@@ -70,14 +70,14 @@ describe('useModuleProgress', () => {
     await waitFor(() => expect(result.current.progressPercent).toBe(65));
   });
 
-  it('fires module_completed analytics event when module is completed', async () => {
+  it('fires lesson_completed analytics event when lesson is completed', async () => {
     mockProgressApi.checkCompletion.mockResolvedValue(true);
     mockProgressApi.getCourseStats.mockResolvedValue({ overallPercent: 100 });
 
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: true,
         user: mockUser,
         videoRef: mockVideoRef,
@@ -90,9 +90,9 @@ describe('useModuleProgress', () => {
     });
 
     await waitFor(() =>
-      expect(analytics.track).toHaveBeenCalledWith('module_completed', {
+      expect(analytics.track).toHaveBeenCalledWith('lesson_completed', {
         course_id: 'course-1',
-        module_id: 'mod-1',
+        lesson_id: 'lesson-1',
       })
     );
   });
@@ -101,7 +101,7 @@ describe('useModuleProgress', () => {
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: true,
         user: mockUser,
         videoRef: mockVideoRef,
@@ -120,7 +120,7 @@ describe('useModuleProgress', () => {
     renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: false,
         user: null,
         videoRef: mockVideoRef,
@@ -144,13 +144,13 @@ describe('useModuleProgress', () => {
       vi.useRealTimers();
     });
 
-    it('calls saveProgress (not updateTimestamp) on first auto-save for a module', async () => {
+    it('calls saveProgress (not updateTimestamp) on first auto-save for a lesson', async () => {
       const videoRef = { current: { currentTime: 15, duration: 100 } } as Parameters<typeof useModuleProgress>[0]['videoRef'];
 
       renderHook(() =>
         useModuleProgress({
           courseId: 'course-1',
-          activeChapterId: 'mod-1',
+          activeLessonId: 'lesson-1',
           isPlaying: true,
           user: mockUser,
           videoRef,
@@ -162,7 +162,7 @@ describe('useModuleProgress', () => {
         vi.advanceTimersByTime(30000);
       });
 
-      expect(mockProgressApi.saveProgress).toHaveBeenCalledWith('course-1', 'mod-1', 15);
+      expect(mockProgressApi.saveProgress).toHaveBeenCalledWith('course-1', 'lesson-1', 15);
       expect(mockProgressApi.updateTimestamp).not.toHaveBeenCalled();
     });
 
@@ -172,7 +172,7 @@ describe('useModuleProgress', () => {
       renderHook(() =>
         useModuleProgress({
           courseId: 'course-1',
-          activeChapterId: 'mod-1',
+          activeLessonId: 'lesson-1',
           isPlaying: true,
           user: mockUser,
           videoRef,
@@ -191,7 +191,7 @@ describe('useModuleProgress', () => {
       await act(async () => { vi.advanceTimersByTime(30000); });
       await act(async () => {});
 
-      expect(mockProgressApi.updateTimestamp).toHaveBeenCalledWith('course-1', 'mod-1', 45);
+      expect(mockProgressApi.updateTimestamp).toHaveBeenCalledWith('course-1', 'lesson-1', 45);
       expect(mockProgressApi.saveProgress).toHaveBeenCalledTimes(1); // still only once
     });
 
@@ -201,7 +201,7 @@ describe('useModuleProgress', () => {
       renderHook(() =>
         useModuleProgress({
           courseId: 'course-1',
-          activeChapterId: 'mod-1',
+          activeLessonId: 'lesson-1',
           isPlaying: false,
           user: mockUser,
           videoRef,
@@ -227,7 +227,7 @@ describe('useModuleProgress', () => {
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: false,
         user: mockUser,
         videoRef,
@@ -251,7 +251,7 @@ describe('useModuleProgress', () => {
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: true,
         user: mockUser,
         videoRef: mockVideoRef,
@@ -276,7 +276,7 @@ describe('useModuleProgress', () => {
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: true,
         user: mockUser,
         videoRef: mockVideoRef,
@@ -297,16 +297,16 @@ describe('useModuleProgress', () => {
     vi.useRealTimers();
   });
 
-  it('skips checkCompletion API call when module is already in moduleCompletionMap', async () => {
+  it('skips checkCompletion API call when lesson is already in lessonCompletionMap', async () => {
     vi.useRealTimers(); // ensure real timers — previous fake-timer tests may have left them active
     mockProgressApi.getProgress.mockResolvedValue([
-      { moduleId: 'mod-1', completed: true },
+      { lessonId: 'lesson-1', completed: true },
     ]);
 
     const { result } = renderHook(() =>
       useModuleProgress({
         courseId: 'course-1',
-        activeChapterId: 'mod-1',
+        activeLessonId: 'lesson-1',
         isPlaying: true,
         user: mockUser,
         videoRef: mockVideoRef,
@@ -314,7 +314,7 @@ describe('useModuleProgress', () => {
       })
     );
 
-    await waitFor(() => expect(result.current.moduleCompletionMap['mod-1']).toBe(true));
+    await waitFor(() => expect(result.current.lessonCompletionMap['lesson-1']).toBe(true));
 
     act(() => {
       result.current.checkCompletion(96, 100); // past threshold but already completed

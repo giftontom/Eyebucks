@@ -9,13 +9,38 @@ import { paymentsApi } from './payments.api';
 
 import type { Payment } from './payments.api';
 import type {
-  AdminStats, SalesDataPoint, Module, CourseAnalytics,
+  AdminStats, SalesDataPoint, Module, Lesson, CourseAnalytics,
   SiteContentItem, AdminCourse, AdminUser, AdminCertificate, RecentActivity,
 } from '../../types';
 import type {
   CourseRow, ModuleRow, UserRow, CourseUpdate, UserUpdate, SiteContentUpdate,
   SiteContentRow, ModuleInsert, ModuleUpdate, EnrollmentRow, CertificateRow, Json,
+  LessonRow, LessonInsert, LessonUpdate,
 } from '../../types/supabase';
+
+// Parse a MM:SS (or SS) duration string into seconds
+function parseDurationSeconds(duration: string): number {
+  const parts = duration.split(':');
+  return parts.length === 2
+    ? parseInt(parts[0]) * 60 + parseInt(parts[1])
+    : parseInt(parts[0]) || 0;
+}
+
+function mapLessonRow(l: LessonRow): Lesson {
+  return {
+    id: l.id,
+    moduleId: l.module_id,
+    title: l.title,
+    duration: l.duration || '0:00',
+    durationSeconds: l.duration_seconds || 0,
+    videoUrl: l.video_url || '',
+    videoId: l.video_id || undefined,
+    isFreePreview: l.is_free_preview || false,
+    orderIndex: l.order_index,
+    createdAt: new Date(l.created_at as string),
+    updatedAt: new Date(l.updated_at as string),
+  };
+}
 
 // Escape special characters that could alter PostgREST .or() filter logic
 function escapeOrFilter(value: string): string {
@@ -335,13 +360,14 @@ export const adminApi = {
   },
 
   // ============================================
-  // MODULE MANAGEMENT
+  // MODULE (CHAPTER) MANAGEMENT
   // ============================================
 
+  /** Returns chapters (modules) with their nested lessons, all ordered by order_index. */
   async getModules(courseId: string): Promise<{ success: boolean; modules: Module[] }> {
     const { data, error } = await supabase
       .from('modules')
-      .select('*')
+      .select('*, lessons(*)')
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
 
@@ -353,23 +379,20 @@ export const adminApi = {
         id: m.id,
         courseId: m.course_id,
         title: m.title,
-        duration: m.duration || '0:00',
-        durationSeconds: m.duration_seconds || 0,
-        videoUrl: m.video_url || '',
-        isFreePreview: m.is_free_preview || false,
         orderIndex: m.order_index,
+        lessons: ((m.lessons as LessonRow[]) || [])
+          .slice()
+          .sort((a, b) => a.order_index - b.order_index)
+          .map(mapLessonRow),
         createdAt: new Date(m.created_at),
         updatedAt: new Date(m.updated_at),
       })),
     };
   },
 
+  /** Creates a chapter (module). Chapters carry no video — add lessons separately. */
   async createModule(courseId: string, moduleData: {
     title: string;
-    duration: string;
-    videoUrl: string;
-    videoId?: string;
-    isFreePreview?: boolean;
   }): Promise<{ success: boolean; message: string; module: ModuleRow }> {
     // Get current max order_index
     const { data: existing } = await supabase
@@ -381,21 +404,10 @@ export const adminApi = {
 
     const nextOrder = (existing?.[0]?.order_index || 0) + 1;
 
-    // Parse duration MM:SS to seconds
-    const durationParts = moduleData.duration.split(':');
-    const durationSeconds = durationParts.length === 2
-      ? parseInt(durationParts[0]) * 60 + parseInt(durationParts[1])
-      : parseInt(durationParts[0]) || 0;
-
     const insertData = {
       course_id: courseId,
       title: moduleData.title,
-      duration: moduleData.duration,
-      duration_seconds: durationSeconds,
-      video_url: moduleData.videoUrl,
-      is_free_preview: moduleData.isFreePreview || false,
       order_index: nextOrder,
-      ...(moduleData.videoId ? { video_id: moduleData.videoId } : {}),
     } satisfies ModuleInsert;
 
     const { data, error } = await supabase
@@ -405,53 +417,42 @@ export const adminApi = {
       .single();
 
     if (error) {throw new Error(error.message);}
-    return { success: true, message: 'Module created', module: data };
+    return { success: true, message: 'Chapter created', module: data };
   },
 
+  /** Updates a chapter (module) — title and/or order only. */
   async updateModule(courseId: string, moduleId: string, moduleData: {
     title?: string;
-    duration?: string;
-    videoUrl?: string;
-    videoId?: string;
-    isFreePreview?: boolean;
     orderIndex?: number;
   }): Promise<{ success: boolean; message: string; module: ModuleRow }> {
-    const updateFields: ModuleUpdate & { video_id?: string } = {};
+    const updateFields: ModuleUpdate = {};
     if (moduleData.title !== undefined) {updateFields.title = moduleData.title;}
-    if (moduleData.duration !== undefined) {
-      updateFields.duration = moduleData.duration;
-      const parts = moduleData.duration.split(':');
-      updateFields.duration_seconds = parts.length === 2
-        ? parseInt(parts[0]) * 60 + parseInt(parts[1])
-        : parseInt(parts[0]) || 0;
-    }
-    if (moduleData.videoUrl !== undefined) {updateFields.video_url = moduleData.videoUrl;}
-    if (moduleData.videoId !== undefined) {updateFields.video_id = moduleData.videoId;}
-    if (moduleData.isFreePreview !== undefined) {updateFields.is_free_preview = moduleData.isFreePreview;}
     if (moduleData.orderIndex !== undefined) {updateFields.order_index = moduleData.orderIndex;}
 
     const { data, error } = await supabase
       .from('modules')
-      .update(updateFields as ModuleUpdate)
+      .update(updateFields)
       .eq('id', moduleId)
       .eq('course_id', courseId)
       .select()
       .single();
 
     if (error) {throw new Error(error.message);}
-    return { success: true, message: 'Module updated', module: data };
+    return { success: true, message: 'Chapter updated', module: data };
   },
 
+  /**
+   * Deletes a chapter (module). Its lessons (and their progress) cascade-delete in the DB,
+   * but Bunny assets do not — so fetch each lesson's video_id first and fire cleanup.
+   */
   async deleteModule(courseId: string, moduleId: string): Promise<{ success: boolean; message: string }> {
-    // Query video_id before deleting the module (video_id added in migration 014)
-    const { data: moduleData } = await supabase
-      .from('modules')
+    // Collect Bunny video GUIDs of all lessons under this chapter before deletion
+    const { data: lessons } = await supabase
+      .from('lessons')
       .select('video_id')
-      .eq('id', moduleId)
-      .eq('course_id', courseId)
-      .maybeSingle();
+      .eq('module_id', moduleId);
 
-    const videoGuid = moduleData?.video_id ?? undefined;
+    const videoGuids = (lessons || []).map(l => l.video_id).filter((v): v is string => !!v);
 
     const { error } = await supabase
       .from('modules')
@@ -461,8 +462,8 @@ export const adminApi = {
 
     if (error) {throw new Error(error.message);}
 
-    // Fire-and-forget: delete the Bunny video if it had one
-    if (videoGuid) {
+    // Fire-and-forget: delete each lesson's Bunny video
+    for (const videoGuid of videoGuids) {
       supabase.functions.invoke('video-cleanup', {
         body: { deleteVideoId: videoGuid },
       }).catch(err => {
@@ -470,7 +471,7 @@ export const adminApi = {
       });
     }
 
-    return { success: true, message: 'Module deleted' };
+    return { success: true, message: 'Chapter deleted' };
   },
 
   async reorderModules(courseId: string, moduleIds: string[]): Promise<{
@@ -487,7 +488,126 @@ export const adminApi = {
       throw new Error(rpcError.message || 'Failed to reorder modules');
     }
 
-    return { success: true, message: 'Modules reordered' };
+    return { success: true, message: 'Chapters reordered' };
+  },
+
+  // ============================================
+  // LESSON MANAGEMENT (video leaves within a chapter)
+  // ============================================
+
+  /** Creates a lesson under a chapter, appending it after the last existing lesson. */
+  async createLesson(moduleId: string, lessonData: {
+    title: string;
+    duration: string;
+    videoUrl: string;
+    videoId?: string;
+    isFreePreview?: boolean;
+  }): Promise<{ success: boolean; message: string; lesson: Lesson }> {
+    const { data: existing } = await supabase
+      .from('lessons')
+      .select('order_index')
+      .eq('module_id', moduleId)
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    const nextOrder = (existing?.[0]?.order_index || 0) + 1;
+
+    const insertData = {
+      module_id: moduleId,
+      title: lessonData.title,
+      duration: lessonData.duration,
+      duration_seconds: parseDurationSeconds(lessonData.duration),
+      video_url: lessonData.videoUrl,
+      is_free_preview: lessonData.isFreePreview || false,
+      order_index: nextOrder,
+      ...(lessonData.videoId ? { video_id: lessonData.videoId } : {}),
+    } satisfies LessonInsert;
+
+    const { data, error } = await supabase
+      .from('lessons')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {throw new Error(error.message);}
+    return { success: true, message: 'Lesson created', lesson: mapLessonRow(data) };
+  },
+
+  async updateLesson(moduleId: string, lessonId: string, lessonData: {
+    title?: string;
+    duration?: string;
+    videoUrl?: string;
+    videoId?: string;
+    isFreePreview?: boolean;
+    orderIndex?: number;
+  }): Promise<{ success: boolean; message: string; lesson: Lesson }> {
+    const updateFields: LessonUpdate = {};
+    if (lessonData.title !== undefined) {updateFields.title = lessonData.title;}
+    if (lessonData.duration !== undefined) {
+      updateFields.duration = lessonData.duration;
+      updateFields.duration_seconds = parseDurationSeconds(lessonData.duration);
+    }
+    if (lessonData.videoUrl !== undefined) {updateFields.video_url = lessonData.videoUrl;}
+    if (lessonData.videoId !== undefined) {updateFields.video_id = lessonData.videoId;}
+    if (lessonData.isFreePreview !== undefined) {updateFields.is_free_preview = lessonData.isFreePreview;}
+    if (lessonData.orderIndex !== undefined) {updateFields.order_index = lessonData.orderIndex;}
+
+    const { data, error } = await supabase
+      .from('lessons')
+      .update(updateFields)
+      .eq('id', lessonId)
+      .eq('module_id', moduleId)
+      .select()
+      .single();
+
+    if (error) {throw new Error(error.message);}
+    return { success: true, message: 'Lesson updated', lesson: mapLessonRow(data) };
+  },
+
+  /** Deletes a lesson (its progress cascades in the DB); fires Bunny cleanup for its video. */
+  async deleteLesson(moduleId: string, lessonId: string): Promise<{ success: boolean; message: string }> {
+    const { data: lesson } = await supabase
+      .from('lessons')
+      .select('video_id')
+      .eq('id', lessonId)
+      .eq('module_id', moduleId)
+      .maybeSingle();
+
+    const videoGuid = lesson?.video_id ?? undefined;
+
+    const { error } = await supabase
+      .from('lessons')
+      .delete()
+      .eq('id', lessonId)
+      .eq('module_id', moduleId);
+
+    if (error) {throw new Error(error.message);}
+
+    if (videoGuid) {
+      supabase.functions.invoke('video-cleanup', {
+        body: { deleteVideoId: videoGuid },
+      }).catch(err => {
+        console.error('[Admin] Failed to cleanup Bunny video:', err);
+      });
+    }
+
+    return { success: true, message: 'Lesson deleted' };
+  },
+
+  async reorderLessons(moduleId: string, lessonIds: string[]): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    const { error: rpcError } = await customRpc('reorder_lessons', {
+      p_module_id: moduleId,
+      p_lesson_ids: lessonIds,
+    });
+
+    if (rpcError) {
+      throw new Error(rpcError.message || 'Failed to reorder lessons');
+    }
+
+    return { success: true, message: 'Lessons reordered' };
   },
 
   // ============================================

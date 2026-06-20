@@ -302,10 +302,10 @@ export type Database = {
       enrollments: {
         Row: {
           amount: number | null
-          completed_modules: string[] | null
+          completed_lessons: string[] | null
           course_id: string
           created_at: string | null
-          current_module: string | null
+          current_lesson: string | null
           enrolled_at: string | null
           expires_at: string | null
           id: string
@@ -320,10 +320,10 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
-          completed_modules?: string[] | null
+          completed_lessons?: string[] | null
           course_id: string
           created_at?: string | null
-          current_module?: string | null
+          current_lesson?: string | null
           enrolled_at?: string | null
           expires_at?: string | null
           id?: string
@@ -338,10 +338,10 @@ export type Database = {
         }
         Update: {
           amount?: number | null
-          completed_modules?: string[] | null
+          completed_lessons?: string[] | null
           course_id?: string
           created_at?: string | null
-          current_module?: string | null
+          current_lesson?: string | null
           enrolled_at?: string | null
           expires_at?: string | null
           id?: string
@@ -412,14 +412,14 @@ export type Database = {
           },
         ]
       }
-      modules: {
+      lessons: {
         Row: {
-          course_id: string
           created_at: string | null
           duration: string | null
           duration_seconds: number | null
           id: string
           is_free_preview: boolean | null
+          module_id: string
           order_index: number
           title: string
           updated_at: string | null
@@ -427,12 +427,12 @@ export type Database = {
           video_url: string | null
         }
         Insert: {
-          course_id: string
           created_at?: string | null
           duration?: string | null
           duration_seconds?: number | null
           id?: string
           is_free_preview?: boolean | null
+          module_id: string
           order_index: number
           title: string
           updated_at?: string | null
@@ -440,17 +440,52 @@ export type Database = {
           video_url?: string | null
         }
         Update: {
-          course_id?: string
           created_at?: string | null
           duration?: string | null
           duration_seconds?: number | null
           id?: string
           is_free_preview?: boolean | null
+          module_id?: string
           order_index?: number
           title?: string
           updated_at?: string | null
           video_id?: string | null
           video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modules: {
+        Row: {
+          course_id: string
+          created_at: string | null
+          id: string
+          order_index: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string | null
+          id?: string
+          order_index: number
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string | null
+          id?: string
+          order_index?: number
+          title?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -589,7 +624,7 @@ export type Database = {
           created_at: string | null
           id: string
           last_updated_at: string | null
-          module_id: string
+          lesson_id: string
           timestamp: number | null
           updated_at: string | null
           user_id: string
@@ -603,7 +638,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_updated_at?: string | null
-          module_id: string
+          lesson_id: string
           timestamp?: number | null
           updated_at?: string | null
           user_id: string
@@ -617,7 +652,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_updated_at?: string | null
-          module_id?: string
+          lesson_id?: string
           timestamp?: number | null
           updated_at?: string | null
           user_id?: string
@@ -633,10 +668,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "progress_module_id_fkey"
-            columns: ["module_id"]
+            foreignKeyName: "progress_lesson_id_fkey"
+            columns: ["lesson_id"]
             isOneToOne: false
-            referencedRelation: "modules"
+            referencedRelation: "lessons"
             referencedColumns: ["id"]
           },
           {
@@ -834,8 +869,8 @@ export type Database = {
           discount_pct: number
         }[]
       }
-      complete_module: {
-        Args: { p_course_id: string; p_module_id: string; p_user_id: string }
+      complete_lesson: {
+        Args: { p_course_id: string; p_lesson_id: string; p_user_id: string }
         Returns: Json
       }
       expire_enrollments: { Args: never; Returns: number }
@@ -859,13 +894,17 @@ export type Database = {
       increment_view_count: {
         Args: {
           p_course_id: string
-          p_module_id: string
+          p_lesson_id: string
           p_timestamp?: number
           p_user_id: string
         }
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      reorder_lessons: {
+        Args: { p_lesson_ids: string[]; p_module_id: string }
+        Returns: undefined
+      }
       reorder_modules: {
         Args: { p_course_id: string; p_module_ids: string[] }
         Returns: undefined
@@ -873,7 +912,7 @@ export type Database = {
       save_progress_timestamp: {
         Args: {
           p_course_id: string
-          p_module_id: string
+          p_lesson_id: string
           p_timestamp?: number
           p_user_id: string
         }
@@ -1027,6 +1066,9 @@ export type CourseRow = Database['public']['Tables']['courses']['Row']
 export type CourseUpdate = Database['public']['Tables']['courses']['Update']
 export type ModuleInsert = Database['public']['Tables']['modules']['Insert']
 export type ModuleUpdate = Database['public']['Tables']['modules']['Update']
+export type LessonRow = Database['public']['Tables']['lessons']['Row']
+export type LessonInsert = Database['public']['Tables']['lessons']['Insert']
+export type LessonUpdate = Database['public']['Tables']['lessons']['Update']
 export type UserUpdate = Database['public']['Tables']['users']['Update']
 export type EnrollmentRow = Database['public']['Tables']['enrollments']['Row']
 export type EnrollmentUpdate = Database['public']['Tables']['enrollments']['Update']

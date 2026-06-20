@@ -1,5 +1,5 @@
-import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, Layers, ArrowRight, ChevronUp, X, PictureInPicture2 } from 'lucide-react';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, Layers, ArrowRight, ChevronUp, ChevronDown, X, PictureInPicture2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -17,7 +17,7 @@ import { coursesApi } from '../services/api';
 import { CourseType } from '../types';
 import { logger } from '../utils/logger';
 
-import type { Course, Module } from '../types';
+import type { Course, Module, Lesson } from '../types';
 
 /**
  * Extract Bunny Stream video GUID from a video URL
@@ -34,21 +34,48 @@ export const Learn: React.FC = () => {
   const { user } = useAuth();
   const { showToast, ToastContainer } = useToast();
 
-  // Fetch course and modules from API
+  // Fetch course and chapters (modules) + their lessons from API
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
 
   // Use access control hook
   const { hasAccess, isLoading: isCheckingAccess } = useAccessControl(id);
-  const [activeChapterId, setActiveChapterId] = useState<string | undefined>(undefined);
+  const [activeLessonId, setActiveLessonId] = useState<string | undefined>(undefined);
+  const [expandedModuleIds, setExpandedModuleIds] = useState<Set<string>>(new Set());
 
   // Mobile responsiveness
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   const videoRef = useRef<VideoPlayerHandle>(null);
 
-  const activeChapterIndex = Math.max(0, modules.findIndex(m => m.id === activeChapterId));
+  // Flatten lessons across chapters for linear prev/next traversal
+  const flatLessons = useMemo<Lesson[]>(
+    () => modules.flatMap(m => m.lessons ?? []),
+    [modules]
+  );
+  const activeLessonIndex = Math.max(0, flatLessons.findIndex(l => l.id === activeLessonId));
+  const activeLesson = flatLessons[activeLessonIndex];
+  const activeModule = useMemo(
+    () => modules.find(m => (m.lessons ?? []).some(l => l.id === activeLessonId)),
+    [modules, activeLessonId]
+  );
+  const activeModuleIndex = activeModule ? modules.findIndex(m => m.id === activeModule.id) : 0;
+
+  // A chapter is "complete" when it has lessons and all of them are complete.
+  const isModuleComplete = useCallback(
+    (m: Module, map: Record<string, boolean>) =>
+      (m.lessons?.length ?? 0) > 0 && (m.lessons ?? []).every(l => map[l.id]),
+    []
+  );
+
+  const toggleModule = useCallback((moduleId: string) => {
+    setExpandedModuleIds(prev => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) {next.delete(moduleId);} else {next.add(moduleId);}
+      return next;
+    });
+  }, []);
 
   // --- Hook wiring ---
 
@@ -84,7 +111,7 @@ export const Learn: React.FC = () => {
     handleLevelsLoaded,
     handleSelectQuality,
     handleSeekHover,
-  } = useVideoPlayer({ videoRef, activeChapterId, showToast });
+  } = useVideoPlayer({ videoRef, activeLessonId, showToast });
 
   // Orientation detection — maximize video in landscape on mobile
   const { isLandscape, lockToLandscape, unlock: unlockOrientation } = useOrientation();
@@ -113,13 +140,13 @@ export const Learn: React.FC = () => {
 
   const {
     progressPercent,
-    moduleCompletionMap,
+    lessonCompletionMap,
     showCompletionNotification,
     pendingResumeRef,
     checkCompletion,
   } = useModuleProgress({
     courseId: id,
-    activeChapterId,
+    activeLessonId,
     isPlaying,
     user,
     videoRef,
@@ -140,11 +167,11 @@ export const Learn: React.FC = () => {
 
   const { notes, setNotes } = useModuleNotes({
     courseId: id,
-    activeChapterId,
+    activeLessonId,
     userId: user?.id,
   });
 
-  // Load course and modules from API (parallelized)
+  // Load course and chapters/lessons from API (parallelized)
   useEffect(() => {
     const loadCourse = async () => {
       if (!id) {return;}
@@ -158,11 +185,15 @@ export const Learn: React.FC = () => {
         ]);
 
         setCourse(courseResponse.course);
-        setModules(modulesResponse.modules || []);
+        const loadedModules = modulesResponse.modules || [];
+        setModules(loadedModules);
 
-        // Set first module as active by default
-        if (modulesResponse.modules && modulesResponse.modules.length > 0) {
-          setActiveChapterId(modulesResponse.modules[0].id);
+        // Default active lesson = first lesson of the first chapter that has lessons.
+        const firstLesson = loadedModules.flatMap(m => m.lessons ?? [])[0];
+        if (firstLesson) {
+          setActiveLessonId(firstLesson.id);
+          const owner = loadedModules.find(m => (m.lessons ?? []).some(l => l.id === firstLesson.id));
+          if (owner) {setExpandedModuleIds(new Set([owner.id]));}
         }
       } catch (error) {
         logger.error('[Learn] Error loading course:', error);
@@ -175,6 +206,13 @@ export const Learn: React.FC = () => {
     loadCourse();
   }, [id, showToast]);
 
+  // Keep the chapter containing the active lesson expanded
+  useEffect(() => {
+    if (activeModule) {
+      setExpandedModuleIds(prev => (prev.has(activeModule.id) ? prev : new Set(prev).add(activeModule.id)));
+    }
+  }, [activeModule]);
+
   // Combined onTimeUpdate: basic state + completion check
   const handleTimeUpdate = () => {
     handleTimeUpdateBasic();
@@ -185,18 +223,22 @@ export const Learn: React.FC = () => {
 
   // Keyboard shortcuts are handled by useMobileGestures via onKeyDown on the video container.
 
-  // Previous / Next Chapter Logic
+  // Previous / Next Lesson Logic (traverses lessons across chapter boundaries)
+  const selectLesson = useCallback((lessonId: string, closeDrawer = false) => {
+    setActiveLessonId(lessonId);
+    setIsPlaying(false);
+    if (closeDrawer) {setMobileDrawerOpen(false);}
+  }, [setIsPlaying]);
+
   const handlePrev = () => {
-    if (activeChapterIndex > 0) {
-      setActiveChapterId(modules[activeChapterIndex - 1].id);
-      setIsPlaying(false);
+    if (activeLessonIndex > 0) {
+      selectLesson(flatLessons[activeLessonIndex - 1].id);
     }
   };
 
   const handleNext = () => {
-    if (activeChapterIndex < modules.length - 1) {
-      setActiveChapterId(modules[activeChapterIndex + 1].id);
-      setIsPlaying(false);
+    if (activeLessonIndex < flatLessons.length - 1) {
+      selectLesson(flatLessons[activeLessonIndex + 1].id);
     }
   };
 
@@ -234,7 +276,7 @@ export const Learn: React.FC = () => {
     return <Navigate to={`/course/${course.id}`} replace />;
   }
 
-  // Bundle Hub View — bundles don't have modules, show linked courses instead
+  // Bundle Hub View — bundles don't have chapters, show linked courses instead
   if (course.type === CourseType.BUNDLE) {
     const bundledCourses = course.bundledCourses || [];
     return (
@@ -273,7 +315,7 @@ export const Learn: React.FC = () => {
                   <h3 className="font-bold t-text group-hover:text-brand-400 transition truncate">{bc.title}</h3>
                   <p className="text-sm t-text-2 line-clamp-1 mt-1">{bc.description}</p>
                   <div className="flex items-center gap-3 mt-2 text-xs t-text-2">
-                    <span>{bc.moduleCount} Lessons</span>
+                    <span>{bc.lessonCount} Lessons</span>
                   </div>
                 </div>
                 <div className="hidden md:flex items-center t-text-3 group-hover:text-brand-500 transition">
@@ -295,13 +337,13 @@ export const Learn: React.FC = () => {
     );
   }
 
-  // No modules available (for MODULE courses only)
-  if (modules.length === 0) {
+  // No lessons available (for MODULE courses only)
+  if (flatLessons.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen t-bg">
         <div className="text-center">
-          <h2 className="text-2xl font-bold t-text mb-4">No modules available</h2>
-          <p className="t-text-2 mb-4">This course doesn't have any modules yet.</p>
+          <h2 className="text-2xl font-bold t-text mb-4">No lessons available</h2>
+          <p className="t-text-2 mb-4">This course doesn't have any lessons yet.</p>
           <Link to="/" className="text-brand-600 hover:text-brand-700 font-medium">
             Back to Catalog
           </Link>
@@ -309,8 +351,6 @@ export const Learn: React.FC = () => {
       </div>
     );
   }
-
-  const activeModule = modules[activeChapterIndex];
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100dvh-80px)] overflow-hidden bg-black">
@@ -340,9 +380,9 @@ export const Learn: React.FC = () => {
             }>
             <VideoPlayer
                 ref={videoRef}
-                videoId={extractVideoId(activeModule?.videoUrl)}
-                moduleId={activeModule?.id}
-                fallbackUrl={activeModule?.videoUrl || ''}
+                videoId={extractVideoId(activeLesson?.videoUrl)}
+                moduleId={activeLesson?.id}
+                fallbackUrl={activeLesson?.videoUrl || ''}
                 className="w-full h-full"
                 controls={false}
                 onTimeUpdate={handleTimeUpdate}
@@ -426,7 +466,7 @@ export const Learn: React.FC = () => {
                 <div className="flex items-center justify-between text-white">
                     <div className="flex items-center gap-2 sm:gap-4">
                         {/* Skip prev — hidden on mobile (double-tap replaces it) */}
-                        <button onClick={handlePrev} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" disabled={activeChapterIndex === 0} aria-label="Previous module">
+                        <button onClick={handlePrev} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" disabled={activeLessonIndex === 0} aria-label="Previous lesson">
                             <SkipBack size={20} fill="currentColor" />
                         </button>
 
@@ -435,7 +475,7 @@ export const Learn: React.FC = () => {
                         </button>
 
                         {/* Skip next — hidden on mobile */}
-                        <button onClick={handleNext} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" disabled={activeChapterIndex === modules.length - 1} aria-label="Next module">
+                        <button onClick={handleNext} className="hidden sm:block p-2 hover:text-brand-500 transition disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 rounded outline-none" disabled={activeLessonIndex === flatLessons.length - 1} aria-label="Next lesson">
                             <SkipForward size={20} fill="currentColor" />
                         </button>
 
@@ -544,7 +584,7 @@ export const Learn: React.FC = () => {
             {showCompletionNotification && (
               <div className="absolute top-4 right-4 t-status-success border px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 animate-fade-in z-30">
                 <CheckCircle size={20} fill="currentColor" />
-                <span className="font-bold">Module Completed!</span>
+                <span className="font-bold">Lesson Completed!</span>
               </div>
             )}
 
@@ -584,37 +624,37 @@ export const Learn: React.FC = () => {
              </div>
         </div>
 
-        {/* Mobile prev/next module buttons — hidden in mobile landscape to maximize video */}
+        {/* Mobile prev/next lesson buttons — hidden in mobile landscape to maximize video */}
         <div className={`lg:hidden flex items-center gap-2 px-3 pt-2 pb-1 t-bg ${isMobileLandscape ? 'hidden' : ''}`}>
           <button
             onClick={handlePrev}
-            disabled={activeChapterIndex === 0}
+            disabled={activeLessonIndex === 0}
             className="flex-1 flex items-center justify-center gap-1 text-xs font-bold t-card t-border border py-2 px-3 rounded-full disabled:opacity-40 transition hover:bg-[var(--surface-hover)]"
           >
             <SkipBack size={14} /> Prev
           </button>
           <button
             onClick={handleNext}
-            disabled={activeChapterIndex === modules.length - 1}
+            disabled={activeLessonIndex === flatLessons.length - 1}
             className="flex-1 flex items-center justify-center gap-1 text-xs font-bold t-card t-border border py-2 px-3 rounded-full disabled:opacity-40 transition hover:bg-[var(--surface-hover)]"
           >
             Next <SkipForward size={14} />
           </button>
         </div>
 
-        {/* Mobile Module Toggle Bar — hidden in mobile landscape to maximize video */}
+        {/* Mobile Lesson Toggle Bar — hidden in mobile landscape to maximize video */}
         <button
           onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
           className={`lg:hidden sticky bottom-0 w-full t-bg border-t t-border p-3 flex items-center justify-between t-text z-20 ${isMobileLandscape ? 'hidden' : ''}`}
         >
           <span className="text-sm font-medium truncate mr-2">
-            Module {String(activeChapterIndex + 1).padStart(2, '0')}: {activeModule?.title}
+            Ch {String(activeModuleIndex + 1).padStart(2, '0')} · {activeLesson?.title}
           </span>
           <ChevronUp size={20} className={`transition-transform flex-shrink-0 ${mobileDrawerOpen ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
-      {/* Mobile Module Drawer */}
+      {/* Mobile Content Drawer */}
       {mobileDrawerOpen && (
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 t-bg border-t t-border rounded-t-2xl max-h-[70vh] overflow-y-auto animate-slide-up pb-safe">
           <div className="sticky top-0 t-bg p-4 border-b t-border flex items-center justify-between z-10">
@@ -623,27 +663,53 @@ export const Learn: React.FC = () => {
               <X size={20} />
             </button>
           </div>
-          {modules.map((module, idx) => {
-            const isCompleted = moduleCompletionMap[module.id] || false;
+          {modules.map((module, mIdx) => {
+            const moduleLessons = module.lessons ?? [];
+            const moduleComplete = isModuleComplete(module, lessonCompletionMap);
+            const expanded = expandedModuleIds.has(module.id);
             return (
-              <button
-                key={module.id}
-                onClick={() => { setActiveChapterId(module.id); setMobileDrawerOpen(false); }}
-                className={`w-full text-left p-4 border-b t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
-                  activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
-                }`}
-              >
-                <div className="mt-0.5">
-                  {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3 group-hover:t-text-2" />}
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
-                  <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 't-text' : 't-text-2 group-hover:t-text'}`}>
-                    {module.title}
-                  </h3>
-                  <p className="text-xs t-text-3 mt-1.5 font-mono">{module.duration}</p>
-                </div>
-              </button>
+              <div key={module.id} className="border-b t-border">
+                <button
+                  onClick={() => toggleModule(module.id)}
+                  className="w-full text-left p-4 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition"
+                >
+                  <div className="mt-0.5">
+                    {moduleComplete ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Chapter {String(mIdx + 1).padStart(2, '0')}</span>
+                    <h3 className="text-sm font-semibold leading-tight t-text">{module.title}</h3>
+                    <p className="text-xs t-text-3 mt-1">{moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}</p>
+                  </div>
+                  <ChevronDown size={18} className={`flex-shrink-0 t-text-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                </button>
+                {expanded && moduleLessons.map(lesson => {
+                  const isCompleted = lessonCompletionMap[lesson.id] || false;
+                  const isActive = activeLessonId === lesson.id;
+                  return (
+                    <button
+                      key={lesson.id}
+                      onClick={() => selectLesson(lesson.id, true)}
+                      className={`w-full text-left pl-10 pr-4 py-3 border-t t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
+                        isActive ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
+                      }`}
+                    >
+                      <div className="mt-0.5">
+                        {isCompleted ? <CheckCircle size={14} fill="currentColor" className="text-brand-500" /> : <Circle size={14} className="t-text-3 group-hover:t-text-2" />}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className={`text-sm font-medium leading-tight ${isActive ? 't-text' : 't-text-2 group-hover:t-text'}`}>{lesson.title}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs t-text-3 font-mono">{lesson.duration}</p>
+                          {lesson.isFreePreview && (
+                            <span className="text-[9px] uppercase font-bold tracking-wider text-brand-400">Free</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </div>
@@ -658,39 +724,64 @@ export const Learn: React.FC = () => {
       <div className="hidden lg:flex w-96 t-bg border-l t-border flex-col h-full z-10">
          <div className="p-4 border-b t-border t-bg">
             <h2 className="font-bold text-lg t-text">Course Content</h2>
-            <p className="text-xs t-text-3 mt-1">{modules.length} Modules</p>
+            <p className="text-xs t-text-3 mt-1">{modules.length} Chapters · {flatLessons.length} Lessons</p>
          </div>
 
          <div className="flex-grow overflow-y-auto custom-scrollbar">
-            {modules.map((module, idx) => {
-                const isCompleted = moduleCompletionMap[module.id] || false;
+            {modules.map((module, mIdx) => {
+                const moduleLessons = module.lessons ?? [];
+                const moduleComplete = isModuleComplete(module, lessonCompletionMap);
+                const expanded = expandedModuleIds.has(module.id);
 
                 return (
-                <button
-                    key={module.id}
-                    onClick={() => setActiveChapterId(module.id)}
-                    className={`w-full text-left p-4 border-b t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
-                        activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
-                    }`}
-                >
-                    <div className="mt-0.5">
-                        {isCompleted ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3 group-hover:t-text-2" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Module {String(idx + 1).padStart(2, '0')}</span>
-                        <h3 className={`text-sm font-medium leading-tight ${activeChapterId === module.id ? 't-text' : 't-text-2 group-hover:t-text'}`}>
-                            {module.title}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <p className="text-xs t-text-3 font-mono">{module.duration}</p>
-                          {isCompleted && activeChapterId === module.id && (
-                            <span className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: 'var(--status-success-text)' }}>
-                              <CheckCircle size={10} fill="currentColor" /> Completed
-                            </span>
-                          )}
+                <div key={module.id} className="border-b t-border">
+                    <button
+                        onClick={() => toggleModule(module.id)}
+                        className="w-full text-left p-4 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition"
+                    >
+                        <div className="mt-0.5">
+                            {moduleComplete ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3" />}
                         </div>
-                    </div>
-                </button>
+                        <div className="flex-1 min-w-0">
+                            <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Chapter {String(mIdx + 1).padStart(2, '0')}</span>
+                            <h3 className="text-sm font-semibold leading-tight t-text">{module.title}</h3>
+                            <p className="text-xs t-text-3 mt-1">{moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}</p>
+                        </div>
+                        <ChevronDown size={18} className={`flex-shrink-0 t-text-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {expanded && moduleLessons.map(lesson => {
+                        const isCompleted = lessonCompletionMap[lesson.id] || false;
+                        const isActive = activeLessonId === lesson.id;
+                        return (
+                        <button
+                            key={lesson.id}
+                            onClick={() => selectLesson(lesson.id)}
+                            className={`w-full text-left pl-10 pr-4 py-3 border-t t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
+                                isActive ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
+                            }`}
+                        >
+                            <div className="mt-0.5">
+                                {isCompleted ? <CheckCircle size={14} fill="currentColor" className="text-brand-500" /> : <Circle size={14} className="t-text-3 group-hover:t-text-2" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className={`text-sm font-medium leading-tight ${isActive ? 't-text' : 't-text-2 group-hover:t-text'}`}>{lesson.title}</h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className="text-xs t-text-3 font-mono">{lesson.duration}</p>
+                                  {lesson.isFreePreview && (
+                                    <span className="text-[9px] uppercase font-bold tracking-wider text-brand-400">Free</span>
+                                  )}
+                                  {isCompleted && isActive && (
+                                    <span className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: 'var(--status-success-text)' }}>
+                                      <CheckCircle size={10} fill="currentColor" /> Completed
+                                    </span>
+                                  )}
+                                </div>
+                            </div>
+                        </button>
+                        );
+                    })}
+                </div>
                 );
             })}
          </div>
@@ -701,7 +792,7 @@ export const Learn: React.FC = () => {
             <textarea
                 id="module-notes"
                 className="flex-grow w-full t-bg t-border border rounded-lg p-3 text-xs t-text-2 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
-                placeholder="Take notes for this module..."
+                placeholder="Take notes for this lesson..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
             ></textarea>

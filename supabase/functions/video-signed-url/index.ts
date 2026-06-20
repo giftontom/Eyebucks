@@ -48,7 +48,7 @@ serve(async (req) => {
     if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
-    const { videoId, moduleId } = await req.json();
+    const { videoId, lessonId } = await req.json();
     if (!videoId) {
       return errorResponse('videoId is required', corsHeaders, 400);
     }
@@ -56,37 +56,45 @@ serve(async (req) => {
     const supabaseAdmin = createAdminClient();
     const isAdmin = await verifyAdmin(user.id, supabaseAdmin);
 
-    // Non-admin users must provide moduleId for enrollment verification
-    if (!isAdmin && !moduleId) {
-      return errorResponse('moduleId is required', corsHeaders, 400);
+    // Non-admin users must provide lessonId for enrollment verification
+    if (!isAdmin && !lessonId) {
+      return errorResponse('lessonId is required', corsHeaders, 400);
     }
 
-    // If moduleId provided, verify access (enrollment or free preview)
-    if (moduleId) {
-      const { data: module } = await supabaseAdmin
-        .from('modules')
-        .select('course_id, is_free_preview, video_url')
-        .eq('id', moduleId)
+    // If lessonId provided, verify access (enrollment or free preview).
+    // Videos now live on lessons; resolve the parent course via the lesson's module.
+    if (lessonId) {
+      const { data: lesson } = await supabaseAdmin
+        .from('lessons')
+        .select('is_free_preview, video_url, modules(course_id)')
+        .eq('id', lessonId)
         .single();
 
-      if (!module) {
-        return errorResponse('Module not found', corsHeaders, 404);
+      if (!lesson) {
+        return errorResponse('Lesson not found', corsHeaders, 404);
       }
 
-      // Validate that the requested videoId exactly matches this module's video GUID
+      // modules(course_id) is an embedded object (single FK); normalize to a scalar.
+      const moduleRel = (lesson as { modules?: { course_id: string } | { course_id: string }[] }).modules;
+      const courseId = Array.isArray(moduleRel) ? moduleRel[0]?.course_id : moduleRel?.course_id;
+
+      // Validate that the requested videoId exactly matches this lesson's video GUID
       const extractGuid = (url: string) =>
         url.match(/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i)?.[1] ?? null;
-      const storedGuid = module.video_url ? extractGuid(module.video_url) : null;
+      const storedGuid = lesson.video_url ? extractGuid(lesson.video_url) : null;
       if (!isAdmin && storedGuid !== videoId) {
-        return errorResponse('Video does not belong to this module', corsHeaders, 403);
+        return errorResponse('Video does not belong to this lesson', corsHeaders, 403);
       }
 
-      if (!module.is_free_preview && !isAdmin) {
+      if (!lesson.is_free_preview && !isAdmin) {
+        if (!courseId) {
+          return errorResponse('Lesson is not linked to a course', corsHeaders, 403);
+        }
         const { data: enrollment } = await supabaseAdmin
           .from('enrollments')
           .select('id, expires_at')
           .eq('user_id', user.id)
-          .eq('course_id', module.course_id)
+          .eq('course_id', courseId)
           .eq('status', 'ACTIVE')
           .maybeSingle();
 

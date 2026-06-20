@@ -240,11 +240,16 @@ describe('adminApi', () => {
   });
 
   describe('getModules', () => {
-    it('should return modules for a course', async () => {
-      const mockModules = [{
-        id: 'm1', course_id: 'c1', title: 'Intro', duration: '5:00',
+    it('should return chapters with nested lessons for a course', async () => {
+      const mockLesson = {
+        id: 'l1', module_id: 'm1', title: 'Lesson 1', duration: '5:00',
         duration_seconds: 300, video_url: 'https://cdn/test/playlist.m3u8',
         video_id: 'test-guid', is_free_preview: true, order_index: 1,
+        created_at: '2024-01-01', updated_at: '2024-01-01',
+      };
+      const mockModules = [{
+        id: 'm1', course_id: 'c1', title: 'Intro Chapter', order_index: 1,
+        lessons: [mockLesson],
         created_at: '2024-01-01', updated_at: '2024-01-01',
       }];
 
@@ -259,31 +264,29 @@ describe('adminApi', () => {
       const result = await adminApi.getModules('c1');
       expect(result.success).toBe(true);
       expect(result.modules).toHaveLength(1);
-      expect(result.modules[0].title).toBe('Intro');
-      expect(result.modules[0].durationSeconds).toBe(300);
+      expect(result.modules[0].title).toBe('Intro Chapter');
+      // Chapters no longer carry video fields directly; lessons do
+      expect(result.modules[0].lessons).toHaveLength(1);
+      expect(result.modules[0].lessons![0].title).toBe('Lesson 1');
+      expect(result.modules[0].lessons![0].durationSeconds).toBe(300);
     });
   });
 
   describe('deleteModule', () => {
-    it('should delete module and invoke video cleanup if videoId exists', async () => {
-      // First call: maybeSingle for video_id query
-      // Second call: delete
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
+    it('should delete module and invoke video cleanup for each lesson videoId', async () => {
+      // deleteModule now queries `lessons` table (not `modules`) for video_ids of the chapter's lessons
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'lessons') {
+          // First call: select video_id from lessons where module_id = 'm1'
           return {
             select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  maybeSingle: vi.fn().mockResolvedValue({
-                    data: { video_id: 'bunny-guid-123' }, error: null,
-                  }),
-                }),
+              eq: vi.fn().mockResolvedValue({
+                data: [{ video_id: 'bunny-guid-123' }], error: null,
               }),
             }),
           };
         }
+        // modules table: delete
         return {
           delete: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
@@ -297,19 +300,19 @@ describe('adminApi', () => {
 
       const result = await adminApi.deleteModule('c1', 'm1');
       expect(result.success).toBe(true);
+      // video-cleanup invoked for the lesson's video
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('video-cleanup', {
+        body: { deleteVideoId: 'bunny-guid-123' },
+      });
     });
 
-    it('should delete module without video cleanup when no videoId', async () => {
-      let callCount = 0;
-      mockSupabase.from.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
+    it('should delete module without video cleanup when no lesson has a videoId', async () => {
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'lessons') {
           return {
             select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-                }),
+              eq: vi.fn().mockResolvedValue({
+                data: [{ video_id: null }], error: null,
               }),
             }),
           };
@@ -326,6 +329,185 @@ describe('adminApi', () => {
       const result = await adminApi.deleteModule('c1', 'm1');
       expect(result.success).toBe(true);
       expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    });
+
+    it('should delete module without video cleanup when no lessons exist', async () => {
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'lessons') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          };
+        }
+        return {
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
+        };
+      });
+
+      const result = await adminApi.deleteModule('c1', 'm1');
+      expect(result.success).toBe(true);
+      expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createLesson', () => {
+    it('should create a lesson under a module', async () => {
+      const newLesson = {
+        id: 'l1', module_id: 'm1', title: 'Lesson 1', duration: '5:00',
+        duration_seconds: 300, video_url: 'https://cdn/vid.m3u8', video_id: 'bunny-guid',
+        is_free_preview: false, order_index: 1, created_at: '2024-01-01', updated_at: '2024-01-01',
+      };
+
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // order_index query
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        // insert
+        return {
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: newLesson, error: null }),
+            }),
+          }),
+        };
+      });
+
+      const result = await adminApi.createLesson('m1', {
+        title: 'Lesson 1',
+        duration: '5:00',
+        videoUrl: 'https://cdn/vid.m3u8',
+        videoId: 'bunny-guid',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.lesson.title).toBe('Lesson 1');
+      expect(result.lesson.durationSeconds).toBe(300);
+    });
+  });
+
+  describe('updateLesson', () => {
+    it('should update lesson fields', async () => {
+      const updatedLesson = {
+        id: 'l1', module_id: 'm1', title: 'Updated Lesson', duration: '6:00',
+        duration_seconds: 360, video_url: 'https://cdn/vid2.m3u8', video_id: 'bunny-guid-2',
+        is_free_preview: true, order_index: 1, created_at: '2024-01-01', updated_at: '2024-01-01',
+      };
+
+      mockSupabase.from.mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: updatedLesson, error: null }),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const result = await adminApi.updateLesson('m1', 'l1', { title: 'Updated Lesson', isFreePreview: true });
+      expect(result.success).toBe(true);
+      expect(result.lesson.title).toBe('Updated Lesson');
+    });
+  });
+
+  describe('deleteLesson', () => {
+    it('should delete lesson and invoke video cleanup if videoId exists', async () => {
+      const lessonRow = { video_id: 'bunny-guid-456' };
+
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: lessonRow, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
+        };
+      });
+
+      mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: null });
+
+      const result = await adminApi.deleteLesson('m1', 'l1');
+      expect(result.success).toBe(true);
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('video-cleanup', {
+        body: { deleteVideoId: 'bunny-guid-456' },
+      });
+    });
+
+    it('should delete lesson without video cleanup when no videoId', async () => {
+      let callCount = 0;
+      mockSupabase.from.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { video_id: null }, error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          delete: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          }),
+        };
+      });
+
+      const result = await adminApi.deleteLesson('m1', 'l1');
+      expect(result.success).toBe(true);
+      expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reorderLessons', () => {
+    it('should call reorder_lessons RPC', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
+
+      const result = await adminApi.reorderLessons('m1', ['l2', 'l1', 'l3']);
+      expect(result.success).toBe(true);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('reorder_lessons', {
+        p_module_id: 'm1',
+        p_lesson_ids: ['l2', 'l1', 'l3'],
+      });
+    });
+
+    it('should throw on RPC error', async () => {
+      mockSupabase.rpc.mockResolvedValue({ data: null, error: { message: 'RPC failed' } });
+      await expect(adminApi.reorderLessons('m1', ['l1'])).rejects.toThrow('RPC failed');
     });
   });
 

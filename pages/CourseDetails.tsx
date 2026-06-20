@@ -283,7 +283,9 @@ export const CourseDetails: React.FC = () => {
                 <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-2xl font-bold t-text">Course Content</h2>
-                        <span className="t-text-2 text-sm">{(course.chapters?.length || 0)} Chapters</span>
+                        <span className="t-text-2 text-sm">
+                          {(course.chapters?.length || 0)} Chapters · {(course.chapters || []).reduce((sum, ch) => sum + ch.lessons.length, 0)} Lessons
+                        </span>
                     </div>
                     {(course.chapters || []).map((chapter, index) => (
                         <div key={chapter.id} className="border t-border rounded-xl t-bg-alt overflow-hidden">
@@ -296,20 +298,34 @@ export const CourseDetails: React.FC = () => {
                                 <span className="font-bold t-text text-left">{chapter.title}</span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <span className="text-sm t-text-2">{chapter.duration}</span>
+                                <span className="text-sm t-text-2">{chapter.lessons.length} lesson{chapter.lessons.length !== 1 ? 's' : ''}</span>
                                 {openChapter === chapter.id ? <ChevronUp size={20} className="text-brand-600" /> : <ChevronDown size={20} className="t-text-2" />}
                             </div>
                             </button>
                             {openChapter === chapter.id && (
-                            <div className="p-4 t-bg border-t t-border">
-                              {hasAccess ? (
-                                <div className="text-sm t-text-2 flex items-center gap-2">
-                                  <Play size={14} className="text-brand-400" />
-                                  <Link to={`/learn/${course.id}`} className="text-brand-400 hover:text-brand-300 font-medium">Continue to course</Link>
+                            <div className="t-bg border-t t-border divide-y t-border">
+                              {chapter.lessons.map((lesson) => (
+                                <div key={lesson.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                                  <span className="flex items-center gap-2 t-text-2 min-w-0">
+                                    {hasAccess || lesson.isFreePreview
+                                      ? <Play size={14} className="text-brand-400 flex-shrink-0" />
+                                      : <Lock size={14} className="flex-shrink-0" />}
+                                    <span className="truncate">{lesson.title}</span>
+                                    {lesson.isFreePreview && (
+                                      <span className="text-[10px] uppercase font-bold tracking-wider text-brand-400 flex-shrink-0">Free</span>
+                                    )}
+                                  </span>
+                                  <span className="t-text-3 font-mono text-xs flex-shrink-0">{lesson.duration}</span>
                                 </div>
-                              ) : (
-                                <div className="text-sm t-text-2 flex items-center justify-between gap-3">
-                                  <span className="flex items-center gap-2"><Lock size={14} /> {chapter.duration} of content • Enroll to unlock</span>
+                              ))}
+                              {chapter.lessons.length === 0 && (
+                                <p className="p-4 text-sm t-text-3">No lessons in this chapter yet.</p>
+                              )}
+                              {hasAccess && chapter.lessons.length > 0 && (
+                                <div className="p-4">
+                                  <Link to={`/learn/${course.id}`} className="text-brand-400 hover:text-brand-300 font-medium text-sm inline-flex items-center gap-2">
+                                    <Play size={14} /> Continue to course
+                                  </Link>
                                 </div>
                               )}
                             </div>
@@ -349,7 +365,7 @@ export const CourseDetails: React.FC = () => {
                                     <h4 className="font-bold t-text group-hover:text-brand-600 transition-colors truncate">{bc.title}</h4>
                                     <p className="text-sm t-text-2 line-clamp-1 mt-1">{bc.description}</p>
                                     <div className="flex items-center gap-4 mt-2 text-xs t-text-2">
-                                        <span className="flex items-center gap-1"><Layers size={12} /> {bc.moduleCount} Lessons</span>
+                                        <span className="flex items-center gap-1"><Layers size={12} /> {bc.lessonCount} Lessons</span>
                                         <span className="flex items-center gap-1"><User size={12} /> {bc.totalStudents} Students</span>
                                         {bc.price > 0 && <span className="line-through">₹{(bc.price / 100).toLocaleString()}</span>}
                                     </div>

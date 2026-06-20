@@ -118,7 +118,7 @@ export function createMockEnrollment(overrides = {}) {
     status: 'ACTIVE',
     enrolledAt: new Date().toISOString(),
     overallPercent: 0,
-    completedModules: [],
+    completedLessons: [],
     ...overrides,
   };
 }
