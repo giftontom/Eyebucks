@@ -1,6 +1,6 @@
 # Components Reference
 
-> Last updated: March 6, 2026
+> Last updated: March 26, 2026
 
 This document covers all shared components (19) and admin components (12) in the Eyebuckz LMS frontend.
 
@@ -109,38 +109,49 @@ import { VideoPlayer } from '../components';
 import type { VideoPlayerHandle } from '../components/VideoPlayer';
 
 interface VideoPlayerProps {
-  videoId?: string;
-  moduleId?: string;
-  fallbackUrl?: string;
+  videoId?: string;        // Bunny.net video GUID (not a URL)
+  moduleId?: string;       // Database module UUID — for enrollment verification
+  fallbackUrl: string;     // CDN URL used as fallback if signing fails
   className?: string;
   controls?: boolean;
-  onTimeUpdate?: (currentTime: number, duration: number) => void;
+  onTimeUpdate?: () => void;
   onClick?: () => void;
   onEnded?: () => void;
-  onError?: (error: Error) => void;
-  onLoadedMetadata?: (duration: number) => void;
+  onError?: (error: string) => void;
+  onLoadedMetadata?: () => void;
   onQualityChange?: (quality: string) => void;
+  onLevelsLoaded?: (levels: QualityLevel[]) => void;
 }
 
 // Ref handle (use with React.useRef<VideoPlayerHandle>)
 interface VideoPlayerHandle {
-  play: () => void;
+  play: () => Promise<void>;
   pause: () => void;
   load: () => void;
   refreshUrl: () => Promise<void>;
   requestPiP: () => Promise<void>;
-  currentTime: number;
+  setQualityLevel: (index: number) => void;  // -1 for auto
+  currentTime: number;    // settable
   duration: number;
   paused: boolean;
-  // additional video element properties
+  volume: number;         // settable, 0–1
+  muted: boolean;         // settable
+  src: string;            // settable
+  parentElement: HTMLElement | null;
+  playbackRate: number;   // settable
+  buffered: number;       // end of buffered range in seconds
 }
 ```
 
 **Behavior:**
-- Uses `useVideoUrl` hook to fetch signed HLS URLs.
-- Initializes hls.js for HLS playback in non-Safari browsers.
-- Exposes imperative methods via `React.forwardRef` + `useImperativeHandle`.
-- Auto-refreshes signed URLs before expiry.
+- Uses `useVideoUrl` to fetch a SHA256-signed Bunny CDN URL. Does not serve unsigned CDN URLs (Bunny token auth enabled — unsigned URLs return 403).
+- Initializes HLS.js for adaptive bitrate streaming in non-Safari browsers; falls back to native HLS for Safari.
+- Path-based Bunny token (`bcdn_token=X` in URL path) propagates automatically to all HLS.js sub-requests (sub-manifests, `.ts` segments).
+- On URL refresh (same module, new signed URL): swaps source in-place via `hls.loadSource()`, preserving current playback position.
+- `hlsErrorFiredRef` is set at the start of any fatal HLS error to prevent the native `<video> onError` handler from duplicating the error message during HLS recovery.
+- Exposes imperative API via `React.forwardRef` + `useImperativeHandle`.
+- Auto-refreshes signed URLs 5 minutes before expiry via `useVideoUrl`.
+- CSP requirement: `media-src 'self' blob: https://*.b-cdn.net; worker-src blob:;` must be set — HLS.js uses MediaSource API which creates `blob:` URLs.
 
 ---
 
@@ -228,59 +239,20 @@ function MyComponent() {
 
 ---
 
-### 9. SearchBar
+### 9. Catalog filtering & search
 
-Debounced search input field.
+Course filtering, search, and sort live **inline in `components/sections/CatalogSection.tsx`** and are driven **server-side** through `coursesApi.getCourses(options)` — the query (not the client) applies `type`, `search`, `minRating`, `maxPrice`, and `sort`, so results cover the whole catalog rather than just a loaded page.
 
-```tsx
-import { SearchBar } from '../components';
-
-interface SearchBarProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  debounceMs?: number; // default: 400
-}
+```ts
+getCourses({ page, pageSize, type, search, minRating, maxPrice, sort });
+// sort: 'newest' | 'price-asc' | 'price-desc' | 'rating' | 'popular'
 ```
 
-**Behavior:**
-- Text input with search icon.
-- Debounces `onChange` calls by `debounceMs` to avoid excessive re-renders and API calls.
+> The former standalone `SearchBar` / `CourseFilters` components and the `useStorefrontFilters` hook were removed — they had drifted out of use once `CatalogSection` took over filtering inline.
 
 ---
 
-### 10. CourseFilters
-
-Filter sidebar for course listings.
-
-```tsx
-import { CourseFilters } from '../components';
-import type { CourseFiltersState } from '../components/CourseFilters';
-
-interface CourseFiltersState {
-  category?: string;
-  priceRange?: [number, number];
-  rating?: number;
-  sortBy?: string;
-  // additional filter fields
-}
-
-interface CourseFiltersProps {
-  filters: CourseFiltersState;
-  onChange: (filters: CourseFiltersState) => void;
-  onClose?: () => void;
-  showCloseButton?: boolean;
-}
-```
-
-**Behavior:**
-- Renders filter controls (category select, price range, rating threshold, sort order).
-- Calls `onChange` when any filter value changes.
-- `onClose` and `showCloseButton` support mobile overlay dismissal.
-
----
-
-### 11. CourseCardSkeleton
+### 10. CourseCardSkeleton
 
 Loading skeleton placeholders for course cards and dashboard.
 
@@ -292,12 +264,13 @@ import { CourseCardSkeleton, DashboardSkeleton } from '../components';
 ```
 
 **Behavior:**
-- `CourseCardSkeleton` renders a single card-shaped animated skeleton.
-- `DashboardSkeleton` renders a 3-column grid of skeleton cards for the dashboard loading state.
+- `CourseCardSkeleton` mirrors the catalog `CourseCard` shape exactly (aspect-[4/3] thumb → meta row → 2-line title → description → price/CTA row) so there is **no layout shift** when real cards load.
+- `EnrolledCourseSkeleton` mirrors the Dashboard enrolled-course card (thumb → title → progress bar).
+- `DashboardSkeleton` renders a header + a 3-column grid of `EnrolledCourseSkeleton` for the dashboard loading state.
 
 ---
 
-### 12. ReviewForm
+### 11. ReviewForm
 
 Course review submission form.
 
@@ -322,7 +295,7 @@ interface ReviewFormProps {
 
 ---
 
-### 13. ReviewList
+### 12. ReviewList
 
 Reviews display with summary statistics and pagination.
 
@@ -346,7 +319,7 @@ interface ReviewListProps {
 
 ---
 
-### 14. StarRating
+### 13. StarRating
 
 Interactive or readonly star rating display.
 
@@ -370,7 +343,7 @@ interface StarRatingProps {
 
 ---
 
-### 15. Badge
+### 14. Badge
 
 Color-coded pill label for status, categories, and counts. See [Design System](DESIGN_SYSTEM.md) for full token reference.
 
@@ -394,7 +367,7 @@ interface BadgeProps {
 
 ---
 
-### 16. Button
+### 15. Button
 
 Accessible button with loading state, icon slots, and multiple variants. Forwards a ref.
 
@@ -419,7 +392,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 ---
 
-### 17. Input
+### 16. Input
 
 Labeled form input with error, hint, and leading/trailing icon slots. Forwards a ref.
 
@@ -445,7 +418,7 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, '
 
 ---
 
-### 18. Card
+### 17. Card
 
 Surface container with optional bordered header and footer slots.
 

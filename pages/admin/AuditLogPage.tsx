@@ -1,7 +1,9 @@
 import { ClipboardList, Loader2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 
+import { EmptyState, LoadingState } from '../../components';
 import { supabase } from '../../services/supabase';
+import { logger } from '../../utils/logger';
 
 // audit_logs is added by migration 021 — not yet in generated types, so we cast
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,18 +24,18 @@ interface AuditLog {
 
 const PAGE_SIZE = 25;
 
-const ACTION_COLORS: Record<string, string> = {
-  create: 'bg-green-500/20 text-green-400 border-green-500/30',
-  update: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  delete: 'bg-red-500/20 text-red-400 border-red-500/30',
+const ACTION_STYLES: Record<string, string> = {
+  create: 't-status-success border',
+  update: 't-status-info border',
+  delete: 't-status-danger border',
   publish: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   refund: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   revoke: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
 };
 
-function getActionColor(action: string): string {
+function getActionStyle(action: string): string {
   const prefix = action.split('.')[1] || action.split('.')[0];
-  return ACTION_COLORS[prefix] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  return ACTION_STYLES[prefix] || 'bg-[var(--surface-hover)] t-text-2 border t-border';
 }
 
 export const AuditLogPage: React.FC = () => {
@@ -71,7 +73,7 @@ export const AuditLogPage: React.FC = () => {
         createdAt: r.created_at,
       })));
     } catch (err) {
-      console.error('[AuditLog] Fetch error:', err);
+      logger.error('[AuditLog] Fetch error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -100,14 +102,12 @@ export const AuditLogPage: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 size={32} className="animate-spin text-brand-600" />
-        </div>
+        <LoadingState variant="inline" message="Loading audit log..." />
       ) : logs.length === 0 ? (
-        <div className="text-center py-16 t-text-2">
-          <ClipboardList size={40} className="mx-auto mb-4 opacity-30" />
-          <p>No audit events recorded yet.</p>
-        </div>
+        <EmptyState
+          icon={<ClipboardList size={40} />}
+          title="No audit events recorded yet"
+        />
       ) : (
         <>
           <div className="t-card t-border border rounded-xl overflow-hidden">
@@ -137,7 +137,7 @@ export const AuditLogPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 t-text font-medium">{log.adminName}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${getActionColor(log.action)}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${getActionStyle(log.action)}`}>
                             {log.action}
                           </span>
                         </td>

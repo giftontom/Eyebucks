@@ -1,15 +1,17 @@
-import { ShieldCheck, Loader2, CheckCircle2, Layers, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
-import { Button, Input } from '../components';
+import { Button, Input, PhoneGateModal, TrustBadges } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useScript } from '../hooks/useScript';
 import { coursesApi, enrollmentsApi, checkoutApi, couponsApi } from '../services/api';
 import { supabase } from '../services/supabase';
-import { CourseType } from '../types';
 import { analytics } from '../utils/analytics';
+import { formatINR } from '../utils/format';
 import { logger } from '../utils/logger';
+
+import { CheckoutSummary } from './checkout/CheckoutSummary';
 
 import type { Course } from '../types';
 
@@ -42,36 +44,6 @@ declare global {
     Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
-
-const BundleIncludedCourses: React.FC<{ courses: NonNullable<Course['bundledCourses']> }> = ({ courses }) => {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="mb-4 t-card t-border border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition text-sm"
-        aria-expanded={expanded}
-        aria-label="Toggle bundled courses list"
-      >
-        <span className="flex items-center gap-2 font-medium t-text">
-          <Layers size={14} className="text-brand-400" />
-          Includes {courses.length} course{courses.length !== 1 ? 's' : ''}
-        </span>
-        {expanded ? <ChevronUp size={16} className="t-text-3" /> : <ChevronDown size={16} className="t-text-3" />}
-      </button>
-      {expanded && (
-        <div className="border-t t-border px-3 py-2 space-y-2">
-          {courses.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 text-sm t-text-2">
-              <BookOpen size={12} className="text-brand-400 flex-shrink-0" />
-              <span className="truncate">{c.title}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export const Checkout: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -385,7 +357,7 @@ export const Checkout: React.FC = () => {
       } else {
         throw new Error('Payment verification failed');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[Checkout] Verification error:', error);
       setStatus('IDLE');
       setErrorMessage('Payment verification failed. Please contact support.');
@@ -396,70 +368,22 @@ export const Checkout: React.FC = () => {
     <div className="min-h-screen t-bg flex items-center justify-center p-4">
       <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-0 rounded-3xl overflow-hidden t-border border">
 
-        {/* Left: Order Summary */}
-        <div className="p-8 t-card flex flex-col justify-between relative overflow-hidden">
-          <div className="relative z-10">
-            <h2 className="text-2xl font-bold mb-6 t-text">Order Summary</h2>
-            <div className="flex gap-4 mb-6">
-              <img src={course.thumbnail} className="w-24 h-16 object-cover rounded-lg t-border border" alt="Course" />
-              <div>
-                <h3 className="font-bold t-text leading-tight">{course.title}</h3>
-                <p className="text-sm t-text-2 mt-1">{course.type === CourseType.BUNDLE ? `Bundle • ${course.bundledCourses?.length || 0} Courses` : course.type}</p>
-              </div>
-            </div>
-            {course.type === CourseType.BUNDLE && course.bundledCourses && course.bundledCourses.length > 0 && (
-              <BundleIncludedCourses courses={course.bundledCourses} />
-            )}
-            {/* Coupon Input */}
-            <div className="mb-4">
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={couponInput}
-                  onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponApplied(false); setCouponDiscount(0); setCouponError(''); }}
-                  placeholder="Coupon code"
-                  disabled={couponApplied}
-                  error={couponError}
-                  containerClassName="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={couponLoading}
-                  disabled={!couponInput.trim() || couponApplied}
-                  onClick={handleApplyCoupon}
-                >
-                  {couponApplied ? '✓' : 'Apply'}
-                </Button>
-              </div>
-              {couponApplied && <p className="text-xs mt-1" style={{ color: 'var(--status-success-text)' }}>{couponDiscount}% discount applied!</p>}
-            </div>
-
-            <div className="border-t t-border pt-4 space-y-2">
-              {couponDiscount > 0 && (
-                <>
-                  <div className="flex justify-between t-text-2 text-sm">
-                    <span>Subtotal</span>
-                    <span>₹{(course.price / 100).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm" style={{ color: 'var(--status-success-text)' }}>
-                    <span>Discount ({couponDiscount}%)</span>
-                    <span>-₹{((course.price - discountedPrice) / 100).toLocaleString()}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between text-xl font-bold t-text pt-2">
-                <span>Total Due</span>
-                <span>₹{(discountedPrice / 100).toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative z-10 flex items-center gap-2 t-text-2 text-sm mt-8 t-card p-3 rounded-lg t-border border">
-            <ShieldCheck size={16} style={{ color: 'var(--status-success-text)' }} />
-            <span>SSL Secure Payment • 256-bit Encryption</span>
-          </div>
-        </div>
+        <CheckoutSummary
+          course={course}
+          couponInput={couponInput}
+          onCouponInputChange={(v) => {
+            setCouponInput(v);
+            setCouponApplied(false);
+            setCouponDiscount(0);
+            setCouponError('');
+          }}
+          couponApplied={couponApplied}
+          couponLoading={couponLoading}
+          couponError={couponError}
+          couponDiscount={couponDiscount}
+          discountedPrice={discountedPrice}
+          onApplyCoupon={handleApplyCoupon}
+        />
 
         {/* Right: Payment Form */}
         <div className="p-8 relative t-bg">
@@ -533,6 +457,8 @@ export const Checkout: React.FC = () => {
                   </Link>
                 )}
 
+                <TrustBadges className="mt-4 pt-4 border-t t-border" />
+
                 <Button
                   type="submit"
                   variant="primary"
@@ -542,7 +468,7 @@ export const Checkout: React.FC = () => {
                   disabled={status !== 'IDLE' || (!razorpayLoaded && !user)}
                   className="mt-4 py-4 shadow-lg shadow-brand-600/20"
                 >
-                  {status === 'IDLE' && `Pay ₹${(discountedPrice / 100).toLocaleString()}`}
+                  {status === 'IDLE' && `Pay ${formatINR(discountedPrice)}`}
                   {status === 'CREATING_ORDER' && 'Creating Order...'}
                   {status === 'PAYING' && 'Processing Payment...'}
                   {status === 'VERIFYING' && 'Verifying Payment...'}
@@ -550,6 +476,8 @@ export const Checkout: React.FC = () => {
               </form>
             </>
           )}
+
+          {user && !user.phone_e164 && <PhoneGateModal />}
 
           {!user && (
             <p className="text-xs text-center mt-4 t-text-3">

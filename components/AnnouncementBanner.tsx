@@ -12,10 +12,16 @@ export const AnnouncementBanner: React.FC = () => {
 
   useEffect(() => {
     siteContentApi.getBySection('banner').then(items => {
+      // Clean up stale dismissed banner IDs from localStorage
+      const activeIds = new Set(items.map(i => i.id));
+      const raw = localStorage.getItem('eyebuckz_banner_dismissed_ids');
+      const dismissedIds: string[] = raw ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : [];
+      const pruned = dismissedIds.filter(id => activeIds.has(id));
+      localStorage.setItem('eyebuckz_banner_dismissed_ids', JSON.stringify(pruned));
+
       if (items.length > 0) {
         const item = items[0];
-        const key = `eyebuckz_banner_dismissed_${item.id}`;
-        if (localStorage.getItem(key)) {
+        if (dismissedIds.includes(item.id)) {
           setDismissed(true);
         } else {
           setBanner(item);
@@ -29,15 +35,20 @@ export const AnnouncementBanner: React.FC = () => {
   if (!banner || dismissed) {return null;}
 
   const meta = banner.metadata || {};
-  const bgColor = (meta.bgColor as string) || '#1e293b';
-  const textColor = (meta.textColor as string) || '#ffffff';
+  const bgColor = (meta.bgColor as string) || 'var(--page-alt)';
+  const textColor = (meta.textColor as string) || 'var(--text-1)';
   const linkUrl = meta.linkUrl as string | undefined;
   const linkText = (meta.linkText as string) || 'Learn more';
   const isDismissible = meta.dismissible !== false;
 
   const handleDismiss = () => {
     setDismissed(true);
-    localStorage.setItem(`eyebuckz_banner_dismissed_${banner.id}`, '1');
+    const raw = localStorage.getItem('eyebuckz_banner_dismissed_ids');
+    const dismissedIds: string[] = raw ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : [];
+    if (!dismissedIds.includes(banner.id)) {
+      dismissedIds.push(banner.id);
+      localStorage.setItem('eyebuckz_banner_dismissed_ids', JSON.stringify(dismissedIds));
+    }
   };
 
   return (
@@ -47,7 +58,7 @@ export const AnnouncementBanner: React.FC = () => {
     >
       <span className="font-semibold">{banner.title}</span>
       {banner.body && (
-        <span className="hidden sm:inline opacity-80">{banner.body}</span>
+        <span className="opacity-80">{banner.body}</span>
       )}
       {linkUrl && (
         <a

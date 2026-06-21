@@ -413,19 +413,24 @@ describe('adminApi', () => {
         receipt_number: 'REC-001', refund_id: null, refund_amount: null,
         refund_reason: null, refunded_at: null, metadata: {},
         created_at: '2024-01-01', updated_at: '2024-01-01',
-        users: { name: 'Alice', email: 'alice@test.com' },
         courses: { title: 'React' },
       };
 
+      // payments query: select -> order -> range; buyer query: select -> in
       const rangeMock = vi.fn().mockResolvedValue({ data: [mockPayment], error: null, count: 1 });
       const orderMock = vi.fn().mockReturnValue({ range: rangeMock });
-      mockSupabase.from.mockReturnValue({
-        select: vi.fn().mockReturnValue({ order: orderMock }),
-      });
+      const inMock = vi.fn().mockResolvedValue({ data: [{ id: 'u1', name: 'Alice', email: 'alice@test.com' }], error: null });
+      mockSupabase.from.mockImplementation((table: string) =>
+        table === 'users'
+          ? { select: vi.fn().mockReturnValue({ in: inMock }) }
+          : { select: vi.fn().mockReturnValue({ order: orderMock }) }
+      );
 
       const result = await adminApi.getPayments({ page: 1 });
       expect(result.success).toBe(true);
       expect(result.payments).toHaveLength(1);
+      expect(result.payments[0].userName).toBe('Alice');
+      expect(result.payments[0].courseTitle).toBe('React');
       expect(result.total).toBe(1);
     });
 

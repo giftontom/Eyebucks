@@ -12,7 +12,7 @@ export interface CardProps {
 
 const variantClasses = {
   default: 't-card t-border border',
-  glass:   'bg-white/5 border border-white/10 backdrop-blur-sm',
+  glass:   'bg-[var(--surface)] border t-border backdrop-blur-sm',
 };
 
 const radiusClasses = {

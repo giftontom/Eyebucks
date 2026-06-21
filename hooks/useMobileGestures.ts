@@ -33,6 +33,7 @@ export function useMobileGestures({
 }: UseMobileGesturesInput): UseMobileGesturesReturn {
   const [doubleTapIndicator, setDoubleTapIndicator] = useState<{ side: 'left' | 'right'; key: number } | null>(null);
   const doubleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doubleTapIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef<{ time: number; x: number } | null>(null);
 
   const handleVideoTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -55,7 +56,7 @@ export function useMobileGestures({
           videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10);
           setDoubleTapIndicator({ side: 'right', key: now });
         }
-        setTimeout(() => setDoubleTapIndicator(null), 600);
+        doubleTapIndicatorRef.current = setTimeout(() => setDoubleTapIndicator(null), 600);
       }
       lastTapRef.current = null;
       return;
@@ -124,7 +125,10 @@ export function useMobileGestures({
   }, [videoRef, handlePlayPause, toggleMute, toggleFullScreen, adjustSpeed, setShowQualityMenu, setVolume, setIsMuted]);
 
   useEffect(() => {
-    return () => { if (doubleTapTimeoutRef.current) { clearTimeout(doubleTapTimeoutRef.current); } };
+    return () => {
+      if (doubleTapTimeoutRef.current) { clearTimeout(doubleTapTimeoutRef.current); }
+      if (doubleTapIndicatorRef.current) { clearTimeout(doubleTapIndicatorRef.current); }
+    };
   }, []);
 
   return {

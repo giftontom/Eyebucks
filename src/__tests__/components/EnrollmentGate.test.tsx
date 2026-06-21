@@ -51,4 +51,25 @@ describe('EnrollmentGate', () => {
     renderGate();
     expect(screen.getByText(/View Details/i)).toBeInTheDocument();
   });
+
+  // --- A13 gap tests ---
+
+  it('formats price correctly from paise', () => {
+    renderGate({ coursePrice: 150000 });
+    expect(screen.getByText('₹1,500')).toBeInTheDocument();
+  });
+
+  it('links enroll button to checkout route', () => {
+    renderGate();
+    const enrollBtn = screen.getByText(/Enroll Now/i);
+    expect(enrollBtn).toBeInTheDocument();
+    expect(enrollBtn.closest('button')).toBeTruthy();
+  });
+
+  it('shows trust badges', () => {
+    renderGate();
+    expect(screen.getByText(/30-Day Money Back/i)).toBeInTheDocument();
+    expect(screen.getByText(/Instant Access/i)).toBeInTheDocument();
+    expect(screen.getByText(/Certificate Included/i)).toBeInTheDocument();
+  });
 });

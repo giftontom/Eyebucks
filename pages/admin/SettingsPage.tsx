@@ -45,6 +45,8 @@ const DEFAULT_SETTINGS: SettingField[] = [
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<SettingField[]>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadCounter, setLoadCounter] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -60,14 +62,14 @@ export const SettingsPage: React.FC = () => {
           const stored = settingsItems.find(i => i.title === field.key);
           return stored ? { ...field, value: stored.body } : field;
         }));
-      } catch {
-        // Non-fatal — use defaults
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : 'Failed to load settings');
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, []);
+  }, [loadCounter]);
 
   const handleChange = (key: string, value: string) => {
     setSettings(prev => prev.map(f => f.key === key ? { ...f, value } : f));
@@ -123,6 +125,16 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
+      {loadError && (
+        <div className="flex items-center gap-2 text-sm t-status-danger border rounded-lg mb-6 p-3">
+          <AlertCircle size={16} />
+          <span>{loadError}</span>
+          <button onClick={() => { setLoadError(null); setLoadCounter(c => c + 1); }} className="ml-auto text-red-400 hover:text-red-300 underline text-xs">
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="space-y-6">
         {settings.map((field) => (
           <div key={field.key} className="t-card t-border border rounded-xl p-5">
@@ -138,7 +150,7 @@ export const SettingsPage: React.FC = () => {
                     aria-checked={field.value === 'true'}
                     onClick={() => handleChange(field.key, field.value === 'true' ? 'false' : 'true')}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
-                      field.value === 'true' ? 'bg-brand-600' : 'bg-gray-300 dark:bg-gray-600'
+                      field.value === 'true' ? 'bg-brand-600' : 'bg-[var(--border)]'
                     }`}
                   >
                     <span
@@ -164,14 +176,14 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {saveStatus === 'error' && (
-        <div className="mt-4 flex items-center gap-2 text-sm text-red-500">
+        <div className="mt-4 flex items-center gap-2 text-sm" style={{ color: 'var(--status-danger-text)' }}>
           <AlertCircle size={16} />
           {errorMessage}
         </div>
       )}
 
       {saveStatus === 'success' && (
-        <div className="mt-4 flex items-center gap-2 text-sm text-green-500">
+        <div className="mt-4 flex items-center gap-2 text-sm" style={{ color: 'var(--status-success-text)' }}>
           <CheckCircle2 size={16} />
           Settings saved successfully.
         </div>

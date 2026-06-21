@@ -13,7 +13,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  login: (isAdmin?: boolean) => Promise<void>;
+  /** Alias for `loginWithGoogle`. Initiates Google OAuth flow. */
+  login: () => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginDev: (isAdmin?: boolean) => Promise<void>;
   logout: () => Promise<void>;
@@ -152,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Only works in development builds — no-op in production.
    */
   const loginDev = async (isAdmin: boolean = false) => {
-    if (!import.meta.env.DEV) { return; }
+    if (import.meta.env.VITE_DEV_LOGIN !== 'true') { return; }
     const email = isAdmin ? import.meta.env.VITE_DEV_ADMIN_EMAIL : import.meta.env.VITE_DEV_USER_EMAIL;
     const password = import.meta.env.VITE_DEV_PASSWORD;
     if (!email || !password) {

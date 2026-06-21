@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
+import { LoadingState } from '../../components/states/LoadingState';
 import { AdminLayout } from './AdminLayout';
 
 const AuditLogPage = lazy(() => import('./AuditLogPage').then(m => ({ default: m.AuditLogPage })));
@@ -16,11 +17,7 @@ const SettingsPage = lazy(() => import('./SettingsPage').then(m => ({ default: m
 const UserDetailPage = lazy(() => import('./UserDetailPage').then(m => ({ default: m.UserDetailPage })));
 const UsersPage = lazy(() => import('./UsersPage').then(m => ({ default: m.UsersPage })));
 
-const AdminPageLoader: React.FC = () => (
-  <div className="flex items-center justify-center h-64">
-    <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+const AdminPageLoader: React.FC = () => <LoadingState variant="inline" size="sm" message="" />;
 
 export const AdminRoutes: React.FC = () => (
   <Routes>

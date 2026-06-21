@@ -2,6 +2,7 @@ import { Search, CreditCard, Download } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { adminApi } from '../../services/api/admin.api';
+import { formatINR } from '../../utils/format';
 import { logger } from '../../utils/logger';
 
 import { useAdmin } from './AdminContext';
@@ -17,12 +18,14 @@ export const PaymentsPage: React.FC = () => {
   const { showToast } = useAdmin();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search);
   const { pagination, setPage, setTotal } = usePagination(20);
 
   // Revenue totals (from aggregate query, not current page)
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalRefunded, setTotalRefunded] = useState(0);
 
   // Refund modal
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -32,6 +35,7 @@ export const PaymentsPage: React.FC = () => {
   const fetchPayments = async () => {
     try {
       setLoading(true);
+      setError(false);
       const res = await adminApi.getPayments({
         page: pagination.page,
         limit: pagination.limit,
@@ -41,6 +45,7 @@ export const PaymentsPage: React.FC = () => {
       setTotal(res.total);
     } catch (err: any) {
       logger.error('Failed to fetch payments:', err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -48,11 +53,14 @@ export const PaymentsPage: React.FC = () => {
 
   useEffect(() => { fetchPayments(); }, [debouncedSearch, pagination.page]);
 
-  // Fetch aggregate revenue from admin stats (not page-dependent)
+  // Fetch aggregate revenue + refund total (not page-dependent)
   useEffect(() => {
     adminApi.getStats()
       .then(res => setTotalRevenue(res.stats.totalRevenue))
       .catch((err) => logger.warn('[PaymentsPage] Failed to load revenue stats:', err));
+    adminApi.getRefundTotal()
+      .then(setTotalRefunded)
+      .catch((err) => logger.warn('[PaymentsPage] Failed to load refund total:', err));
   }, []);
 
   const handleExportCSV = () => {
@@ -93,8 +101,6 @@ export const PaymentsPage: React.FC = () => {
     }
   };
 
-  // Page-level refund total (aggregate captured comes from stats)
-  const refundedAmount = payments.filter(p => p.status === 'refunded').reduce((s, p) => s + p.amount, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -108,13 +114,13 @@ export const PaymentsPage: React.FC = () => {
           <div className="t-card t-border border p-5 rounded-xl shadow-sm">
             <p className="text-xs font-bold t-text-2 uppercase tracking-wider mb-1">Total Revenue</p>
             <p className="text-2xl font-bold" style={{ color: 'var(--status-success-text)' }}>
-              ₹{(totalRevenue / 100).toLocaleString('en-IN')}
+              {formatINR(totalRevenue)}
             </p>
           </div>
           <div className="t-card t-border border p-5 rounded-xl shadow-sm">
             <p className="text-xs font-bold t-text-2 uppercase tracking-wider mb-1">Refunded</p>
             <p className="text-2xl font-bold" style={{ color: 'var(--status-warning-text)' }}>
-              ₹{(refundedAmount / 100).toLocaleString('en-IN')}
+              {formatINR(totalRefunded)}
             </p>
           </div>
         </div>
@@ -141,7 +147,7 @@ export const PaymentsPage: React.FC = () => {
               placeholder="Search receipt # or payment ID..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="t-input-bg t-border border rounded-lg pl-10 pr-4 py-2 t-text focus:ring-1 focus:ring-brand-500 outline-none text-sm w-72"
+              className="t-input-bg t-border border rounded-lg pl-10 pr-4 py-2 t-text focus:ring-1 focus:ring-brand-500 outline-none text-sm w-full sm:w-80"
             />
           </div>
           </div>
@@ -166,7 +172,7 @@ export const PaymentsPage: React.FC = () => {
               ),
             },
             { key: 'course', label: 'Course', render: (p: Payment) => <span className="t-text">{p.courseTitle || '—'}</span> },
-            { key: 'amount', label: 'Amount', render: (p: Payment) => <span className="font-medium t-text">₹{(p.amount / 100).toLocaleString('en-IN')}</span> },
+            { key: 'amount', label: 'Amount', render: (p: Payment) => <span className="font-medium t-text">{formatINR(p.amount)}</span> },
             { key: 'status', label: 'Status', render: (p: Payment) => <StatusBadge status={p.status} /> },
             { key: 'date', label: 'Date', render: (p: Payment) => <span className="t-text-2">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span> },
             {
@@ -191,6 +197,9 @@ export const PaymentsPage: React.FC = () => {
           ]}
           data={payments}
           loading={loading}
+          error={error}
+          errorMessage="Couldn't load payments"
+          onRetry={fetchPayments}
           emptyMessage="No payments found"
           loadingMessage="Loading payments..."
           rowKey={(p) => p.id}
@@ -208,7 +217,7 @@ export const PaymentsPage: React.FC = () => {
         {refundPayment && (
           <>
             <p className="t-text-2 mb-2">
-              Refunding <span className="font-bold t-text">₹{(refundPayment.amount / 100).toLocaleString('en-IN')}</span> for{' '}
+              Refunding <span className="font-bold t-text">{formatINR(refundPayment.amount)}</span> for{' '}
               <span className="font-medium">{refundPayment.courseTitle || 'Unknown Course'}</span>
             </p>
             <p className="text-xs t-text-2 mb-4">Student: {refundPayment.userName || '—'}</p>

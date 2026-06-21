@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
@@ -10,6 +10,7 @@ const { mockAdminApi, mockShowToast } = vi.hoisted(() => ({
     getPayments: vi.fn(),
     processRefund: vi.fn(),
     getStats: vi.fn(),
+    getRefundTotal: vi.fn(),
   },
   mockShowToast: vi.fn(),
 }));
@@ -28,8 +29,8 @@ vi.mock('../../../../pages/admin/components/AdminModal', () => ({
 
 vi.mock('../../../../pages/admin/components/DataTable', () => ({
   DataTable: ({ data, loading, emptyMessage, loadingMessage, columns }: any) => {
-    if (loading) return React.createElement('div', null, loadingMessage || 'Loading...');
-    if (!data || data.length === 0) return React.createElement('div', null, emptyMessage);
+    if (loading) {return React.createElement('div', null, loadingMessage || 'Loading...');}
+    if (!data || data.length === 0) {return React.createElement('div', null, emptyMessage);}
     return React.createElement(
       'table',
       null,
@@ -97,6 +98,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAdminApi.getPayments.mockResolvedValue({ payments: [mockPayment], total: 1 });
   mockAdminApi.getStats.mockResolvedValue({ stats: { totalRevenue: 99900 } });
+  mockAdminApi.getRefundTotal.mockResolvedValue(0);
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

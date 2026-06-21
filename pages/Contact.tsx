@@ -1,10 +1,19 @@
 import { Mail, Youtube } from 'lucide-react';
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
 export const Contact: React.FC = () => {
   return (
-    <div className="min-h-[60vh] px-4 py-24 t-bg">
+    <>
+    <Helmet>
+      <title>Contact — Eyebuckz Academy</title>
+      <meta name="description" content="Get in touch with the Eyebuckz team. We'd love to hear from you about courses, collaborations, or general inquiries." />
+      <meta property="og:title" content="Contact — Eyebuckz Academy" />
+      <meta property="og:description" content="Get in touch with the Eyebuckz team." />
+      <meta property="og:type" content="website" />
+    </Helmet>
+    <div className="min-h-[60vh] px-4 py-24 t-bg-alt">
       <div className="max-w-2xl mx-auto text-center">
         <div className="inline-block px-4 py-1.5 bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-full font-bold tracking-wider uppercase text-xs mb-6">
           Get in Touch
@@ -17,7 +26,7 @@ export const Contact: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
           <a
             href="mailto:support@eyebuckz.com"
-            className="t-card t-border border rounded-2xl p-6 hover:border-brand-500/40 transition group text-left"
+            className="t-card t-border border rounded-2xl p-6 hover:border-brand-500/40 transition group text-left shadow-sm"
           >
             <Mail size={28} className="text-brand-400 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold t-text mb-1">Email Support</h3>
@@ -30,14 +39,14 @@ export const Contact: React.FC = () => {
             rel="noreferrer"
             className="t-card t-border border rounded-2xl p-6 hover:border-[#FF0000]/40 transition group text-left"
           >
-            <Youtube size={28} className="text-[#FF6B6B] mb-3 group-hover:scale-110 transition-transform" />
+            <Youtube size={28} className="text-[var(--link)] mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold t-text mb-1">YouTube Channel</h3>
             <p className="text-sm t-text-2 mb-3">Free tutorials, previews, and community updates.</p>
-            <span className="text-[#FF6B6B] text-sm font-medium">@eyebuckz</span>
+            <span className="text-[var(--link)] text-sm font-medium">@eyebuckz</span>
           </a>
         </div>
 
-        <div className="t-card t-border border rounded-2xl p-6 mb-10 text-left">
+        <div className="t-card t-border border rounded-2xl p-6 mb-10 text-left shadow-sm">
           <h3 className="font-bold t-text mb-3">Frequently Asked</h3>
           <ul className="space-y-2 text-sm t-text-2">
             <li><strong className="t-text">Access issues:</strong> Email us with your order ID and we'll restore access within 24 hours.</li>
@@ -54,5 +63,6 @@ export const Contact: React.FC = () => {
         </Link>
       </div>
     </div>
+    </>
   );
 };

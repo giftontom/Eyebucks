@@ -3,6 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
 
+/**
+ * Whether the mobile bottom nav is rendered for a given route.
+ * Hidden on Learn, Admin, and Login. Exported so Layout can apply the
+ * matching bottom-nav clearance (`pb-bottom-nav`) only where the bar
+ * actually overlays content — keeping the two in lockstep.
+ */
+export const shouldShowBottomNav = (pathname: string): boolean =>
+  !pathname.startsWith('/learn') &&
+  !pathname.startsWith('/admin') &&
+  !pathname.startsWith('/login');
+
 const MobileBottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -10,8 +21,7 @@ const MobileBottomNav: React.FC = () => {
 
   const path = location.pathname;
 
-  // Hide on Learn, Admin, and Login pages
-  if (path.startsWith('/learn') || path.startsWith('/admin') || path.startsWith('/login')) {
+  if (!shouldShowBottomNav(path)) {
     return null;
   }
 
@@ -38,7 +48,7 @@ const MobileBottomNav: React.FC = () => {
       aria-label="Mobile navigation"
     >
       <div className="[background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border">
-        <div className="flex items-end justify-around px-1 h-[76px]">
+        <div className="flex items-end justify-around px-1 h-[var(--bottom-nav-height)]">
           {tabs.map((tab) => {
             const active = path === tab.route;
 

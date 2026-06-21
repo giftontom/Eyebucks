@@ -1,11 +1,11 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HashRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
 const { mockCoursesApi } = vi.hoisted(() => ({
-  mockCoursesApi: { getCourse: vi.fn() },
+  mockCoursesApi: { getCourse: vi.fn(), getCourses: vi.fn() },
 }));
 
 vi.mock('../../../services/api', () => ({
@@ -50,8 +50,8 @@ vi.mock('react-helmet-async', () => ({
 
 import { useAuth } from '../../../context/AuthContext';
 import { useAccessControl } from '../../../hooks/useAccessControl';
-import { analytics } from '../../../utils/analytics';
 import { CourseDetails } from '../../../pages/CourseDetails';
+import { analytics } from '../../../utils/analytics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +94,7 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { id: 'u1', name: 'Alice' }, login: vi.fn() });
   mockUseAccessControl.mockReturnValue({ hasAccess: false, isLoading: false, isEnrolled: false, isAdmin: false });
   mockCoursesApi.getCourse.mockResolvedValue({ success: true, course: mockCourse });
+  mockCoursesApi.getCourses.mockResolvedValue({ success: true, courses: [], total: 0, hasMore: false });
 
   // Stub useParams to always return id = 'course-1'
   vi.mock('react-router-dom', async (importOriginal) => {

@@ -17,8 +17,24 @@ async function generateSignedUrlAsync(
   expiresIn: number = 3600
 ): Promise<{ signedUrl: string; hlsUrl: string; expiresAt: number }> {
   const expires = Math.floor(Date.now() / 1000) + expiresIn;
-  const signedPath = `/${videoId}/playlist.m3u8`;
-  const hashableBase = `${tokenKey}${signedPath}${expires}`;
+
+  // Use path-based token format so HLS.js sub-requests (sub-manifests,
+  // .ts segments) automatically include authentication.
+  //
+  // With query-param tokens (?token=X), HLS.js does NOT forward the token
+  // to child URLs resolved from the manifest — those fail with 403.
+  //
+  // With path-based tokens (bcdn_token=X in the URL path), HLS.js resolves
+  // all relative URLs against the same base path, which naturally carries
+  // the token through to every sub-manifest and segment request.
+  //
+  // Path format: https://cdn/bcdn_token=TOKEN&expires=EXPIRY&token_path=%2FvideoId%2F/videoId/playlist.m3u8
+  //
+  // Bunny SHA256 hash: SHA256_RAW(key + tokenPath + expires + sorted_params)
+  // sorted_params = "token_path=/{videoId}/" (NOT URL-encoded, no leading ?)
+  const tokenPath = `/${videoId}/`;
+  const sortedParams = `token_path=${tokenPath}`;
+  const hashableBase = `${tokenKey}${tokenPath}${expires}${sortedParams}`;
 
   const encoder = new TextEncoder();
   const data = encoder.encode(hashableBase);
@@ -31,7 +47,12 @@ async function generateSignedUrlAsync(
     .replace(/\//g, '_')
     .replace(/=/g, '');
 
-  const signedUrl = `https://${cdnHostname}${signedPath}?token=${token}&expires=${expires}`;
+  const tokenPathEncoded = encodeURIComponent(tokenPath);
+
+  // Path-based signed URL: token is embedded in the URL path segment.
+  // HLS.js sees base dir as /bcdn_token=...&.../videoId/ so all
+  // relative segment URLs inherit the token automatically.
+  const signedUrl = `https://${cdnHostname}/bcdn_token=${token}&expires=${expires}&token_path=${tokenPathEncoded}/${videoId}/playlist.m3u8`;
 
   return { signedUrl, hlsUrl: signedUrl, expiresAt: expires };
 }

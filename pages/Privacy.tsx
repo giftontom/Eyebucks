@@ -1,8 +1,17 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
 export const Privacy: React.FC = () => {
   return (
+    <>
+    <Helmet>
+      <title>Privacy Policy — Eyebuckz Academy</title>
+      <meta name="description" content="Eyebuckz privacy policy — how we collect, use, and protect your personal information." />
+      <meta property="og:title" content="Privacy Policy — Eyebuckz Academy" />
+      <meta property="og:description" content="How we collect, use, and protect your personal information." />
+      <meta property="og:type" content="website" />
+    </Helmet>
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <Link to="/" className="text-brand-600 hover:text-brand-700 text-sm font-medium mb-8 inline-block">&larr; Back to Home</Link>
 
@@ -46,5 +55,6 @@ export const Privacy: React.FC = () => {
         </section>
       </div>
     </div>
+    </>
   );
 };

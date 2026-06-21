@@ -83,9 +83,12 @@ export const paymentsApi = {
   },
 
   async getPaymentByOrder(orderId: string): Promise<Payment | null> {
+    // No `users(...)` embed — payments.user_id references auth.users so PostgREST
+    // can't embed public.users (see migration 029). This is the buyer's own
+    // payment, so name/email aren't needed here anyway.
     const { data, error } = await supabase
       .from('payments')
-      .select('*, courses(title), users(name, email)')
+      .select('*, courses(title)')
       .eq('razorpay_order_id', orderId)
       .maybeSingle();
 
@@ -103,16 +106,19 @@ export const paymentsApi = {
     const limit = Math.min(params?.limit || 20, 100);
     const offset = (page - 1) * limit;
 
+    // No `users(...)` embed (see migration 029 / admin.api.getPayments). This
+    // admin variant is currently unused; admin.api.getPayments is the live path.
     let query = supabase
       .from('payments')
-      .select('*, users(name, email), courses(title)', { count: 'exact' });
+      .select('*, courses(title)', { count: 'exact' });
 
     if (params?.status) {
       query = query.eq('status', params.status);
     }
     if (params?.search) {
+      const safe = params.search.replace(/[(),"'\\]/g, '\\$&');
       query = query.or(
-        `receipt_number.ilike.%${params.search}%,razorpay_payment_id.ilike.%${params.search}%`
+        `receipt_number.ilike.%${safe}%,razorpay_payment_id.ilike.%${safe}%`
       );
     }
 

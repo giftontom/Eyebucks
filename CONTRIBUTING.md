@@ -98,6 +98,8 @@ git checkout -b feat/your-feature-name
 
 - Follow [CODING_STANDARDS.md](./CODING_STANDARDS.md)
 - Follow [SECURITY_STANDARDS.md](./SECURITY_STANDARDS.md)
+- Follow [DOCUMENTATION_STANDARDS.md](./DOCUMENTATION_STANDARDS.md) when changing docs
+- Follow [SKILLS_STANDARDS.md](./SKILLS_STANDARDS.md) when adding or editing `.claude/skills/`
 - Add tests for new features
 - Update documentation as needed
 
@@ -108,6 +110,7 @@ npm run lint:fix        # Fix lint issues
 npm run format          # Format code
 npm run type-check      # TypeScript check
 npm test                # Run tests
+npm run lint:skills     # Validate .claude/skills against SKILLS_STANDARDS.md
 ```
 
 ### 4. Commit

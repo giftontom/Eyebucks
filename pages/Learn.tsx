@@ -329,7 +329,7 @@ export const Learn: React.FC = () => {
             <ErrorBoundary fallback={
               <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white gap-4">
                 <Film size={40} className="text-red-400" />
-                <p className="text-sm text-gray-400">Video failed to load</p>
+                <p className="text-sm text-white/50">Video failed to load</p>
                 <button
                   onClick={() => window.location.reload()}
                   className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm rounded-lg transition"
@@ -630,7 +630,7 @@ export const Learn: React.FC = () => {
                 key={module.id}
                 onClick={() => { setActiveChapterId(module.id); setMobileDrawerOpen(false); }}
                 className={`w-full text-left p-4 border-b t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
-                  activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
+                  activeChapterId === module.id ? 't-card border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
                 }`}
               >
                 <div className="mt-0.5">
@@ -670,7 +670,7 @@ export const Learn: React.FC = () => {
                     key={module.id}
                     onClick={() => setActiveChapterId(module.id)}
                     className={`w-full text-left p-4 border-b t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
-                        activeChapterId === module.id ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
+                        activeChapterId === module.id ? 't-card border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
                     }`}
                 >
                     <div className="mt-0.5">

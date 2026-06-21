@@ -253,7 +253,7 @@ export const CatalogSection: React.FC = () => {
                 <select
                   value={filters.sort}
                   onChange={(e) => updateFilter({ sort: e.target.value as CourseSort })}
-                  aria-label="Sort courses"
+                  aria-label="Sort order"
                   className="w-full appearance-none t-card t-border border rounded-2xl pl-4 pr-9 py-2.5 text-sm font-bold t-text-2 outline-none focus:ring-2 focus:ring-brand-500 transition"
                 >
                   {SORT_OPTIONS.map(opt => (
@@ -383,7 +383,7 @@ export const CatalogSection: React.FC = () => {
             </div>
             {isFiltered ? (
               <>
-                <h3 className="text-lg md:text-xl font-bold t-text mb-2">No courses found</h3>
+                <h3 className="text-lg md:text-xl font-bold t-text mb-2">No courses match your search</h3>
                 <p className="t-text-2 mb-6 max-w-sm mx-auto">Try adjusting your filters or search terms.</p>
                 <button onClick={clearFilters} className="text-brand-400 hover:text-brand-300 font-bold px-6 py-2.5 rounded-full border border-brand-400/50 hover:border-brand-300 transition">
                   Clear Filters
@@ -391,7 +391,7 @@ export const CatalogSection: React.FC = () => {
               </>
             ) : (
               <>
-                <h3 className="text-lg md:text-xl font-bold t-text mb-2">No courses yet</h3>
+                <h3 className="text-lg md:text-xl font-bold t-text mb-2">No courses available yet</h3>
                 <p className="t-text-3">Check back soon for new content!</p>
               </>
             )}

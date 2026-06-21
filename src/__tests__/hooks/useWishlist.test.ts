@@ -18,10 +18,10 @@ vi.mock('../../../utils/analytics', () => ({
   analytics: { track: vi.fn() },
 }));
 
-import { useAuth } from '../../../context/AuthContext';
-import { wishlistApi } from '../../../services/api/wishlist.api';
 import { useToast } from '../../../components/Toast';
+import { useAuth } from '../../../context/AuthContext';
 import { useWishlist } from '../../../hooks/useWishlist';
+import { wishlistApi } from '../../../services/api/wishlist.api';
 
 const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 const mockList = wishlistApi.list as ReturnType<typeof vi.fn>;

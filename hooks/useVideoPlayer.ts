@@ -197,6 +197,8 @@ export function useVideoPlayer({ videoRef, activeChapterId, showToast }: UseVide
 
   const handleLevelsLoaded = useCallback((levels: QualityLevel[]) => {
     setQualityLevels(levels);
+    // Clear any prior error — HLS successfully loaded the manifest
+    setVideoError(null);
   }, []);
 
   const handleSelectQuality = useCallback((index: number) => {

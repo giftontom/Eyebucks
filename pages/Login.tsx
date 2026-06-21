@@ -1,5 +1,6 @@
 import { LogIn, ArrowRight, CheckCircle2, Shield, Zap, Star } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
@@ -68,6 +69,14 @@ export const Login: React.FC = () => {
   };
 
   return (
+    <>
+    <Helmet>
+      <title>Login — Eyebuckz Academy</title>
+      <meta name="description" content="Sign in to Eyebuckz to access your courses, track progress, and continue learning." />
+      <meta property="og:title" content="Login — Eyebuckz Academy" />
+      <meta property="og:description" content="Sign in to access your courses and continue learning." />
+      <meta property="og:type" content="website" />
+    </Helmet>
     <div className="min-h-screen t-bg flex items-center justify-center px-4 py-12">
       <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-12 items-center">
 
@@ -166,11 +175,11 @@ export const Login: React.FC = () => {
             <button
               onClick={handleGoogleLogin}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-100 text-gray-900 py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group mb-4"
+              className="w-full t-card hover:bg-[var(--surface-hover)] t-text py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed group mb-4 t-border border"
             >
               {isLoading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 t-border border-t-text rounded-full animate-spin"></div>
                   Signing in...
                 </>
               ) : (
@@ -249,5 +258,6 @@ export const Login: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };

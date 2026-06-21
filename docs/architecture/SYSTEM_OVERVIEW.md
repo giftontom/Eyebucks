@@ -1,6 +1,6 @@
 # Eyebuckz LMS - System Architecture Overview
 
-> Last updated: March 21, 2026
+> Last updated: March 26, 2026
 
 > Target audience: new developers joining the project and architects evaluating the system design.
 
@@ -214,16 +214,17 @@ Frontend calls Edge Function: video-signed-url
   |  (sends: video_id from module record, JWT token)
   |
   v
-Edge Function generates token-signed Bunny.net HLS URL
-  |  SHA256(tokenKey + path + expires) -> base64url token
-  |  URL format: https://{cdn}/{guid}/playlist.m3u8?token=...&expires=...
+Edge Function generates path-based token-signed Bunny.net HLS URL
+  |  SHA256(tokenKey + "/{videoId}/" + expires + "token_path=/{videoId}/") -> base64url
+  |  URL format: https://{cdn}/bcdn_token={token}&expires={t}&token_path=%2F{id}%2F/{id}/playlist.m3u8
+  |  (path-based token propagates to all HLS.js sub-requests automatically)
   |
   v
 VideoPlayer component receives signed URL
   |
   v
 hls.js library loads HLS manifest + segments
-  |  (adaptive bitrate streaming)
+  |  (adaptive bitrate streaming; blob: URLs require CSP media-src 'self' blob:)
   |
   v
 User watches video; progress auto-saved periodically

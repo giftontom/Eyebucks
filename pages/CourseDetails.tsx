@@ -1,4 +1,4 @@
-import { Play, ChevronDown, ChevronUp, Lock, Zap, Star, User, ArrowRight, Loader2, Layers, Award, Clock, Infinity as InfinityIcon, Smartphone } from 'lucide-react';
+import { Play, ChevronDown, ChevronUp, Lock, Zap, Star, ArrowRight, Loader2, Layers, Award, Clock, Infinity as InfinityIcon, Smartphone } from 'lucide-react';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi } from '../services/api';
 import { CourseType } from '../types';
 import { analytics } from '../utils/analytics';
+import { formatPrice } from '../utils/format';
 
 import { CourseDetailsHero } from './course-details/CourseDetailsHero';
 import { CourseDetailsSidebar } from './course-details/CourseDetailsSidebar';
@@ -272,7 +273,7 @@ export const CourseDetails: React.FC = () => {
                           fullWidth
                           rightIcon={ctaConfig.icon}
                         >
-                          {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ₹${(course.price / 100).toLocaleString()}`}
+                          {hasAccess ? ctaConfig.text : `${ctaConfig.text} • ${formatPrice(course.price)}`}
                         </Button>
                         {!hasAccess && <TrustBadges variant="grid" />}
                     </div>
@@ -350,8 +351,7 @@ export const CourseDetails: React.FC = () => {
                                     <p className="text-sm t-text-2 line-clamp-1 mt-1">{bc.description}</p>
                                     <div className="flex items-center gap-4 mt-2 text-xs t-text-2">
                                         <span className="flex items-center gap-1"><Layers size={12} /> {bc.moduleCount} Lessons</span>
-                                        <span className="flex items-center gap-1"><User size={12} /> {bc.totalStudents} Students</span>
-                                        {bc.price > 0 && <span className="line-through">₹{(bc.price / 100).toLocaleString()}</span>}
+                                        {bc.price > 0 && <span className="line-through">{formatPrice(bc.price)}</span>}
                                     </div>
                                 </div>
                                 <div className="hidden md:flex items-center t-text-2 group-hover:text-brand-600 transition-colors">
@@ -366,7 +366,7 @@ export const CourseDetails: React.FC = () => {
                             <div className="t-status-success border rounded-xl p-4 mt-6">
                                 <p className="text-sm font-medium flex items-center gap-2">
                                     <Zap size={16} />
-                                    Save ₹{(savings / 100).toLocaleString()} compared to buying individually
+                                    Save {formatPrice(savings)} compared to buying individually
                                 </p>
                             </div>
                         ) : null;
@@ -409,14 +409,14 @@ export const CourseDetails: React.FC = () => {
                 <div className="p-5">
                   <div className="flex items-center gap-3 text-xs t-text-2 mb-2">
                     {c.rating && (
-                      <span className="flex items-center gap-1"><Star size={12} className="text-yellow-500" fill="currentColor" />{c.rating}</span>
+                      <span className="flex items-center gap-1"><Star size={12} style={{ color: 'var(--color-rating-star)' }} fill="currentColor" />{c.rating}</span>
                     )}
                     <span>{c.type === CourseType.BUNDLE ? `${c.bundledCourses?.length || 0} Courses` : `${c.chapters?.length || 0} Lessons`}</span>
                   </div>
                   <h3 className="font-bold t-text group-hover:text-brand-600 transition-colors mb-1 truncate">{c.title}</h3>
                   <p className="text-sm t-text-2 line-clamp-2 mb-3">{c.description}</p>
                   <div className="flex items-center justify-between">
-                    <span className="font-bold t-text">₹{(c.price / 100).toLocaleString()}</span>
+                    <span className="font-bold t-text">{formatPrice(c.price)}</span>
                     <span className="text-brand-600 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">View Course <ArrowRight size={14} /></span>
                   </div>
                 </div>
@@ -427,12 +427,12 @@ export const CourseDetails: React.FC = () => {
       )}
 
       {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
-      <div className={`fixed bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.15)] safe-pb transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-lg shadow-black/5 dark:shadow-none transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
         {!hasAccess ? (
           <>
             <div>
               <p className="text-xs t-text-2">Total Price</p>
-              <p className="text-xl font-bold t-text">₹{(course.price / 100).toLocaleString()}</p>
+              <p className="text-xl font-bold t-text">{formatPrice(course.price)}</p>
             </div>
             <Button
               onClick={handleCTA}

@@ -51,6 +51,8 @@ vi.mock('../../../components', () => ({
   VideoPlayer: () => null,
   EnrollmentGate: ({ children }: any) => children,
   ErrorBoundary: ({ children }: any) => children,
+  PhoneGateModal: () => null,
+  TrustBadges: () => null,
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -62,8 +64,8 @@ vi.mock('react-router-dom', () => ({
   HashRouter: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
 }));
 
-import { analytics } from '../../../utils/analytics';
 import { Checkout } from '../../../pages/Checkout';
+import { analytics } from '../../../utils/analytics';
 
 const mockCourse = {
   id: 'course-123', title: 'Test Course', description: 'A great course',

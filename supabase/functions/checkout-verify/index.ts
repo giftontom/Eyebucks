@@ -210,7 +210,7 @@ serve(async (req) => {
     if (userProfile?.email) {
       const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
 
-      const learnUrl = `${appUrl}/#/learn/${courseId}`;
+      const learnUrl = `${appUrl}/learn/${courseId}`;
       const formattedAmount = (course.price / 100).toLocaleString('en-IN', {
         style: 'currency', currency: 'INR',
       });

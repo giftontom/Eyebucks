@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
 import { wishlistApi } from '../services/api/wishlist.api';
-import { useToast } from '../components/Toast';
 import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
 

@@ -125,7 +125,8 @@ describe('reviewsApi', () => {
                     helpful: 3,
                     created_at: '2024-01-01',
                     updated_at: '2024-01-01',
-                    users: { name: 'Alice', avatar: 'a.jpg' },
+                    user_name: 'Alice',
+                    user_avatar: 'a.jpg',
                   },
                 ],
                 error: null,
@@ -152,6 +153,82 @@ describe('reviewsApi', () => {
       expect(result.summary.averageRating).toBeCloseTo(4.67, 1);
       expect(result.summary.distribution[5]).toBe(2);
       expect(result.summary.distribution[4]).toBe(1);
+    });
+
+    it('should handle RPC error gracefully and fall back to count-based summary', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              range: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'r1',
+                    user_id: 'u1',
+                    rating: 4,
+                    comment: 'OK',
+                    helpful: 0,
+                    created_at: '2024-01-01',
+                    updated_at: '2024-01-01',
+                    user_name: 'Bob',
+                    user_avatar: '',
+                  },
+                ],
+                error: null,
+                count: 1,
+              }),
+            }),
+          }),
+        }),
+      });
+
+      mockSupabase.rpc.mockResolvedValue({
+        data: null,
+        error: { message: 'RPC not found' },
+      });
+
+      const result = await reviewsApi.getCourseReviews('course-1');
+      expect(result.reviews).toHaveLength(1);
+      // When RPC fails, summary falls back to defaults
+      expect(result.summary.total).toBe(1);
+    });
+
+    it('should set hasMore=true when more reviews exist beyond page', async () => {
+      mockSupabase.from.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockReturnValue({
+              range: vi.fn().mockResolvedValue({
+                data: Array.from({ length: 10 }, (_, i) => ({
+                  id: `r${i}`,
+                  user_id: `u${i}`,
+                  rating: 5,
+                  comment: `Review ${i}`,
+                  helpful: 0,
+                  created_at: '2024-01-01',
+                  updated_at: '2024-01-01',
+                  user_name: `User ${i}`,
+                  user_avatar: '',
+                })),
+                error: null,
+                count: 25,
+              }),
+            }),
+          }),
+        }),
+      });
+
+      mockSupabase.rpc.mockResolvedValue({
+        data: {
+          total: 25,
+          average_rating: 5,
+          distribution: { '5': 25, '4': 0, '3': 0, '2': 0, '1': 0 },
+        },
+        error: null,
+      });
+
+      const result = await reviewsApi.getCourseReviews('course-1');
+      expect(result.pagination.hasMore).toBe(true);
     });
 
     it('should return empty reviews for course with no reviews', async () => {

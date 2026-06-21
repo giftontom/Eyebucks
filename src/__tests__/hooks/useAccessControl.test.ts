@@ -12,8 +12,8 @@ vi.mock('../../../services/api', () => ({
 }));
 
 import { useAuth } from '../../../context/AuthContext';
-import { enrollmentsApi } from '../../../services/api';
 import { useAccessControl } from '../../../hooks/useAccessControl';
+import { enrollmentsApi } from '../../../services/api';
 
 const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 const mockCheckAccess = enrollmentsApi.checkAccess as ReturnType<typeof vi.fn>;

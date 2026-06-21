@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
 import { coursesApi, paymentsApi } from '../services/api';
 import { analytics } from '../utils/analytics';
+import { formatINR } from '../utils/format';
 import { logger } from '../utils/logger';
 
 import type { Payment } from '../services/api/payments.api';
@@ -97,7 +98,7 @@ export const PurchaseSuccess: React.FC = () => {
         <tr><td><strong>Course</strong></td><td>${esc(course?.title || payment?.courseTitle || '—')}</td></tr>
         <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${esc(payment?.razorpayPaymentId || '—')}</td></tr>
         <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${esc(payment?.razorpayOrderId || orderId || '—')}</td></tr>
-        <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">₹${payment ? (payment.amount / 100).toLocaleString('en-IN') : course ? (course.price / 100).toLocaleString('en-IN') : '—'}</td></tr>
+        <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">${payment ? formatINR(payment.amount) : course ? formatINR(course.price) : '—'}</td></tr>
       </table>
       <p style="color:#666;font-size:0.85em;margin-top:30px">Thank you for your purchase. This receipt is for your records.</p>
       </body></html>
@@ -138,7 +139,7 @@ export const PurchaseSuccess: React.FC = () => {
       {/* Confetti Animation */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
-          <div className="absolute inset-0 animate-confetti">
+          <div className="absolute inset-0">
             {[...Array(50)].map((_, i) => (
               <div
                 key={i}
@@ -146,7 +147,7 @@ export const PurchaseSuccess: React.FC = () => {
                 style={{
                   left: `${Math.random() * 100}%`,
                   top: `-${Math.random() * 20}%`,
-                  backgroundColor: ['#dc2626', '#2563eb', '#16a34a', '#eab308'][Math.floor(Math.random() * 4)],
+                  backgroundColor: `var(--confetti-color-${(i % 4) + 1})`,
                   animation: `fall ${2 + Math.random() * 3}s linear forwards`,
                   animationDelay: `${Math.random() * 2}s`
                 }}
@@ -159,14 +160,14 @@ export const PurchaseSuccess: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
         {/* Success Icon */}
         <div className="text-center mb-8 animate-fade-in-up">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-500/10 rounded-full mb-6 animate-scale-in">
-            <CheckCircle2 size={56} className="text-green-400" />
+          <div className="inline-flex items-center justify-center w-24 h-24 t-status-success border rounded-full mb-6 animate-scale-in">
+            <CheckCircle2 size={56} style={{ color: 'var(--status-success-text)' }} />
           </div>
           <h1 className="text-4xl md:text-5xl font-black t-text mb-4">
             Welcome to the Course!
           </h1>
           <p className="text-xl t-text-2 max-w-2xl mx-auto">
-            Your enrollment is confirmed. You now have <span className="font-bold text-green-400">lifetime access</span> to all course materials.
+            Your enrollment is confirmed. You now have <span className="font-bold" style={{ color: 'var(--status-success-text)' }}>lifetime access</span> to all course materials.
           </p>
         </div>
 
@@ -214,19 +215,19 @@ export const PurchaseSuccess: React.FC = () => {
 
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-3 text-sm t-text-2">
-                  <CheckCircle2 size={18} className="text-green-400" />
+                  <CheckCircle2 size={18} style={{ color: 'var(--status-success-text)' }} />
                   <span>{(course.chapters?.length || 0)} comprehensive lessons</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm t-text-2">
-                  <CheckCircle2 size={18} className="text-green-400" />
+                  <CheckCircle2 size={18} style={{ color: 'var(--status-success-text)' }} />
                   <span>Lifetime access to all materials</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm t-text-2">
-                  <CheckCircle2 size={18} className="text-green-400" />
+                  <CheckCircle2 size={18} style={{ color: 'var(--status-success-text)' }} />
                   <span>Certificate of completion</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm t-text-2">
-                  <CheckCircle2 size={18} className="text-green-400" />
+                  <CheckCircle2 size={18} style={{ color: 'var(--status-success-text)' }} />
                   <span>Auto-save progress across devices</span>
                 </div>
               </div>
@@ -260,7 +261,7 @@ export const PurchaseSuccess: React.FC = () => {
             className="t-card t-border border rounded-2xl p-6 hover:bg-[var(--surface-hover)] transition-all cursor-pointer group"
           >
             <div className="flex items-start gap-4">
-              <div className="bg-blue-500/10 p-3 rounded-xl group-hover:bg-blue-500/20 transition-colors">
+              <div className="t-status-info border p-3 rounded-xl group-hover:opacity-90 transition-colors">
                 <Download size={24} style={{ color: 'var(--status-info-text)' }} />
               </div>
               <div>
@@ -282,8 +283,8 @@ export const PurchaseSuccess: React.FC = () => {
             className="t-card t-border border rounded-2xl p-6 hover:bg-[var(--surface-hover)] transition-all cursor-pointer group"
           >
             <div className="flex items-start gap-4">
-              <div className="bg-purple-500/10 p-3 rounded-xl group-hover:bg-purple-500/20 transition-colors">
-                <Share2 size={24} className="text-purple-400" />
+              <div className="t-card t-border border p-3 rounded-xl group-hover:bg-[var(--surface-hover)] transition-colors">
+                <Share2 size={24} className="t-link" />
               </div>
               <div>
                 <h3 className="font-bold t-text mb-1">Share Your Achievement</h3>
@@ -319,23 +320,6 @@ export const PurchaseSuccess: React.FC = () => {
         </div>
       </div>
 
-      <style>{`
-        @keyframes fall {
-          to {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-          }
-        }
-
-        @keyframes scale-in {
-          0% { transform: scale(0) rotate(-180deg); }
-          100% { transform: scale(1) rotate(0deg); }
-        }
-
-        .animate-scale-in {
-          animation: scale-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-      `}</style>
     </div>
   );
 };

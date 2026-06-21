@@ -58,7 +58,7 @@ Use the `Skill` tool directly:
 When intent maps to multiple skills ("build a quiz feature and deploy it"), invoke sequentially in dependency order. Never batch-invoke in parallel.
 
 ### FALLBACK
-If no skill matches after checking the triggers table AND `.claude/skills/_triggers.md`, proceed with manual implementation. Do not force an irrelevant skill.
+If no skill matches after checking the **Auto-Skill Triggers** table below (the canonical trigger source — see `SKILLS_STANDARDS.md` §6), proceed with manual implementation. Do not force an irrelevant skill.
 
 ### AMBIGUITY
 If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-test`), pick the most specific match. If genuinely ambiguous, ask one question, then invoke.
@@ -188,7 +188,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 028** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 030** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -199,17 +199,19 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 ### Public Pages (`pages/*.tsx`)
 | Page | Route | Purpose |
 |------|-------|---------|
-| `Storefront.tsx` | `/` | Course catalog, hero carousel, filters, search |
-| `CourseDetails.tsx` | `/course/:id` | Full course info, modules list, reviews, enroll CTA |
+| `Storefront.tsx` | `/` | Marketing landing: hero carousel, featured courses, pricing, FAQ (section components in `components/sections/`) |
+| `Courses.tsx` | `/courses` | Full course catalog (`CatalogSection`) — filters, search, sort |
+| `CourseDetails.tsx` | `/course/:id` | Full course info, modules list, reviews, enroll CTA (`pages/course-details/`) |
 | `Login.tsx` | `/login` | Google OAuth + dev login button |
 | `About.tsx` | `/about` | Company about page |
 | `Contact.tsx` | `/contact` | Contact form/info |
-| `Privacy.tsx` | `/privacy` | Privacy policy (bug: shows `new Date()` as "Last Updated") |
-| `Terms.tsx` | `/terms` | Terms of service (bug: shows `new Date()` as "Last Updated") |
-| `Checkout.tsx` | `/checkout/:id` | Razorpay modal flow (protected) |
-| `Dashboard.tsx` | `/dashboard` | Enrolled courses + progress (protected) |
+| `Privacy.tsx` | `/privacy` | Privacy policy (Last Updated hardcoded to "March 14, 2026") |
+| `Terms.tsx` | `/terms` | Terms of service (Last Updated hardcoded to "March 14, 2026") |
+| `Checkout.tsx` | `/checkout/:id` | Razorpay modal flow + `pages/checkout/CheckoutSummary` (protected) |
+| `Dashboard.tsx` | `/dashboard` | "My Studio" — enrolled courses + progress (protected) |
 | `Learn.tsx` | `/learn/:id` | HLS video player + module nav + notes (protected) |
 | `Profile.tsx` | `/profile` | User profile + certificate list (protected) |
+| `Notifications.tsx` | `/notifications` | Notification inbox — "Alerts" tab in mobile nav (protected) |
 | `PurchaseSuccess.tsx` | `/success` | Post-payment confirmation (protected) |
 
 ### Admin Pages (`pages/admin/*.tsx`)
@@ -259,9 +261,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 ### Course UI
 | Component | Purpose |
 |-----------|---------|
-| `CourseCardSkeleton` | Shimmer loading placeholder for course cards |
-| `CourseFilters` | Filter bar (type, price, rating) + sort dropdown |
-| `SearchBar` | Debounced course search input |
+| `CourseCardSkeleton` | Shimmer loading placeholder matching the catalog `CourseCard` shape (no layout shift); also exports `EnrolledCourseSkeleton` + `DashboardSkeleton` |
 | `HeroCarousel` | Auto-advancing hero with course cards |
 | `AnnouncementBanner` | Top-of-page dismissable banner (from CMS settings) |
 
@@ -301,7 +301,6 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `useMobileGestures(ref)` | `{onTouchStart, onTouchEnd}` | Swipe left/right detection for mobile module nav |
 | `useRealtimeNotifications()` | `{notifications, unreadCount, isLoading, markAsRead, markAllAsRead, refresh}` | Supabase Realtime INSERT subscription on notifications table |
 | `useScript(src)` | `{loaded, error}` | Dynamic script tag injection (Razorpay checkout SDK); deduplication guard |
-| `useStorefrontFilters()` | `{filters, setFilter, resetFilters, filteredCourses}` | Course list filter + sort state |
 | `useVideoPlayer(videoRef)` | `{isPlaying, currentTime, duration, volume, playbackRate, togglePlay, seek, ...}` | Video UI state abstraction over VideoPlayer ref |
 | `useVideoUrl(videoId, fallbackUrl)` | `{videoUrl, hlsUrl, isLoading, error, refreshUrl}` | Immediately serves CDN URL; upgrades to signed URL in background; auto-refresh 5min before expiry |
 | `useWishlist(courseId?)` | `{isSaved, toggle, wishlistIds, isLoading}` | Wishlist state; optimistic toggle; loads full list on mount |
@@ -516,7 +515,7 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **27 sequential SQL migrations (001-027)**; next = 028
+- `supabase/migrations/` — **29 sequential SQL migrations (001-029)**; next = 030
 - `supabase/functions/` — **11 Edge Functions** (see Edge Functions section above)
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate)
 - `types/index.ts` — Business types (25+ interfaces/enums)
@@ -526,7 +525,7 @@ supabase functions deploy  # Deploy Edge Functions
 
 ## Slash Commands (Skills)
 
-44 custom skills in `.claude/skills/` for the full dev lifecycle. Type `/` in Claude Code to invoke.
+49 custom skills in `.claude/skills/` for the full dev lifecycle. Type `/` in Claude Code to invoke. Authored to [`SKILLS_STANDARDS.md`](./SKILLS_STANDARDS.md); validated by `npm run lint:skills`.
 
 ### Scaffolding
 | Command | Purpose |
@@ -615,7 +614,7 @@ supabase functions deploy  # Deploy Edge Functions
 | `/setup-hooks` | Configure `.claude/settings.json` with all recommended project hooks |
 | `/setup-mcp` | Guide setup of MCP servers (Canva, GitHub, Playwright) |
 | `/add-auto-trigger` | Add a new intent → skill auto-trigger rule to CLAUDE.md |
-| `/github-actions-claude` | Scaffold GitHub Actions workflow for Claude Code PR reviews |
+| `/github-actions-review` | Scaffold GitHub Actions workflow for Claude Code PR reviews |
 
 ---
 
@@ -677,7 +676,7 @@ Claude MUST automatically invoke the following skills based on user intent — w
 | "set up MCP" / "configure MCP servers" | `/setup-mcp` |
 | "set up hooks" / "configure Claude hooks" | `/setup-hooks` |
 | "add an auto-trigger" / "add a new skill trigger" | `/add-auto-trigger` |
-| "set up GitHub Actions for Claude" / "CI review workflow" | `/github-actions-claude` |
+| "set up GitHub Actions for Claude" / "CI review workflow" | `/github-actions-review` |
 | User edits any `supabase/migrations/*.sql` | Remind user to run `/rls-test` after |
 | User edits any `components/*.tsx` | Remind user to run `npm run type-check` |
 

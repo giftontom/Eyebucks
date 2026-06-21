@@ -479,3 +479,18 @@ SELECT cron.schedule(
   'SELECT expire_enrollments()'
 );
 ```
+
+---
+
+## 9. Implicit ADMIN Account
+
+Migration `supabase/migrations/024_promote_gifton_admin.sql` temporarily disables the
+`prevent_role_change` trigger, promotes `giftontombiju@gmail.com` to `ADMIN`, then
+re-enables the trigger. Because migrations run on every `supabase db reset`, this
+account is **permanently granted ADMIN on every fresh database** — including any
+future developer's local environment.
+
+- **Before handover:** replace with a per-environment seed or delete the migration.
+- **Additional admins:** add via Admin → Users → role dropdown (UPDATE on `users.role`
+  goes through `is_admin()` policy + `prevent_role_change` trigger; only existing admins
+  can elevate others).

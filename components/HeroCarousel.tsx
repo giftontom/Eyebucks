@@ -12,33 +12,56 @@ interface HeroCarouselProps {
 }
 
 const DEFAULT_SLIDES: Slide[] = [
-  { image: '/premium_banner_1.png', title: 'Masterclass Series' },
-  { image: '/premium_banner_2.png', title: 'Expert-Led Courses' },
-  { image: '/premium_courses_cover.png', title: 'Premium Courses' },
-  { image: '/digital_assets_cover.png', title: 'Digital Assets' },
+  { image: '/premium_banner_1.webp', title: 'Masterclass Series' },
+  { image: '/premium_banner_2.webp', title: 'Expert-Led Courses' },
+  { image: '/banner_real_1.webp',    title: 'Behind the Lens' },
+  { image: '/banner_real_2.webp',    title: 'Professional Workflow' },
 ];
 
 export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLIDES, interval = 5000 }) => {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Scroll trigger: autoplay only runs while the carousel is on screen
+  // (touch parity for desktop's pause-on-hover, plus a perf win everywhere).
+  const [offscreen, setOffscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
 
   const next = useCallback(() => {
+    if (slides.length === 0) return;
     setCurrent(prev => (prev + 1) % slides.length);
   }, [slides.length]);
 
   const prev = useCallback(() => {
+    if (slides.length === 0) return;
     setCurrent(prev => (prev - 1 + slides.length) % slides.length);
   }, [slides.length]);
 
   useEffect(() => {
-    if (paused) {return;}
+    if (paused || offscreen) {return;}
     const timer = setInterval(next, interval);
     return () => clearInterval(timer);
-  }, [paused, next, interval]);
+  }, [paused, offscreen, next, interval]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { return; }
+    const io = new IntersectionObserver(
+      ([entry]) => setOffscreen(!entry.isIntersecting),
+      { threshold: 0.2 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Guard against empty slides array — prevents NaN from division by zero.
+  // Must come after all hooks (rules-of-hooks); the hooks above are safe with empty slides.
+  if (!slides || slides.length === 0) return null;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    // Touch parity for pause-on-hover: hold to pause, release to resume.
+    setPaused(true);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -46,18 +69,23 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
     if (Math.abs(delta) > 50) {
       if (delta > 0) { next(); } else { prev(); }
     }
+    setPaused(false);
   };
 
   return (
     <div
-      className="relative w-full max-w-4xl mx-auto t-card t-border border backdrop-blur-xl rounded-3xl overflow-hidden group"
+      ref={containerRef}
+      className="relative w-full max-w-4xl mx-auto t-bg-alt border t-border rounded-3xl overflow-hidden group"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Featured courses"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      <div className="relative aspect-[16/9] overflow-hidden" aria-live="polite">
       {/* Slides */}
-      <div className="relative aspect-[16/9] overflow-hidden">
         {slides.map((slide, i) => (
           <div
             key={i}
@@ -67,6 +95,11 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
               src={slide.image}
               alt={slide.title}
               className="w-full h-full object-cover"
+              width={1200}
+              height={675}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchPriority={i === 0 ? 'high' : 'auto'}
+              decoding="async"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-6 left-6">

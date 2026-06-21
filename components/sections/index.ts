@@ -1,0 +1,11 @@
+export { CatalogSection } from './CatalogSection';
+export { ClosingSection } from './ClosingSection';
+export { CommunityProofSection } from './CommunityProofSection';
+export { FAQSection } from './FAQSection';
+export { FeaturedCoursesSection } from './FeaturedCoursesSection';
+export { HeroSection } from './HeroSection';
+export { HowItWorksSection } from './HowItWorksSection';
+export { InstructorsSection } from './InstructorsSection';
+export { PricingSection } from './PricingSection';
+export { SocialProofTicker } from './SocialProofTicker';
+export { ValuePropsSection } from './ValuePropsSection';

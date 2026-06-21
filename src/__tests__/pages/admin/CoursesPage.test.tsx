@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
@@ -49,8 +49,8 @@ vi.mock('../../../../pages/admin/components/ConfirmDialog', () => ({
 
 vi.mock('../../../../pages/admin/components/DataTable', () => ({
   DataTable: ({ data, loading, emptyMessage, loadingMessage, columns }: any) => {
-    if (loading) return React.createElement('div', null, loadingMessage || 'Loading...');
-    if (!data || data.length === 0) return React.createElement('div', null, emptyMessage);
+    if (loading) {return React.createElement('div', null, loadingMessage || 'Loading...');}
+    if (!data || data.length === 0) {return React.createElement('div', null, emptyMessage);}
     return React.createElement(
       'table', null,
       React.createElement('tbody', null,

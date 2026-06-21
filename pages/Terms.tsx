@@ -1,8 +1,17 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
 export const Terms: React.FC = () => {
   return (
+    <>
+    <Helmet>
+      <title>Terms of Service — Eyebuckz Academy</title>
+      <meta name="description" content="Eyebuckz terms of service — the rules and guidelines for using our platform and services." />
+      <meta property="og:title" content="Terms of Service — Eyebuckz Academy" />
+      <meta property="og:description" content="The rules and guidelines for using our platform and services." />
+      <meta property="og:type" content="website" />
+    </Helmet>
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <Link to="/" className="text-brand-600 hover:text-brand-700 text-sm font-medium mb-8 inline-block">&larr; Back to Home</Link>
 
@@ -74,5 +83,6 @@ export const Terms: React.FC = () => {
         </section>
       </div>
     </div>
+    </>
   );
 };

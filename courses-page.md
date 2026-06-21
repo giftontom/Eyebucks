@@ -1,0 +1,251 @@
+- generic [ref=e3]:
+  - link "Skip to main content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - navigation "Main navigation" [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - link "Eyebuckz Home" [active] [ref=e9] [cursor=pointer]:
+          - /url: "#/"
+          - img "Eyebuckz" [ref=e10]
+        - menubar [ref=e12]:
+          - menuitem "All Courses" [ref=e13] [cursor=pointer]
+          - menuitem "Visit our YouTube channel" [ref=e14] [cursor=pointer]: YouTube
+      - generic [ref=e17]:
+        - button "Switch to dark mode" [ref=e18]:
+          - img [ref=e19]
+        - button "Login or sign up to start learning" [ref=e21]: Start Learning
+  - main [ref=e22]:
+    - generic [ref=e609]:
+      - generic [ref=e611]:
+        - generic [ref=e612]: New Cohort Starting Soon
+        - heading "Master the Craft of Filmmaking." [level=1] [ref=e616]:
+          - text: Master the Craft
+          - text: of Filmmaking.
+        - paragraph [ref=e617]: Professional courses, raw assets, and a community of creators. Everything you need to go from beginner to full-time filmmaker.
+        - generic [ref=e618]:
+          - button "Start Learning" [ref=e619]:
+            - text: Start Learning
+            - img [ref=e620]
+          - link "Watch Trailer" [ref=e622] [cursor=pointer]:
+            - /url: https://youtube.com/@eyebuckz
+            - img [ref=e623]
+            - text: Watch Trailer
+        - generic [ref=e626]:
+          - generic [ref=e627]:
+            - generic [ref=e628]
+            - generic
+            - generic
+            - generic
+          - button "Go to previous slide (1 of 4)" [ref=e632]:
+            - img [ref=e633]
+          - button "Go to next slide (1 of 4)" [ref=e635]:
+            - img [ref=e636]
+          - generic [ref=e638]:
+            - button "Go to slide 1 of 4" [ref=e639]
+            - button "Go to slide 2 of 4" [ref=e640]
+            - button "Go to slide 3 of 4" [ref=e641]
+            - button "Go to slide 4 of 4" [ref=e642]
+        - generic [ref=e643]:
+          - generic [ref=e644]:
+            - img [ref=e645]
+            - text: 15+ Courses
+          - generic [ref=e648]:
+            - img [ref=e649]
+            - text: Lifetime Access
+          - generic [ref=e652]:
+            - img [ref=e653]
+            - text: Certificate Included
+        - paragraph [ref=e656]: "Creators & Influencers Academy #1"
+      - generic [ref=e661]:
+        - generic [ref=e662]:
+          - img [ref=e663]
+          - text: 10,000+ Students
+        - generic [ref=e668]: /
+        - generic [ref=e669]:
+          - img [ref=e670]
+          - text: 4.9/5 Rating
+        - generic [ref=e672]: /
+        - generic [ref=e673]:
+          - img [ref=e674]
+          - text: 50+ Countries
+        - generic [ref=e677]: /
+        - generic [ref=e678]:
+          - img [ref=e679]
+          - text: 10,000+ Students
+        - generic [ref=e684]: /
+        - generic [ref=e685]:
+          - img [ref=e686]
+          - text: 4.9/5 Rating
+        - generic [ref=e688]: /
+        - generic [ref=e689]:
+          - img [ref=e690]
+          - text: 50+ Countries
+        - generic [ref=e693]: /
+        - generic [ref=e694]:
+          - img [ref=e695]
+          - text: 10,000+ Students
+        - generic [ref=e700]: /
+        - generic [ref=e701]:
+          - img [ref=e702]
+          - text: 4.9/5 Rating
+        - generic [ref=e704]: /
+        - generic [ref=e705]:
+          - img [ref=e706]
+          - text: 50+ Countries
+        - generic [ref=e709]: /
+        - generic [ref=e710]:
+          - img [ref=e711]
+          - text: 10,000+ Students
+        - generic [ref=e716]: /
+        - generic [ref=e717]:
+          - img [ref=e718]
+          - text: 4.9/5 Rating
+        - generic [ref=e720]: /
+        - generic [ref=e721]:
+          - img [ref=e722]
+          - text: 50+ Countries
+        - generic [ref=e725]: /
+        - generic [ref=e726]:
+          - img [ref=e727]
+          - text: 10,000+ Students
+        - generic [ref=e732]: /
+        - generic [ref=e733]:
+          - img [ref=e734]
+          - text: 4.9/5 Rating
+        - generic [ref=e736]: /
+        - generic [ref=e737]:
+          - img [ref=e738]
+          - text: 50+ Countries
+        - generic [ref=e741]: /
+        - generic [ref=e742]:
+          - img [ref=e743]
+          - text: 10,000+ Students
+        - generic [ref=e748]: /
+        - generic [ref=e749]:
+          - img [ref=e750]
+          - text: 4.9/5 Rating
+        - generic [ref=e752]: /
+        - generic [ref=e753]:
+          - img [ref=e754]
+          - text: 50+ Countries
+        - generic [ref=e757]: /
+      - generic [ref=e760]:
+        - generic [ref=e761]:
+          - generic [ref=e762]: Digital Assets
+          - paragraph [ref=e763]: 50+ LUTs · 6K RAW Footage · Contract Templates · Business Presets
+          - paragraph [ref=e764]: Professional assets included with every editing and cinematography course.
+        - link "Browse Courses →" [ref=e765] [cursor=pointer]:
+          - /url: "#/courses"
+      - generic [ref=e767]:
+        - generic [ref=e769]:
+          - generic [ref=e770]: Why Eyebuckz
+          - heading "Built for Creators Who Mean It." [level=2] [ref=e771]
+        - generic [ref=e772]:
+          - generic [ref=e774]:
+            - img [ref=e776]
+            - heading "Practical Learning" [level=3] [ref=e778]
+            - paragraph [ref=e779]: Hands-on projects with professional raw footage. No theory-only lectures — you build real portfolio pieces.
+          - generic [ref=e781]:
+            - img [ref=e783]
+            - heading "Industry Experts" [level=3] [ref=e786]
+            - paragraph [ref=e787]: Learn from working professionals who shoot for major brands. Get insider techniques and workflows.
+          - generic [ref=e789]:
+            - img [ref=e791]
+            - heading "Creator-Focused" [level=3] [ref=e794]
+            - paragraph [ref=e795]: Built for filmmakers who want to go full-time. Business templates, client management, and monetization strategies.
+      - generic [ref=e797]:
+        - generic [ref=e799]:
+          - generic [ref=e800]: The Ecosystem
+          - heading "More Than Just Videos." [level=2] [ref=e801]
+          - paragraph [ref=e802]: We provide the actual tools you need to execute the job.
+        - generic [ref=e803]:
+          - generic [ref=e805]:
+            - img [ref=e809]
+            - generic [ref=e815]
+          - generic [ref=e828]:
+            - img [ref=e832]
+            - generic [ref=e836]
+      - generic [ref=e849]:
+        - generic [ref=e851]:
+          - generic [ref=e852]: Creators & Influencers Academy
+          - heading "Built for Creators Who Get Paid." [level=2] [ref=e853]
+          - paragraph [ref=e854]: Not just filmmaking — brand deals, content strategy, and the business side of being a creator.
+        - generic [ref=e855]:
+          - generic [ref=e857]:
+            - img [ref=e859]
+            - heading "Brand Deal Ready" [level=3] [ref=e861]
+            - paragraph [ref=e862]: Scripts, rate cards, and pitch decks to land your first brand collaboration with confidence.
+          - generic [ref=e864]:
+            - img [ref=e866]
+            - heading "Content Strategy" [level=3] [ref=e869]
+            - paragraph [ref=e870]: Build a posting rhythm, content calendar, and analytics workflow that consistently grows your audience.
+          - generic [ref=e872]:
+            - img [ref=e874]
+            - heading "Media Kit & Contracts" [level=3] [ref=e877]
+            - paragraph [ref=e878]: Professional contracts, media kits, and pricing guides tailored for influencer creators.
+          - generic [ref=e880]:
+            - img [ref=e882]
+            - heading "Monetisation Blueprint" [level=3] [ref=e884]
+            - paragraph [ref=e885]: From 0 to paid — YouTube, Instagram, and direct client monetisation strategies from working creators.
+      - generic [ref=e887]:
+        - heading "Frequently Asked Questions" [level=2] [ref=e889]
+        - generic [ref=e890]:
+          - button "Do I need expensive gear to start?" [ref=e893]:
+            - heading "Do I need expensive gear to start?" [level=3] [ref=e894]
+            - img [ref=e895]
+          - button "Is this suitable for complete beginners?" [ref=e898]:
+            - heading "Is this suitable for complete beginners?" [level=3] [ref=e899]
+            - img [ref=e900]
+          - button "Do I get access to the raw footage?" [ref=e903]:
+            - heading "Do I get access to the raw footage?" [level=3] [ref=e904]
+            - img [ref=e905]
+          - button "How does the community feedback work?" [ref=e908]:
+            - heading "How does the community feedback work?" [level=3] [ref=e909]
+            - img [ref=e910]
+      - generic [ref=e914]:
+        - heading "Ready to start?" [level=2] [ref=e915]
+        - paragraph [ref=e916]: Join thousands of filmmakers who have leveled up their craft. The camera is rolling.
+        - button "Get Full Access" [ref=e917]:
+          - text: Get Full Access
+          - img [ref=e918]
+        - generic [ref=e920]:
+          - generic [ref=e921]:
+            - img [ref=e922]
+            - text: 30-Day Guarantee
+          - generic [ref=e925]:
+            - img [ref=e926]
+            - text: Lifetime Access
+  - contentinfo [ref=e25]:
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - link "Eyebuckz" [ref=e29] [cursor=pointer]:
+            - /url: "#/"
+            - img "Eyebuckz" [ref=e30]
+          - paragraph [ref=e31]: Master the art of filmmaking. From pre-production planning to advanced post-production techniques. Join the community of creators.
+          - generic [ref=e32]:
+            - link "Facebook" [ref=e33] [cursor=pointer]:
+              - /url: "#"
+            - link "YouTube" [ref=e36] [cursor=pointer]:
+              - /url: https://youtube.com/@eyebuckz
+            - link "Instagram" [ref=e40] [cursor=pointer]:
+              - /url: https://instagram.com/eyebuckz
+            - link "WhatsApp" [ref=e44] [cursor=pointer]:
+              - /url: https://wa.me/918089541005
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - heading "Courses" [level=4] [ref=e49]
+            - list [ref=e50]
+          - generic [ref=e59]:
+            - heading "Company" [level=4] [ref=e60]
+            - list [ref=e61]
+          - generic [ref=e66]:
+            - heading "Support" [level=4] [ref=e67]
+            - list [ref=e68]
+      - generic [ref=e75]:
+        - paragraph [ref=e76]: © 2026 Eyebuckz. All rights reserved.
+        - generic [ref=e77]:
+          - link "Privacy Policy" [ref=e78] [cursor=pointer]:
+            - /url: "#/privacy"
+          - link "Terms of Service" [ref=e79] [cursor=pointer]:
+            - /url: "#/terms"

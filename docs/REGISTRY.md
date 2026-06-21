@@ -47,6 +47,16 @@
 | 2026-03-21 | Updated | Project | docs/project/LAUNCH_CHECKLIST.md | A1/A2/A3/A7 marked done; P1.5 section added with A16-A25 for admin page tests; ADMIN_TEST_GUIDE cross-reference added |
 | 2026-03-21 | Updated | Project | docs/project/KNOWN_ISSUES.md | Item 10 progress updated (CoursesPage done); SOW gaps R9-R12 added as resolved (video trailer, sticky buy, right-click disable, session limit) |
 | 2026-03-21 | Updated | Guide | docs/guides/TESTING.md | A1-A3 tests resolved; known failing tests section updated; admin coverage gap updated; admin dir added to structure |
+| 2026-03-26 | Updated | Project | docs/project/KNOWN_ISSUES.md | Added item 6b — video player bug (6 compounding issues resolved: path-based Bunny token, CSP blob:, error overlay race, Phase 1 CDN pre-serve) |
+| 2026-03-26 | Updated | Architecture | docs/architecture/SECURITY_MODEL.md | Video security: corrected Bunny token hash format; documented path-based token URL format and why query-param format doesn't work with HLS.js |
+| 2026-03-26 | Updated | Architecture | docs/architecture/SYSTEM_OVERVIEW.md | Video pipeline: updated token signing formula and URL format; CSP requirement noted |
+| 2026-03-26 | Updated | Reference | docs/reference/HOOKS.md | useVideoUrl: removed Phase 1 CDN pre-serve description; updated behavior to reflect token-auth-enabled CDN |
+| 2026-03-26 | Updated | Reference | docs/reference/COMPONENTS.md | VideoPlayer: corrected prop types; added CSP requirement; documented hlsErrorFiredRef race condition fix and in-place URL refresh behavior |
 | 2026-03-21 | Updated | Guide | docs/guides/DEPLOYMENT.md | Migration count updated to 26 (001-026); next migration number updated to 027 |
 | 2026-03-21 | Updated | Architecture | docs/architecture/SYSTEM_OVERVIEW.md | DB table count corrected to 16; RPC count corrected to 15; migration count updated to 26 |
 | 2026-03-21 | Updated | API | docs/api/EDGE_FUNCTIONS.md | Added coupon-apply and video-cleanup function documentation; updated shared utilities TOC to include emailTemplates.ts |
+| 2026-06-04 | Created | Project | docs/project/UI_UX_REVIEW.md | UI/UX review across dark/light + desktop/mobile; scroll-to-top fix, price formatting, uniform cards; prioritized P0/P1/P2 plan |
+| 2026-06-04 | Created | Standard | SKILLS_STANDARDS.md | Canonical Claude skill-authoring standard (Agent Skills) — frontmatter, descriptions, allowed-tools, triggers SoT, evals |
+| 2026-06-04 | Created | Project | docs/project/SKILLS_AUDIT.md | Per-skill standardization tracker for all 49 skills (descriptions, allowed-tools, naming, evals) |
+| 2026-06-04 | Created | ADR | docs/adr/007-agent-skills-standard.md | Decision to standardize the 49 skills on the Agent Skills standard with skills-lint governance |
+| 2026-06-04 | Updated | Index | CLAUDE.md | Refreshed counts (49 skills, migration 030), added Courses/Notifications pages, renamed github-actions-claude→review, canonical trigger source |

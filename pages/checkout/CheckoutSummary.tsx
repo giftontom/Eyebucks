@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 
 import { Button, Input } from '../../components';
 import { Thumbnail } from '../../components/Thumbnail';
+import { formatINR } from '../../utils/format';
 import { CourseType } from '../../types';
 
 import type { Course } from '../../types';
@@ -13,7 +14,7 @@ const BundleIncludedCourses: React.FC<{ courses: NonNullable<Course['bundledCour
     <div className="mb-4 t-card t-border border rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition text-sm"
+        className="w-full flex items-center justify-between p-3 hover:bg-[var(--surface-hover)] transition text-sm"
         aria-expanded={expanded}
         aria-label="Toggle bundled courses list"
       >
@@ -102,17 +103,17 @@ export const CheckoutSummary: React.FC<Props> = ({
           <>
             <div className="flex justify-between t-text-2 text-sm">
               <span>Subtotal</span>
-              <span>₹{(course.price / 100).toLocaleString()}</span>
+              <span>{formatINR(course.price)}</span>
             </div>
             <div className="flex justify-between text-sm" style={{ color: 'var(--status-success-text)' }}>
               <span>Discount ({couponDiscount}%)</span>
-              <span>-₹{((course.price - discountedPrice) / 100).toLocaleString()}</span>
+              <span>-{formatINR(course.price - discountedPrice)}</span>
             </div>
           </>
         )}
         <div className="flex justify-between text-xl font-bold t-text pt-2">
           <span>Total Due</span>
-          <span>₹{(discountedPrice / 100).toLocaleString()}</span>
+          <span>{formatINR(discountedPrice)}</span>
         </div>
       </div>
     </div>

@@ -36,6 +36,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
     ? 'border-[var(--status-danger-border)] focus:ring-[var(--status-danger-text)]'
     : '';
   const inputId = id ?? (label ? `input-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : undefined);
+  const errorId = error ? `${inputId}-error` : undefined;
+  const hintId = hint && !error ? `${inputId}-hint` : undefined;
+  const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={containerClassName}>
@@ -51,6 +54,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
         <input
           ref={ref}
           id={inputId}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={describedBy}
           className={`${BASE} ${sizeClasses[size]} ${hasLeading ? 'pl-10' : ''} ${hasTrailing ? 'pr-10' : ''} ${errorStyle} ${className}`}
           {...rest}
         />
@@ -61,10 +66,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
         )}
       </div>
       {error && (
-        <p className="mt-1 text-xs" style={{ color: 'var(--status-danger-text)' }}>{error}</p>
+        <p id={errorId} role="alert" className="mt-1 text-xs" style={{ color: 'var(--status-danger-text)' }}>{error}</p>
       )}
       {!error && hint && (
-        <p className="mt-1 text-xs t-text-3">{hint}</p>
+        <p id={hintId} className="mt-1 text-xs t-text-3">{hint}</p>
       )}
     </div>
   );
