@@ -247,10 +247,13 @@ describe('coursesApi', () => {
   });
 
   describe('getCourseModules', () => {
-    const mockModuleRow = {
-      id: 'm1',
-      course_id: 'course-1',
-      title: 'Module 1',
+    // New schema: modules (chapters) contain nested lessons (video leaf).
+    // The DB query is `.from('modules').select('*, lessons(*)')` so each row
+    // returned has a `lessons` array. Video fields live on lessons, not modules.
+    const mockLessonRow = {
+      id: 'l1',
+      module_id: 'm1',
+      title: 'Lesson 1',
       duration: '10:00',
       duration_seconds: 600,
       video_url: 'https://cdn.example.com/video.m3u8',
@@ -261,11 +264,21 @@ describe('coursesApi', () => {
       updated_at: '2024-01-01',
     };
 
+    const mockModuleRow = {
+      id: 'm1',
+      course_id: 'course-1',
+      title: 'Module 1',
+      order_index: 1,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+      lessons: [mockLessonRow],
+    };
+
     it('should redact videoId and videoUrl for non-enrolled users on non-preview modules', async () => {
       // Unauthenticated — auth.getUser returns null user
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
 
-      // Chain: .from('modules').select().eq().order()
+      // Chain: .from('modules').select('*, lessons(*)').eq().order()
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -276,18 +289,26 @@ describe('coursesApi', () => {
 
       const result = await coursesApi.getCourseModules('course-1');
       expect(result.hasAccess).toBe(false);
-      expect(result.modules[0].videoUrl).toBe('');
-      expect(result.modules[0].videoId).toBeUndefined();
+      // Video fields are now on the nested lesson, not the module
+      expect(result.modules[0].lessons[0].videoUrl).toBe('');
+      expect(result.modules[0].lessons[0].videoId).toBeUndefined();
     });
 
     it('should preserve videoId and videoUrl for free-preview modules without access', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
 
+      const freePreviewLesson = {
+        ...mockLessonRow,
+        is_free_preview: true,
+        video_id: 'bunny-preview-guid',
+        video_url: 'https://cdn.example.com/preview.m3u8',
+      };
+
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             order: vi.fn().mockResolvedValue({
-              data: [{ ...mockModuleRow, is_free_preview: true, video_id: 'bunny-preview-guid', video_url: 'https://cdn.example.com/preview.m3u8' }],
+              data: [{ ...mockModuleRow, lessons: [freePreviewLesson] }],
               error: null,
             }),
           }),
@@ -295,8 +316,8 @@ describe('coursesApi', () => {
       });
 
       const result = await coursesApi.getCourseModules('course-1');
-      expect(result.modules[0].videoId).toBe('bunny-preview-guid');
-      expect(result.modules[0].videoUrl).toBe('https://cdn.example.com/preview.m3u8');
+      expect(result.modules[0].lessons[0].videoId).toBe('bunny-preview-guid');
+      expect(result.modules[0].lessons[0].videoUrl).toBe('https://cdn.example.com/preview.m3u8');
     });
 
     it('should populate videoId from video_id field via mapModule', async () => {
@@ -339,7 +360,8 @@ describe('coursesApi', () => {
 
       const result = await coursesApi.getCourseModules('course-1');
       expect(result.hasAccess).toBe(true);
-      expect(result.modules[0].videoId).toBe('bunny-guid-123');
+      // Video fields are on the lesson, not the module
+      expect(result.modules[0].lessons[0].videoId).toBe('bunny-guid-123');
     });
 
     it('admin role has access even without enrollment', async () => {
@@ -380,7 +402,8 @@ describe('coursesApi', () => {
 
       const result = await coursesApi.getCourseModules('course-1');
       expect(result.hasAccess).toBe(true);
-      expect(result.modules[0].videoId).toBe('bunny-guid-123');
+      // Video fields are on the lesson, not the module
+      expect(result.modules[0].lessons[0].videoId).toBe('bunny-guid-123');
     });
 
     it('returns hasAccess false and redacts video when enrollment check errors', async () => {
@@ -420,7 +443,8 @@ describe('coursesApi', () => {
 
       const result = await coursesApi.getCourseModules('course-1');
       expect(result.hasAccess).toBe(false);
-      expect(result.modules[0].videoUrl).toBe('');
+      // Video fields are on the lesson, not the module
+      expect(result.modules[0].lessons[0].videoUrl).toBe('');
     });
   });
 });

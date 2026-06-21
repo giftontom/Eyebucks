@@ -36,7 +36,7 @@ vi.mock('../../../hooks/useAccessControl', () => ({
 vi.mock('../../../hooks/useModuleProgress', () => ({
   useModuleProgress: () => ({
     progressPercent: 50,
-    moduleCompletionMap: {},
+    lessonCompletionMap: {},
     showCompletionNotification: false,
     pendingResumeRef: { current: 0 },
     checkCompletion: vi.fn(),
@@ -137,10 +137,23 @@ const mockCourse = {
   totalStudents: 10,
 };
 
+// New shape: modules are CHAPTERS, each with a nested lessons array.
+// The sidebar renders lesson titles inside expanded chapters, and the
+// header shows "{N} Chapters · {M} Lessons".
 const mockModules = [
-  { id: 'mod-1', title: 'Module 1', videoUrl: '', isFreePreview: false, orderIndex: 1, duration: '5:00', durationSeconds: 300, courseId: 'course-123' },
-  { id: 'mod-2', title: 'Module 2', videoUrl: '', isFreePreview: false, orderIndex: 2, duration: '10:00', durationSeconds: 600, courseId: 'course-123' },
-  { id: 'mod-3', title: 'Module 3', videoUrl: '', isFreePreview: false, orderIndex: 3, duration: '8:00', durationSeconds: 480, courseId: 'course-123' },
+  {
+    id: 'ch-1',
+    courseId: 'course-123',
+    title: 'Chapter 1',
+    orderIndex: 1,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+    lessons: [
+      { id: 'l-1', moduleId: 'ch-1', title: 'Lesson 1', duration: '5:00', durationSeconds: 300, videoUrl: '', isFreePreview: false, orderIndex: 1 },
+      { id: 'l-2', moduleId: 'ch-1', title: 'Lesson 2', duration: '10:00', durationSeconds: 600, videoUrl: '', isFreePreview: false, orderIndex: 2 },
+      { id: 'l-3', moduleId: 'ch-1', title: 'Lesson 3', duration: '8:00', durationSeconds: 480, videoUrl: '', isFreePreview: false, orderIndex: 3 },
+    ],
+  },
 ];
 
 describe('Learn', () => {
@@ -168,10 +181,10 @@ describe('Learn', () => {
     mockHasAccess.current = false;
     const { container } = renderLearn();
     // Non-enrolled users are redirected to /course/:id via <Navigate replace />,
-    // so the Learn view (video player, sidebar, module list) is never mounted.
+    // so the Learn view (video player, sidebar, lesson list) is never mounted.
     await waitFor(() => {
       expect(container.querySelector('[data-testid="video-player"]')).toBeNull();
-      expect(screen.queryByText('Module 1')).not.toBeInTheDocument();
+      expect(screen.queryByText('Lesson 1')).not.toBeInTheDocument();
     });
   });
 
@@ -188,19 +201,24 @@ describe('Learn', () => {
 
   // --- A12 gap tests ---
 
-  it('renders module list in sidebar', async () => {
+  it('renders lesson list in sidebar', async () => {
     renderLearn();
+    // The sidebar header shows chapter titles; lessons appear after expand.
+    // Chapter 1 is auto-expanded (it contains the default active lesson).
     await waitFor(() => {
-      expect(screen.getByText('Module 1')).toBeInTheDocument();
-      expect(screen.getByText('Module 2')).toBeInTheDocument();
-      expect(screen.getByText('Module 3')).toBeInTheDocument();
+      expect(screen.getByText('Chapter 1')).toBeInTheDocument();
+      // Lessons inside the expanded chapter are also visible
+      expect(screen.getByText('Lesson 1')).toBeInTheDocument();
+      expect(screen.getByText('Lesson 2')).toBeInTheDocument();
+      expect(screen.getByText('Lesson 3')).toBeInTheDocument();
     });
   });
 
-  it('shows module count in sidebar header', async () => {
+  it('shows chapter and lesson count in sidebar header', async () => {
     renderLearn();
     await waitFor(() => {
-      expect(screen.getByText('3 Modules')).toBeInTheDocument();
+      // Sidebar header: "{N} Chapters · {M} Lessons"
+      expect(screen.getByText('1 Chapters · 3 Lessons')).toBeInTheDocument();
     });
   });
 
@@ -211,17 +229,26 @@ describe('Learn', () => {
     });
   });
 
-  it('shows "No modules available" when course has no modules', async () => {
-    mockCoursesApi.getCourseModules.mockResolvedValue({ modules: [] });
+  it('shows "No lessons available" when course has no lessons', async () => {
+    // Return chapters with empty lessons arrays — flatLessons will be empty
+    mockCoursesApi.getCourseModules.mockResolvedValue({ modules: [
+      { id: 'ch-1', courseId: 'course-123', title: 'Chapter 1', orderIndex: 1,
+        createdAt: new Date(), updatedAt: new Date(), lessons: [] },
+    ]});
     renderLearn();
     await waitFor(() => {
-      expect(screen.getByText(/no modules available/i)).toBeInTheDocument();
+      expect(screen.getByText(/no lessons available/i)).toBeInTheDocument();
     });
   });
 
   it('renders bundle hub view for BUNDLE type courses', async () => {
     mockCoursesApi.getCourse.mockResolvedValue({
-      course: { ...mockCourse, type: 'BUNDLE', bundledCourses: [{ id: 'bc-1', title: 'Bundled Course 1', description: 'desc', thumbnail: '', moduleCount: 5 }] },
+      course: {
+        ...mockCourse,
+        type: 'BUNDLE',
+        // bundledCourses now uses lessonCount (not moduleCount)
+        bundledCourses: [{ id: 'bc-1', title: 'Bundled Course 1', description: 'desc', thumbnail: '', lessonCount: 5 }],
+      },
     });
     mockCoursesApi.getCourseModules.mockResolvedValue({ modules: [] });
     renderLearn();

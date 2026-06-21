@@ -79,8 +79,17 @@ const mockCourse = {
   thumbnail: '',
   heroVideoId: null,
   features: ['Feature A', 'Feature B'],
+  // New shape: chapters contain nested lessons arrays (video leaf)
   chapters: [
-    { id: 'ch-1', title: 'Chapter 1', duration: '10:00', orderIndex: 0 },
+    {
+      id: 'ch-1',
+      title: 'Chapter 1',
+      orderIndex: 0,
+      lessons: [
+        { id: 'l-1', title: 'Intro Lesson', duration: '5:00', durationSeconds: 300, isFreePreview: false },
+        { id: 'l-2', title: 'Main Lesson', duration: '10:00', durationSeconds: 600, isFreePreview: false },
+      ],
+    },
   ],
   bundledCourses: [],
 };
@@ -214,12 +223,17 @@ describe('CourseDetails', () => {
     expect(screen.getByText('Chapter 1')).toBeInTheDocument();
   });
 
-  it('shows locked content message when non-enrolled user expands a chapter', async () => {
+  it('shows lesson list with lock icons when non-enrolled user expands a chapter', async () => {
+    // Non-enrolled: mockUseAccessControl default returns hasAccess: false
     renderPage();
     await waitFor(() => screen.getByText('Test Course'));
     fireEvent.click(screen.getByRole('button', { name: 'CURRICULUM' }));
     fireEvent.click(screen.getByText('Chapter 1'));
-    expect(screen.getByText(/enroll to unlock/i)).toBeInTheDocument();
+    // Lesson titles are shown (with a Lock icon for locked lessons, no "enroll to unlock" text)
+    expect(screen.getByText('Intro Lesson')).toBeInTheDocument();
+    expect(screen.getByText('Main Lesson')).toBeInTheDocument();
+    // Enrolled-only "Continue to course" link must NOT appear for non-enrolled user
+    expect(screen.queryByText(/continue to course/i)).not.toBeInTheDocument();
   });
 
   it('shows REVIEWS tab and renders ReviewList', async () => {
