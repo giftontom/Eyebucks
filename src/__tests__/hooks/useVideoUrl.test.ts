@@ -86,7 +86,8 @@ describe('useVideoUrl', () => {
     });
 
     expect(result.current.error).toBe('Internal server error');
-    expect(result.current.videoUrl).toBe('fallback.mp4');
+    // Hook no longer sets videoUrl to fallback on error (unsigned CDN URLs return 403)
+    expect(result.current.videoUrl).toBeNull();
   });
 
   it('should refresh session and retry on auth error', async () => {
@@ -142,7 +143,7 @@ describe('useVideoUrl', () => {
     });
 
     expect(result.current.error).toBe('Your session has expired. Please log in again.');
-    expect(result.current.videoUrl).toBe('fallback.mp4');
+    expect(result.current.videoUrl).toBeNull();
   });
 
   it('should send request without moduleId when null', async () => {
@@ -181,6 +182,6 @@ describe('useVideoUrl', () => {
     await waitFor(() => {
       expect(result.current.error).toBe('Video not found');
     });
-    expect(result.current.videoUrl).toBe('fallback.mp4');
+    expect(result.current.videoUrl).toBeNull();
   });
 });

@@ -18,15 +18,18 @@ export async function hmacSha256(message: string, secret: string): Promise<strin
 
 /**
  * Timing-safe string comparison to prevent timing attacks.
+ *
+ * Iterates the full `aBuf` length even when `bBuf` is shorter, so mismatched
+ * lengths don't leak via early-return timing. Razorpay always sends 64-hex
+ * signatures, but this is defence-in-depth for any caller.
  */
 export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {return false;}
   const encoder = new TextEncoder();
   const aBuf = encoder.encode(a);
   const bBuf = encoder.encode(b);
-  let result = 0;
+  let result = aBuf.length === bBuf.length ? 0 : 1;
   for (let i = 0; i < aBuf.length; i++) {
-    result |= aBuf[i] ^ bBuf[i];
+    result |= aBuf[i] ^ bBuf[i % bBuf.length];
   }
   return result === 0;
 }

@@ -2,6 +2,8 @@ import { Lock, ArrowRight, CheckCircle2, Star, Users } from 'lucide-react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { formatPrice } from '../utils/format';
+
 /**
  * Props for the EnrollmentGate component.
  *
@@ -119,7 +121,7 @@ export const EnrollmentGate: React.FC<EnrollmentGateProps> = ({
                 <div>
                   <p className="t-caption mb-1">One-time payment</p>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-black t-text">₹{(coursePrice / 100).toLocaleString()}</span>
+                    <span className="text-4xl font-black t-text">{formatPrice(coursePrice)}</span>
                   </div>
                 </div>
 

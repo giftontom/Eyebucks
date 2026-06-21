@@ -4,6 +4,7 @@
  */
 
 export { coursesApi } from './courses.api';
+export type { CourseSort, GetCoursesOptions } from './courses.api';
 export { enrollmentsApi } from './enrollments.api';
 export { progressApi, AUTO_SAVE_INTERVAL, COMPLETION_THRESHOLD } from './progress.api';
 export { checkoutApi } from './checkout.api';
@@ -12,6 +13,8 @@ export { notificationsApi, mapNotification } from './notifications.api';
 export type { Notification } from './notifications.api';
 export { siteContentApi } from './siteContent.api';
 export type { SiteContentItem } from '../../types';
+export { siteImagesApi } from './siteImages.api';
+export type { ImageFolder, UploadedImage } from './siteImages.api';
 export { paymentsApi } from './payments.api';
 export type { Payment } from './payments.api';
 export { certificatesApi } from './certificates.api';

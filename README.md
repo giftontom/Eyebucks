@@ -109,8 +109,6 @@ eyebuckz/
 │   ├── ProtectedRoute.tsx     # Auth guard
 │   ├── EnrollmentGate.tsx     # Enrollment access check
 │   ├── NotificationBell.tsx   # Real-time notification UI
-│   ├── SearchBar.tsx          # Course search (debounced)
-│   ├── CourseFilters.tsx      # Course filter controls
 │   ├── ReviewForm.tsx         # Course review form
 │   ├── ReviewList.tsx         # Course reviews display
 │   ├── StarRating.tsx         # Star rating component

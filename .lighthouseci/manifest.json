@@ -1,0 +1,38 @@
+[
+  {
+    "url": "http://localhost:4000/",
+    "isRepresentativeRun": false,
+    "htmlPath": "/Users/apple/Documents/Project Eybuckz/Eyebucks/.lighthouseci/localhost--2026_04_18_20_28_38.report.html",
+    "jsonPath": "/Users/apple/Documents/Project Eybuckz/Eyebucks/.lighthouseci/localhost--2026_04_18_20_28_38.report.json",
+    "summary": {
+      "performance": 0.8,
+      "accessibility": 0.91,
+      "best-practices": 1,
+      "seo": 1
+    }
+  },
+  {
+    "url": "http://localhost:4000/",
+    "isRepresentativeRun": false,
+    "htmlPath": "/Users/apple/Documents/Project Eybuckz/Eyebucks/.lighthouseci/localhost--2026_04_18_20_29_01.report.html",
+    "jsonPath": "/Users/apple/Documents/Project Eybuckz/Eyebucks/.lighthouseci/localhost--2026_04_18_20_29_01.report.json",
+    "summary": {
+      "performance": 0.85,
+      "accessibility": 0.91,
+      "best-practices": 1,
+      "seo": 1
+    }
+  },
+  {
+    "url": "http://localhost:4000/",
+    "isRepresentativeRun": true,
+    "htmlPath": "/Users/apple/Documents/Project Eybuckz/Eyebucks/.lighthouseci/localhost--2026_04_18_20_29_22.report.html",
+    "jsonPath": "/Users/apple/Documents/Project Eybuckz/Eyebucks/.lighthouseci/localhost--2026_04_18_20_29_22.report.json",
+    "summary": {
+      "performance": 0.86,
+      "accessibility": 0.91,
+      "best-practices": 1,
+      "seo": 1
+    }
+  }
+]

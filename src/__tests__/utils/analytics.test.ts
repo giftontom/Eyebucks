@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 import { analytics } from '../../../utils/analytics';
 
 describe('analytics', () => {

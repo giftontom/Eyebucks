@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 
 import { Avatar } from '../../components/Avatar';
 import { adminApi } from '../../services/api/admin.api';
+import { formatINR } from '../../utils/format';
 import { logger } from '../../utils/logger';
 
 import { useAdmin } from './AdminContext';
@@ -162,7 +163,7 @@ export const UserDetailPage: React.FC = () => {
                     </td>
                     <td className="p-4 t-text">
                       {enrollment.amount > 0
-                        ? `₹${(enrollment.amount / 100).toLocaleString('en-IN')}`
+                        ? formatINR(enrollment.amount)
                         : 'Free'
                       }
                     </td>

@@ -55,6 +55,7 @@ export const useAccessControl = (courseId: string | undefined): AccessControlRes
     }
 
     setIsLoading(true);
+    setIsEnrolled(false); // reset on re-check to prevent stale true during navigation
     try {
       const hasAccess = await enrollmentsApi.checkAccess(courseId);
       setIsEnrolled(hasAccess);

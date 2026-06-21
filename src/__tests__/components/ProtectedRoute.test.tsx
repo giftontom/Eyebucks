@@ -6,12 +6,9 @@ vi.mock('react-router-dom', () => ({
   Navigate: ({ to }: { to: string }) => <div data-testid="navigate" data-to={to} />,
   useLocation: () => ({ pathname: '/dashboard', search: '' }),
 }));
-vi.mock('../../../components/PhoneGateModal', () => ({
-  PhoneGateModal: () => <div data-testid="phone-gate-modal" />,
-}));
 
-import { useAuth } from '../../../context/AuthContext';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
+import { useAuth } from '../../../context/AuthContext';
 
 const mockUseAuth = useAuth as ReturnType<typeof vi.fn>;
 
@@ -36,18 +33,17 @@ describe('ProtectedRoute', () => {
     expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/signin');
   });
 
-  it('shows PhoneGateModal and blurred children when user has no phone', () => {
+  it('renders children when user is authenticated without phone (gate moved to Checkout)', () => {
     mockUseAuth.mockReturnValue({ user: { id: 'u1', phone_e164: null }, isLoading: false });
     render(<ProtectedRoute><div>Protected</div></ProtectedRoute>);
-    expect(screen.getByTestId('phone-gate-modal')).toBeInTheDocument();
     expect(screen.getByText('Protected')).toBeInTheDocument();
+    expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
   });
 
   it('renders children when user is authenticated with phone', () => {
     mockUseAuth.mockReturnValue({ user: { id: 'u1', phone_e164: '+15550000000' }, isLoading: false });
     render(<ProtectedRoute><div>Protected Content</div></ProtectedRoute>);
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
-    expect(screen.queryByTestId('phone-gate-modal')).not.toBeInTheDocument();
     expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
   });
 });

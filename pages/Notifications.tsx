@@ -3,6 +3,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 
+import { EmptyState } from '../components';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 
 import type { Notification } from '../services/api/notifications.api';
@@ -44,7 +45,7 @@ export const Notifications: React.FC = () => {
   return (
     <>
       <Helmet><title>Notifications — Eyebuckz Academy</title></Helmet>
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 min-h-[60vh]">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 min-h-[60vh]">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold t-text">Notifications</h1>
@@ -73,11 +74,11 @@ export const Notifications: React.FC = () => {
             ))}
           </div>
         ) : notifications.length === 0 ? (
-          <div className="text-center py-20 t-card rounded-2xl t-border border">
-            <Bell size={40} className="mx-auto mb-4 t-text-3" />
-            <p className="text-lg font-bold t-text mb-1">No notifications yet</p>
-            <p className="t-text-2">Enrollments, certificates, and updates will show up here.</p>
-          </div>
+          <EmptyState
+            icon={<Bell size={40} />}
+            title="No notifications yet"
+            description="Enrollments, certificates, and updates will show up here."
+          />
         ) : (
           <div className="space-y-2">
             {notifications.map((n) => (

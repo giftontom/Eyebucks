@@ -144,8 +144,8 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
       showToast('Please fill in all required fields', 'error');
       return;
     }
-    if (!/^\d{1,2}:\d{2}$/.test(lessonForm.duration)) {
-      showToast('Duration must be in MM:SS format (e.g., 15:30)', 'error');
+    if (!/^\d+:\d{2}$/.test(lessonForm.duration)) {
+      showToast('Duration must be in M:SS format (e.g., 15:30 or 120:00)', 'error');
       return;
     }
     try {
@@ -364,7 +364,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
             />
           </div>
           <div>
-            <label className="block text-sm font-medium t-text-2 mb-2">Duration (MM:SS) *</label>
+            <label className="block text-sm font-medium t-text-2 mb-2">Duration (M:SS) *</label>
             <input
               type="text"
               value={lessonForm.duration}
@@ -405,7 +405,6 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               />
             ) : (
               <VideoUploader
-                initialVideoUrl={lessonForm.videoUrl}
                 onUploadComplete={(videoData) => {
                   const minutes = Math.floor(videoData.duration / 60);
                   const seconds = Math.floor(videoData.duration % 60);

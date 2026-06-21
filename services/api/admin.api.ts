@@ -3,6 +3,7 @@
  * Replaces: apiClient admin methods
  */
 import { extractEdgeFnError, isEdgeFnAuthError } from '../../utils/edgeFunctionError';
+import { escapeOrFilter as _escapeOrFilter } from '../../utils/supabaseUtils';
 import { supabase } from '../supabase';
 
 import { paymentsApi } from './payments.api';
@@ -42,10 +43,9 @@ function mapLessonRow(l: LessonRow): Lesson {
   };
 }
 
-// Escape special characters that could alter PostgREST .or() filter logic
-function escapeOrFilter(value: string): string {
-  return value.replace(/[(),"'\\]/g, '\\$&');
-}
+// Re-exported from utils/supabaseUtils for backward compatibility.
+// Prefer importing directly from '../../utils/supabaseUtils'.
+export const escapeOrFilter = _escapeOrFilter;
 
 // Typed helper for custom RPCs not yet in generated schema types
 const customRpc = (fn: string, args?: Record<string, unknown>) =>
@@ -88,6 +88,16 @@ export const adminApi = {
     const { data, error } = await supabase.rpc('get_admin_stats');
     if (error) {throw new Error(error.message);}
     return { success: true, stats: data as unknown as AdminStats };
+  },
+
+  /** Returns the global total of refunded payments (not page-limited). */
+  async getRefundTotal(): Promise<number> {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('status', 'refunded');
+    if (error) {throw new Error(error.message);}
+    return (data || []).reduce((sum, r) => sum + (r.amount || 0), 0);
   },
 
   async getSales(days: number = 30): Promise<{ success: boolean; sales: SalesDataPoint[] }> {
@@ -846,9 +856,12 @@ export const adminApi = {
     const limit = Math.min(params?.limit || 20, 100);
     const offset = (page - 1) * limit;
 
+    // NOTE: `users(...)` is intentionally NOT embedded — payments.user_id references
+    // auth.users, so PostgREST cannot embed public.users (see migration 029). We
+    // resolve the buyer's name/email via a separate public.users query, joined in JS.
     let query = supabase
       .from('payments')
-      .select('*, users(name, email), courses(title)', { count: 'exact' });
+      .select('*, courses(title)', { count: 'exact' });
 
     if (params?.search) {
       const s = escapeOrFilter(params.search);
@@ -862,9 +875,25 @@ export const adminApi = {
       .range(offset, offset + limit - 1);
 
     if (error) {throw new Error(error.message);}
+
+    const rows = (data || []) as unknown as PaymentWithJoins[];
+
+    // Resolve buyer name/email from public.users, keyed by user_id.
+    const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+    const userMap = new Map<string, { name?: string; email?: string }>();
+    if (userIds.length > 0) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .in('id', userIds);
+      (users as Array<{ id: string; name: string | null; email: string | null }> | null ?? []).forEach((u) =>
+        userMap.set(u.id, { name: u.name ?? undefined, email: u.email ?? undefined })
+      );
+    }
+
     return {
       success: true,
-      payments: ((data || []) as unknown as PaymentWithJoins[]).map((r) => ({
+      payments: rows.map((r) => ({
         id: r.id,
         userId: r.user_id,
         courseId: r.course_id,
@@ -883,8 +912,8 @@ export const adminApi = {
         metadata: (r.metadata || {}) as Record<string, unknown>,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
-        userName: r.users?.name,
-        userEmail: r.users?.email,
+        userName: userMap.get(r.user_id)?.name,
+        userEmail: userMap.get(r.user_id)?.email,
         courseTitle: r.courses?.title,
       })),
       total: count || 0,

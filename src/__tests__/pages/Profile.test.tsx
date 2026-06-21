@@ -1,7 +1,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HashRouter } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
@@ -197,14 +197,14 @@ describe('Profile', () => {
     // React Fundamentals appears in both cert and payment sections
     await waitFor(() => expect(screen.getAllByText('React Fundamentals').length).toBeGreaterThan(0));
     expect(screen.getByText('CERT-001')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /download/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^download$/i })).toBeInTheDocument();
   });
 
   it('shows empty certificates state', async () => {
     mockCertificatesApi.getUserCertificates.mockResolvedValue([]);
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/no certificates earned yet/i)).toBeInTheDocument()
+      expect(screen.getByText(/no certificates yet/i)).toBeInTheDocument()
     );
   });
 

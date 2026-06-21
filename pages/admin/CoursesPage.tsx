@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { adminApi } from '../../services/api/admin.api';
+import { formatINR, formatPrice } from '../../utils/format';
 
 import { useAdmin } from './AdminContext';
 import { AdminModal } from './components/AdminModal';
@@ -47,7 +48,8 @@ export const CoursesPage: React.FC = () => {
   // Sort
   const sortedCourses = [...filteredCourses].sort((a, b) => {
     if (!sortColumn) {return 0;}
-    let aVal: any, bVal: any;
+    let aVal: string | number = '';
+    let bVal: string | number = '';
     switch (sortColumn) {
       case 'title': aVal = a.title.toLowerCase(); bVal = b.title.toLowerCase(); break;
       case 'price': aVal = a.price; bVal = b.price; break;
@@ -179,7 +181,7 @@ export const CoursesPage: React.FC = () => {
               ),
             },
             { key: 'status', label: 'Status', sortable: true, render: (c: AdminCourse) => <StatusBadge status={c.status} className="px-2 py-1 rounded-full" /> },
-            { key: 'price', label: 'Price', sortable: true, render: (c: AdminCourse) => <span className="t-text">₹{(c.price / 100).toLocaleString()}</span> },
+            { key: 'price', label: 'Price', sortable: true, render: (c: AdminCourse) => <span className="t-text">{formatPrice(c.price)}</span> },
             { key: 'enrolled', label: 'Enrolled', sortable: true, render: (c: AdminCourse) => <span className="t-text-2">{c.enrollmentCount || 0}</span> },
             {
               key: 'actions',
@@ -293,7 +295,7 @@ export const CoursesPage: React.FC = () => {
               <p className="text-xs font-medium mt-1">Avg Watch Time</p>
             </div>
             <div className="t-status-warning border rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold">₹{(analyticsData.revenueTotal / 100).toLocaleString('en-IN')}</p>
+              <p className="text-2xl font-bold">{formatINR(analyticsData.revenueTotal)}</p>
               <p className="text-xs font-medium mt-1">Total Revenue</p>
             </div>
             <div className="col-span-2 t-card t-border border rounded-xl p-4 text-center">

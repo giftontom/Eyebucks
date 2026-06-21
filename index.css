@@ -1,7 +1,16 @@
 @import "tailwindcss";
 
 /* ─── Class-based dark mode ─────────────────────────────── */
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *, .force-dark, .force-dark *));
+
+/* ─── Live variants: hover OR scroll-band activation ─────── */
+/* Touch devices never fire :hover, so useInViewActive marks the element
+   scrolled into the centered viewport band with `.is-active` (the scroll
+   trigger). `group-live:` / `live:` fire on either state: on desktop they
+   behave exactly like `group-hover:` / `hover:`; on mobile the full hover
+   suite plays for the active card as you scroll. */
+@custom-variant group-live (&:is(:where(.group):is(:hover, .is-active) *));
+@custom-variant live (&:is(:hover, .is-active));
 
 /* ─── Design tokens ──────────────────────────────────────── */
 @theme {
@@ -77,8 +86,32 @@
   }
 
   --animate-orb-float: orb-float 12s ease-in-out infinite;
+
+  @keyframes fall {
+    to { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  }
+  @keyframes scale-in {
+    0% { transform: scale(0) rotate(-180deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+
+  --animate-fall: fall 3s linear forwards;
+  --animate-scale-in: scale-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  --color-social-youtube: #FF0000;
+  --color-social-instagram: #E1306C;
+  --color-social-whatsapp: #25D366;
+  --color-rating-star: #eab308;
+  --color-rating-bg: rgba(234,179,8,0.10);
+  --shadow-glow-brand: drop-shadow(0 0 6px rgba(255,59,48,0.5));
+
   --shadow-brand:    0 4px 24px -4px rgba(255,59,48,0.30);
   --shadow-elevated: 0 10px 40px -8px rgba(0,0,0,0.30);
+
+  --confetti-color-1: #dc2626;
+  --confetti-color-2: #2563eb;
+  --confetti-color-3: #16a34a;
+  --confetti-color-4: #eab308;
 }
 
 /* ─── Semantic colour tokens ─────────────────────────────── */
@@ -86,6 +119,7 @@
 :root {
   --page-bg:       #f1f4f8;
   --page-alt:      #e8ecf1;
+  --ambient-bg:    #f1f4f8;
   --surface:       #ffffff;
   --surface-hover: #f1f5f9;
   --border:        #d1d5db;
@@ -115,8 +149,9 @@
   --status-info-border:    #93c5fd;
 }
 
-/* Dark */
-.dark {
+/* Dark — also applied to .force-dark "islands" so a section can render
+   in dark tokens while the global theme stays light. */
+.dark, .force-dark {
   --page-bg:       #000000;
   --page-alt:      #111111;
   --surface:       rgba(255,255,255,0.05);
@@ -148,11 +183,86 @@
   --status-info-border:    rgba(59,130,246,0.25);
 }
 
+/* Only the *global* dark theme darkens the ambient page colour that the
+   .force-dark edge gradients fade toward. .force-dark deliberately does
+   NOT override it, so in light mode its gradients blend into the
+   surrounding light page; in dark mode they fade black→black (invisible). */
+.dark { --ambient-bg: #000000; }
+
+/* ─── Force-dark islands ─────────────────────────────────── */
+/* `force-dark` flips the semantic tokens + `dark:` variant for a subtree
+   even while the global theme is light (see the .dark/.force-dark token
+   block above). The dark paint itself lives on the scroll-graded scene plate. */
+.force-dark { position: relative; }
+
+/* ─── Scene plate (scroll-graded cinematic canvas) ───────── */
+/* A fixed, viewport-sized dark backdrop crossfaded by scroll
+   (hooks/useSceneGrade.ts writes its opacity each frame). The page's
+   dark→light change happens in scrolled TIME, not page SPACE: at every
+   instant the visible canvas is ONE tone, so there is never a painted
+   boundary between dark and light anywhere on screen — nothing for the
+   eye to recognize (a spatial gradient strip, however smooth, always
+   reads as an object between two flat fields). Carries the cinematic
+   dark recipe — film grain, vignette, red projector key light, warm
+   rim — sized to the viewport like stage lighting. opacity:1 at first
+   paint = correct dark state at the top of the page before hydration.
+   In dark mode the crossfade is dark-over-dark: only the warm glows
+   gently follow the scroll, matching today's dark-theme look. Color
+   only, no motion — safe under prefers-reduced-motion (WCAG C39). */
+.scene-plate-dark {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 1;
+  /* No will-change: promoting this fixed layer makes Chromium skip re-rasterizing its background at deep scroll offsets (plate renders blank mid-page). Opacity-only changes still composite cheaply. */
+  background-color: #000000;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(0, 0, 0, 0.45) 100%),
+    radial-gradient(1200px 620px at 50% -160px, rgba(255, 59, 48, 0.13), transparent 62%),
+    radial-gradient(900px 480px at 88% 104%, rgba(249, 115, 22, 0.07), transparent 60%),
+    linear-gradient(to bottom, #170708 0%, #0a0304 38%, #0c0504 100%);
+  background-size: 180px 180px, auto, auto, auto, auto;
+}
+
+/* Scene-adaptive on-canvas text — BISTABLE, no outline. The text sits in
+   exactly one of two solid, properly-contrasting colours: its ink/slate/
+   deep-brand "light-scene" colour, or its white/light/coral "dark-scene"
+   colour. useSceneGrade toggles `.scene-dark-text` on the canvas wrapper
+   at the measured equal-contrast crossover (plate opacity ≈ 0.51); the
+   `color` transition crossfades the two over TIME, so any settled scroll
+   position shows one solid colour — never a mid-grey blend, and never a
+   glyph outline. @utility keeps hover/variants composable; the `.dark`
+   rules below force the dark-theme colour (the canvas never lightens
+   under the global dark theme). */
+@utility scene-adaptive-text {
+  color: var(--text-1);
+  transition: color 0.35s ease;
+}
+@utility scene-adaptive-text-2 {
+  color: var(--text-2);
+  transition: color 0.35s ease;
+}
+@utility scene-adaptive-brand {
+  color: var(--color-brand-700);
+  transition: color 0.35s ease;
+}
+.scene-dark-text .scene-adaptive-text { color: #f5f7fa; }
+.scene-dark-text .scene-adaptive-text-2 { color: #e6e9ef; }
+.scene-dark-text .scene-adaptive-brand {
+  color: color-mix(in oklab, var(--color-brand-400), var(--color-brand-300) 42%);
+}
+/* Global dark theme: canvas is always dark → always the dark-scene colour. */
+.dark .scene-adaptive-text { color: var(--text-1); }
+.dark .scene-adaptive-text-2 { color: var(--text-2); }
+.dark .scene-adaptive-brand { color: var(--color-brand-400); }
+
 /* ─── Semantic utility classes ───────────────────────────── */
 @utility t-bg        { background-color: var(--page-bg); }
 @utility t-bg-alt    { background-color: var(--page-alt); }
 @utility t-card      { background-color: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
-.dark .t-card        { box-shadow: none; }
+.dark .t-card, .force-dark .t-card { box-shadow: none; }
 @utility t-text      { color: var(--text-1); }
 @utility t-text-2    { color: var(--text-2); }
 @utility t-text-3    { color: var(--text-3); }
@@ -177,12 +287,73 @@
 @utility t-body-lg { font-family: var(--font-sans); font-size: 1.125rem; font-weight: 400; line-height: 1.6; }
 @utility t-caption { font-family: var(--font-sans); font-size: 0.875rem; font-weight: 500; color: var(--text-2); }
 
+/* ─── Scroll-active card emphasis (touch hover stand-in) ──── */
+/* On touch devices `:hover` never fires, so useInViewActive toggles
+   `.is-active` on the card centered in the viewport as you scroll. Below
+   `md` that card gets a light version of its hover emphasis (lift + brand
+   border + elevated shadow); the card's own `transition` animates it, and
+   the global prefers-reduced-motion block neutralises the movement. Desktop
+   (`md+`) is untouched — it keeps real `:hover`. */
+@media (max-width: 767px) {
+  [data-scene-card] {
+    transition: transform 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+  }
+  [data-scene-card].is-active {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+    /* Tighter than --shadow-elevated (which casts ~42px below): sized so the
+       lifted active card's shadow fits inside the rail's vertical padding and
+       is not sliced flat at the scroll-container edge. */
+    box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.28);
+  }
+}
+
+/* ─── Pinned scroll-scrub steps (HowItWorks) ─────────────── */
+/* Sticky-stage offset = sticky nav height (Layout nav is h-20 = 5rem). The
+   stage uses `top-[var(--nav-h)]`. */
+:root { --nav-h: 5rem; }
+/* A pin track that stays tall on ALL viewports (the steps section scrubs on
+   both mobile and desktop via useScrollProgress). */
+.pin-track { height: var(--track-h, auto); }
+/* Hide the scrollbar on the mobile horizontal card rail. */
+.scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ─── Mobile bottom-nav clearance ────────────────────────── */
+/* The fixed MobileBottomNav (--bottom-nav-height + the iOS safe-area
+   inset, with an elevated centre FAB) overlays the bottom of the
+   viewport on mobile. Apply these so page content, sticky CTAs, and
+   the footer clear it instead of hiding behind it. Pair with a md:
+   reset since the nav is md:hidden. */
+@utility pb-bottom-nav {
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 1.5rem);
+}
+@utility bottom-above-nav {
+  bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 1rem);
+}
+/* Sits a sticky bar flush on top of the bottom nav (no breathing gap),
+   so they stack as two bars. When such a bar is translate-y-full to
+   hide, it tucks behind the higher-z nav. */
+@utility bottom-nav-offset {
+  bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+}
+
 /* ─── Global styles ──────────────────────────────────────── */
+:root {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --bottom-nav-height: 76px;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--page-bg);
   color: var(--text-1);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Eliminate 300ms tap delay on iOS */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
 }
 
 html {
@@ -210,3 +381,121 @@ html {
   }
   html { scroll-behavior: auto; }
 }
+
+/* ─── Cinematic landing backdrop ─────────────────────────── */
+/* Landing sections go transparent so the page-level atmosphere
+   (gradient base, floating light pools, film grain) flows through. */
+.cinematic-canvas section { background-color: transparent; }
+
+.cinema-base {
+  background-color: var(--page-bg);
+  background-image:
+    radial-gradient(1100px 520px at 50% -120px, rgba(255, 59, 48, 0.06), transparent 60%),
+    linear-gradient(to bottom, var(--page-alt), var(--page-bg) 28%);
+}
+.dark .cinema-base {
+  background-image:
+    radial-gradient(1100px 520px at 50% -120px, rgba(255, 59, 48, 0.10), transparent 60%),
+    linear-gradient(to bottom, #120606 0%, #000000 28%);
+}
+
+/* Film grain: tiny tiled SVG noise, kept at very low opacity by the layer */
+.cinema-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ─── Pointer FX: registered gradient-position properties ── */
+/* Registering the spotlight/key-light coordinates lets CSS keyframes
+   interpolate them smoothly (unregistered custom properties only swap
+   discretely). Desktop writes px/% values from the pointer; mobile
+   drives the same vars with the drift keyframes below. */
+@property --spot-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --spot-y { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --key-x  { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --key-y  { syntax: '<length-percentage>'; inherits: true; initial-value: 38%; }
+
+@keyframes spot-drift {
+  0%   { --spot-x: 18%; --spot-y: 22%; }
+  33%  { --spot-x: 78%; --spot-y: 34%; }
+  66%  { --spot-x: 32%; --spot-y: 76%; }
+  100% { --spot-x: 70%; --spot-y: 58%; }
+}
+@keyframes key-drift {
+  0%   { --key-x: 28%; --key-y: 30%; }
+  50%  { --key-x: 72%; --key-y: 46%; }
+  100% { --key-x: 40%; --key-y: 62%; }
+}
+@keyframes sheen-sweep {
+  from { transform: translateX(-220%) skewX(-20deg); }
+  to   { transform: translateX(340%) skewX(-20deg); }
+}
+
+/* On mobile the scroll band stands in for the cursor: while a spotlight
+   card is the active card, its glow drifts across the surface. */
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+  :where(.group).is-active .spotlight-layer {
+    animation: spot-drift 8s ease-in-out infinite alternate;
+  }
+}
+
+/* ─── Hero key-light (cursor-tracked / scroll-drifted) ───── */
+/* A large brand key light over the hero. Fine pointers steer it
+   (HeroSection writes --key-x/--key-y on pointermove and it fades in on
+   hover); coarse-pointer devices get a slow autonomous drift instead —
+   colour-only at rest, and the global reduced-motion block freezes the
+   drift to a static glow. */
+.hero-keylight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  background: radial-gradient(
+    640px circle at var(--key-x, 50%) var(--key-y, 38%),
+    rgba(255, 59, 48, 0.14),
+    rgba(249, 115, 22, 0.06) 45%,
+    transparent 72%
+  );
+}
+@media (hover: hover) and (pointer: fine) {
+  .hero-stage:hover .hero-keylight { opacity: 1; }
+}
+@media (hover: none) {
+  .hero-keylight {
+    opacity: 1;
+    animation: key-drift 16s ease-in-out infinite alternate;
+  }
+}
+
+/* ─── CTA sheen sweep ────────────────────────────────────── */
+/* Diagonal glare that sweeps across a primary CTA: on hover for fine
+   pointers, and once when the button enters the scroll band on mobile
+   (useInViewActive adds `.is-active` to `[data-live]` elements). */
+@utility cta-sheen {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 60%;
+    background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+    transform: translateX(-220%) skewX(-20deg);
+    pointer-events: none;
+  }
+}
+@media (hover: hover) {
+  .cta-sheen:hover::after {
+    transition: transform 0.9s ease;
+    transform: translateX(340%) skewX(-20deg);
+  }
+}
+@media (max-width: 767px) {
+  .cta-sheen.is-active::after {
+    animation: sheen-sweep 1.1s ease-out 0.25s both;
+  }
+}
+

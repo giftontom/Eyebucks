@@ -89,15 +89,16 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       const url = URL.createObjectURL(file);
       const video = document.createElement('video');
       video.preload = 'metadata';
-      video.onloadedmetadata = () => {
-        const dur = video.duration;
+      let resolved = false;
+      const done = (dur: number) => {
+        if (resolved) {return;}
+        resolved = true;
         URL.revokeObjectURL(url);
-        resolve(isFinite(dur) ? dur : 0);
+        resolve(dur);
       };
-      video.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(0);
-      };
+      video.onloadedmetadata = () => done(isFinite(video.duration) ? video.duration : 0);
+      video.onerror = () => done(0);
+      setTimeout(() => done(0), 5000); // fallback: don't hang if metadata never loads
       video.src = url;
     });
   };
@@ -256,7 +257,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         <div
           className={`
             relative border-2 border-dashed rounded-lg p-8 text-center transition-colors
-            ${dragActive ? 'border-brand-500 bg-brand-50' : 'border-gray-300'}
+            ${dragActive ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/20' : 't-border'}
             ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-brand-400 cursor-pointer'}
           `}
           onDragEnter={handleDrag}
@@ -275,15 +276,15 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           />
 
           <div className="flex flex-col items-center gap-3">
-            <div className="w-16 h-16 rounded-full bg-brand-100 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
               <Upload className="w-8 h-8 text-brand-600" />
             </div>
 
             <div>
-              <p className="text-lg font-medium text-gray-900">
+              <p className="text-lg font-medium t-text">
                 Drop video here or click to browse
               </p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm t-text-2 mt-1">
                 Supports MP4, MOV, AVI, WebM (max 500MB)
               </p>
             </div>
@@ -292,6 +293,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
               type="button"
               className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
               disabled={disabled}
+              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
             >
               Select Video
             </button>
@@ -301,11 +303,11 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
       {/* Upload Progress */}
       {uploading && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="t-card t-border border rounded-lg p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium t-text">
                 Uploading video... {uploadProgress}%
               </span>
             </div>
@@ -313,21 +315,21 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             <button
               type="button"
               onClick={removeVideo}
-              className="text-gray-400 hover:text-red-600 transition-colors"
+              className="t-text-3 hover:text-red-600 transition-colors"
               title="Cancel upload"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full t-bg-alt rounded-full h-2">
             <div
               className="bg-brand-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
 
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs t-text-2 mt-2">
             Please don't close this window while uploading
           </p>
         </div>
@@ -335,19 +337,19 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
       {/* Video Preview */}
       {videoPreview && !uploading && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="t-card t-border border rounded-lg p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2">
               <Film className="w-5 h-5 text-brand-600" />
               {uploadSuccess ? (
                 <>
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium t-text">
                     Video uploaded successfully
                   </span>
                   <CheckCircle className="w-4 h-4 text-green-500" />
                 </>
               ) : (
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium t-text">
                   Selected video
                 </span>
               )}

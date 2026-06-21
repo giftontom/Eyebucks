@@ -4,8 +4,9 @@
  *
  * Content hierarchy: course -> modules (chapters) -> lessons (video leaf).
  */
-import { supabase } from '../supabase';
 import { logger } from '../../utils/logger';
+import { escapeOrFilter } from '../../utils/supabaseUtils';
+import { supabase } from '../supabase';
 
 import type { Course, Module, Lesson } from '../../types';
 import type { CourseRow, ModuleRow, LessonRow } from '../../types/supabase';
@@ -133,9 +134,62 @@ function mapCourse(row: CourseQueryRow): Course {
   };
 }
 
+export type CourseSort = 'newest' | 'price-asc' | 'price-desc' | 'rating' | 'popular';
+
+export interface GetCoursesOptions {
+  page?: number;
+  pageSize?: number;
+  /** Filter by course type. Omit for all types. */
+  type?: 'BUNDLE' | 'MODULE';
+  /** Case-insensitive search across title + description. */
+  search?: string;
+  /** Minimum rating (1-5). 0 or omitted = no rating filter. */
+  minRating?: number;
+  /** Maximum price in paise. 0 or omitted = no price cap. */
+  maxPrice?: number;
+  /** Sort order. Defaults to 'newest'. */
+  sort?: CourseSort;
+  /** Request the exact filtered total (`count: 'exact'`). Defaults to `true`.
+   *  Pass `false` for card lists that don't paginate (landing sections) — it
+   *  skips a server-side COUNT(*) over the whole filtered set. */
+  withCount?: boolean;
+}
+
+export interface GetCoursesResult {
+  success: boolean;
+  courses: Course[];
+  total: number;
+  hasMore: boolean;
+}
+
+/**
+ * In-flight de-duplication for `getCourses`. The landing mounts several
+ * sections that each call `getCourses` on the same tick; identical option sets
+ * (and accidental re-render refetches) share ONE network round-trip instead of
+ * stacking up. The entry is dropped as soon as the promise settles, so this is
+ * a request collapser, not a stale cache — results are never reused across a
+ * later tick.
+ */
+const inFlightCourses = new Map<string, Promise<GetCoursesResult>>();
+
 export const coursesApi = {
   /**
-   * Fetches all published courses with their chapters/lessons and bundle contents.
+   * Lightweight published-course count via a HEAD request (no rows, no joins,
+   * no bundle resolution). Use this when only the number matters — e.g. the
+   * hero "N+ Courses" stat — instead of fetching a full page just to read
+   * `.total`.
+   */
+  async getCourseCount(): Promise<number> {
+    const { count, error } = await supabase
+      .from('courses')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'PUBLISHED');
+    if (error) { throw new Error(error.message); }
+    return count ?? 0;
+  },
+
+  /**
+   * Fetches published courses with pagination support.
    *
    * For BUNDLE-type courses, performs a two-step query to avoid PostgREST FK-hint
    * ambiguity: first fetches bundle_courses links, then fetches the bundled course details.
@@ -144,18 +198,62 @@ export const coursesApi = {
    *   ordered by `created_at` descending. Each BUNDLE course includes `bundledCourses`.
    * @throws {Error} If the main courses query fails.
    */
-  async getCourses(): Promise<{ success: boolean; courses: Course[] }> {
-    const { data, error } = await supabase
+  getCourses(options: GetCoursesOptions = {}): Promise<GetCoursesResult> {
+    // Collapse concurrent identical calls (several landing sections fetch on
+    // the same tick) into one round-trip.
+    const key = JSON.stringify(options);
+    const pending = inFlightCourses.get(key);
+    if (pending) { return pending; }
+    const promise = coursesApi._getCoursesUncached(options).finally(() => {
+      inFlightCourses.delete(key);
+    });
+    inFlightCourses.set(key, promise);
+    return promise;
+  },
+
+  async _getCoursesUncached(options: GetCoursesOptions = {}): Promise<GetCoursesResult> {
+    const { page = 1, pageSize = 12, type, search, minRating = 0, maxPrice = 0, sort = 'newest', withCount = true } = options;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Map sort option → column + direction.
+    const SORT_COLUMNS: Record<CourseSort, { column: string; ascending: boolean }> = {
+      'newest': { column: 'created_at', ascending: false },
+      'price-asc': { column: 'price', ascending: true },
+      'price-desc': { column: 'price', ascending: false },
+      'rating': { column: 'rating', ascending: false },
+      'popular': { column: 'total_students', ascending: false },
+    };
+    const orderBy = SORT_COLUMNS[sort] ?? SORT_COLUMNS.newest;
+
+    // Card lists only need the module COUNT (chapters?.length), so join just
+    // `modules(id)` — not the full module rows. `withCount` adds the exact
+    // filtered total only when a caller paginates on it.
+    let query = supabase
       .from('courses')
-      .select('*, modules(id, title, order_index, lessons(id))')
-      .eq('status', 'PUBLISHED')
-      .order('created_at', { ascending: false });
+      // Card lists need chapter + lesson COUNTS, so join `modules(id, lessons(id))`.
+      .select('*, modules(id, lessons(id))', withCount ? { count: 'exact' } : undefined)
+      .eq('status', 'PUBLISHED');
+
+    if (type) { query = query.eq('type', type); }
+    if (minRating > 0) { query = query.gte('rating', minRating); }
+    if (maxPrice > 0) { query = query.lte('price', maxPrice); }
+    if (search?.trim()) {
+      const s = escapeOrFilter(search.trim());
+      query = query.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
+    }
+
+    const { data, count, error } = await query
+      .order(orderBy.column, { ascending: orderBy.ascending, nullsFirst: false })
+      .range(from, to);
 
     if (error) {throw new Error(error.message);}
+    const total = withCount ? (count ?? 0) : (data?.length ?? 0);
 
     // The list query joins a lighter module/lesson shape than CourseQueryRow's full
-    // lessons; mapCourse only reads ids/titles/order here, so the cast is sound.
-    const courses = ((data || []) as unknown as CourseQueryRow[]).map(mapCourse);
+    // lessons; mapCourse only reads ids/order here (chapter + lesson counts), cast is sound.
+    const rows = (data || []) as unknown as CourseQueryRow[];
+    const courses = rows.map(mapCourse);
 
     // For BUNDLE courses, fetch bundled course counts (two-step to avoid FK-hint issues)
     const bundleIds = (data || []).filter(c => c.type === 'BUNDLE').map(c => c.id);
@@ -211,7 +309,7 @@ export const coursesApi = {
       }
     }
 
-    return { success: true, courses };
+    return { success: true, courses, total, hasMore: from + pageSize < total };
   },
 
   /**
@@ -242,13 +340,12 @@ export const coursesApi = {
       query = query.eq('id', idOrSlug);
     } else {
       // May be a slug OR a non-UUID string ID (e.g., seed data uses readable IDs like 'c3-cinematography')
-      query = query.or(`slug.eq.${idOrSlug},id.eq.${idOrSlug}`);
+      query = query.or(`slug.eq.${escapeOrFilter(idOrSlug)},id.eq.${escapeOrFilter(idOrSlug)}`);
     }
 
     const { data, error } = await query.single();
 
     if (error) {throw new Error(error.message);}
-    if (!data) {throw new Error('Course not found');}
 
     const course = mapCourse(data as unknown as CourseQueryRow);
 
@@ -310,38 +407,43 @@ export const coursesApi = {
    * @throws {Error} If the modules query fails.
    */
   async getCourseModules(courseId: string): Promise<{ success: boolean; modules: Module[]; hasAccess: boolean }> {
-    const { data, error } = await supabase
-      .from('modules')
-      .select('*, lessons(*)')
-      .eq('course_id', courseId)
-      .order('order_index', { ascending: true });
+    // Parallelize: modules+lessons fetch + auth user lookup run concurrently
+    const [modulesResult, authResult] = await Promise.all([
+      supabase
+        .from('modules')
+        .select('*, lessons(*)')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true }),
+      supabase.auth.getUser(),
+    ]);
 
-    if (error) {throw new Error(error.message);}
+    if (modulesResult.error) {throw new Error(modulesResult.error.message);}
 
     // Check access - RLS handles visibility, but we check enrollment for video URLs
-    const { data: { user } } = await supabase.auth.getUser();
+    const authUser = authResult.data?.user;
     let hasAccess = false;
 
-    if (user) {
-      const { data: enrollment } = await supabase
-        .from('enrollments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('course_id', courseId)
-        .eq('status', 'ACTIVE')
-        .maybeSingle();
+    if (authUser) {
+      // Parallelize enrollment check + role check
+      const [enrollmentResult, profileResult] = await Promise.all([
+        supabase
+          .from('enrollments')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .eq('course_id', courseId)
+          .eq('status', 'ACTIVE')
+          .maybeSingle(),
+        supabase
+          .from('users')
+          .select('role')
+          .eq('id', authUser.id)
+          .maybeSingle(),
+      ]);
 
-      // Check admin
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      hasAccess = !!enrollment || profile?.role === 'ADMIN';
+      hasAccess = !!enrollmentResult.data || profileResult.data?.role === 'ADMIN';
     }
 
-    const modules = (data || []).map(m => mapModule(m as ModuleRow & { lessons?: LessonRow[] }));
+    const modules = (modulesResult.data || []).map(m => mapModule(m as ModuleRow & { lessons?: LessonRow[] }));
 
     // Redact video URLs and GUIDs on locked lessons for non-enrolled users
     if (!hasAccess) {
@@ -357,6 +459,7 @@ export const coursesApi = {
 
     return { success: true, modules, hasAccess };
   },
+
 
   /**
    * Fetches lightweight course data for a batch of course IDs.

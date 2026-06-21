@@ -1,0 +1,148 @@
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/services/api/courses.api.ts	2026-06-06 01:38:48
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/perf-cards/services/api/courses.api.ts	2026-06-14 08:43:52
+@@ -120,6 +120,10 @@
+   maxPrice?: number;
+   /** Sort order. Defaults to 'newest'. */
+   sort?: CourseSort;
++  /** Request the exact filtered total (`count: 'exact'`). Defaults to `true`.
++   *  Pass `false` for card lists that don't paginate (landing sections) — it
++   *  skips a server-side COUNT(*) over the whole filtered set. */
++  withCount?: boolean;
+ }
+ 
+ export interface GetCoursesResult {
+@@ -129,8 +133,33 @@
+   hasMore: boolean;
+ }
+ 
++/**
++ * In-flight de-duplication for `getCourses`. The landing mounts several
++ * sections that each call `getCourses` on the same tick; identical option sets
++ * (and accidental re-render refetches) share ONE network round-trip instead of
++ * stacking up. The entry is dropped as soon as the promise settles, so this is
++ * a request collapser, not a stale cache — results are never reused across a
++ * later tick.
++ */
++const inFlightCourses = new Map<string, Promise<GetCoursesResult>>();
++
+ export const coursesApi = {
+   /**
++   * Lightweight published-course count via a HEAD request (no rows, no joins,
++   * no bundle resolution). Use this when only the number matters — e.g. the
++   * hero "N+ Courses" stat — instead of fetching a full page just to read
++   * `.total`.
++   */
++  async getCourseCount(): Promise<number> {
++    const { count, error } = await supabase
++      .from('courses')
++      .select('id', { count: 'exact', head: true })
++      .eq('status', 'PUBLISHED');
++    if (error) { throw new Error(error.message); }
++    return count ?? 0;
++  },
++
++  /**
+    * Fetches published courses with pagination support.
+    *
+    * For BUNDLE-type courses, performs a two-step query to avoid PostgREST FK-hint
+@@ -146,8 +175,21 @@
+    * const bundles = courses.filter(c => c.type === 'BUNDLE');
+    * ```
+    */
+-  async getCourses(options: GetCoursesOptions = {}): Promise<GetCoursesResult> {
+-    const { page = 1, pageSize = 12, type, search, minRating = 0, maxPrice = 0, sort = 'newest' } = options;
++  getCourses(options: GetCoursesOptions = {}): Promise<GetCoursesResult> {
++    // Collapse concurrent identical calls (several landing sections fetch on
++    // the same tick) into one round-trip.
++    const key = JSON.stringify(options);
++    const pending = inFlightCourses.get(key);
++    if (pending) { return pending; }
++    const promise = coursesApi._getCoursesUncached(options).finally(() => {
++      inFlightCourses.delete(key);
++    });
++    inFlightCourses.set(key, promise);
++    return promise;
++  },
++
++  async _getCoursesUncached(options: GetCoursesOptions = {}): Promise<GetCoursesResult> {
++    const { page = 1, pageSize = 12, type, search, minRating = 0, maxPrice = 0, sort = 'newest', withCount = true } = options;
+     const from = (page - 1) * pageSize;
+     const to = from + pageSize - 1;
+ 
+@@ -161,11 +203,12 @@
+     };
+     const orderBy = SORT_COLUMNS[sort] ?? SORT_COLUMNS.newest;
+ 
+-    // Single query returns the paginated page AND the exact filtered total (count
+-    // honours the filters but ignores `.range()`), so the two never drift apart.
++    // Card lists only need the module COUNT (chapters?.length), so join just
++    // `modules(id)` — not the full module rows. `withCount` adds the exact
++    // filtered total only when a caller paginates on it.
+     let query = supabase
+       .from('courses')
+-      .select('*, modules(id, title, duration, duration_seconds, video_url, is_free_preview, order_index)', { count: 'exact' })
++      .select('*, modules(id)', withCount ? { count: 'exact' } : undefined)
+       .eq('status', 'PUBLISHED');
+ 
+     if (type) { query = query.eq('type', type); }
+@@ -181,9 +224,13 @@
+       .range(from, to);
+ 
+     if (error) {throw new Error(error.message);}
+-    const total = count ?? 0;
++    const total = withCount ? (count ?? 0) : (data?.length ?? 0);
+ 
+-    const courses = (data || []).map(mapCourse);
++    // The list query joins only `modules(id)`, so the inferred module shape is
++    // narrower than CourseQueryRow's full module — mapCourse only reads ids
++    // here (chapters?.length), so the cast is sound.
++    const rows = (data || []) as unknown as CourseQueryRow[];
++    const courses = rows.map(mapCourse);
+ 
+     // For BUNDLE courses, fetch bundled course counts (two-step to avoid FK-hint issues)
+     const bundleIds = (data || []).filter(c => c.type === 'BUNDLE').map(c => c.id);
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/HeroSection.tsx	2026-06-13 10:46:33
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/perf-cards/components/sections/HeroSection.tsx	2026-06-14 08:42:10
+@@ -18,8 +18,8 @@
+   const parallaxOffset = useScrollParallax(sectionRef, { maxOffset: 40, factor: 0.18 });
+ 
+   useEffect(() => {
+-    coursesApi.getCourses({ page: 1, pageSize: 1 })
+-      .then(res => { if (res.total > 0) {setCourseCount(res.total);} })
++    coursesApi.getCourseCount()
++      .then(count => { if (count > 0) {setCourseCount(count);} })
+       .catch(err => logger.warn('[HeroSection] Failed to load course count:', err));
+   }, []);
+ 
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/FeaturedCoursesSection.tsx	2026-06-13 07:34:53
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/perf-cards/components/sections/FeaturedCoursesSection.tsx	2026-06-14 08:42:22
+@@ -20,7 +20,7 @@
+   const [hasError, setHasError] = useState(false);
+ 
+   useEffect(() => {
+-    coursesApi.getCourses({ page: 1, pageSize: FEATURED_COUNT })
++    coursesApi.getCourses({ page: 1, pageSize: FEATURED_COUNT, withCount: false })
+       .then(res => {
+         setCourses(res.courses);
+         setHasError(false);
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/PricingSection.tsx	2026-06-14 07:46:23
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/perf-cards/components/sections/PricingSection.tsx	2026-06-14 08:42:24
+@@ -193,7 +193,7 @@
+ 
+   useEffect(() => {
+     Promise.all([
+-      coursesApi.getCourses({ page: 1, pageSize: 50 }),
++      coursesApi.getCourses({ page: 1, pageSize: 50, withCount: false }),
+     ])
+       .then(([res]) => {
+         const courses = res.courses;
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/src/__tests__/pages/Storefront.test.tsx	2026-05-18 11:26:21
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/perf-cards/src/__tests__/pages/Storefront.test.tsx	2026-06-14 08:47:16
+@@ -19,6 +19,7 @@
+   },
+   coursesApi: {
+     getCourses: vi.fn().mockResolvedValue({ courses: [], total: 0 }),
++    getCourseCount: vi.fn().mockResolvedValue(0),
+     getCourseModules: vi.fn().mockResolvedValue({ modules: [], hasAccess: false, success: true }),
+   },
+ }));

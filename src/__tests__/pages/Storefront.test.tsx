@@ -2,8 +2,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { HashRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 
-import { createMockCourse } from '../helpers/mockProviders';
-
 // Mock useAuth
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({
@@ -16,15 +14,15 @@ vi.mock('../../../context/AuthContext', () => ({
 
 // Mock API modules
 vi.mock('../../../services/api', () => ({
-  coursesApi: {
-    getCourses: vi.fn(),
-  },
   siteContentApi: {
     getBySection: vi.fn().mockResolvedValue([]),
   },
+  coursesApi: {
+    getCourses: vi.fn().mockResolvedValue({ courses: [], total: 0 }),
+    getCourseCount: vi.fn().mockResolvedValue(0),
+    getCourseModules: vi.fn().mockResolvedValue({ modules: [], hasAccess: false, success: true }),
+  },
 }));
-
-import { coursesApi } from '../../../services/api';
 
 let Storefront: any;
 beforeAll(async () => {
@@ -32,7 +30,7 @@ beforeAll(async () => {
   Storefront = mod.Storefront || mod.default;
 });
 
-describe('Storefront', () => {
+describe('Storefront (Landing Page)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -45,35 +43,31 @@ describe('Storefront', () => {
     );
   };
 
-  it('should fetch and display courses', async () => {
-    const mockCourses = [
-      createMockCourse({ id: 'course-1', title: 'React Masterclass' }),
-      createMockCourse({ id: 'course-2', title: 'Node.js Fundamentals' }),
-    ];
-
-    (coursesApi.getCourses as any).mockResolvedValueOnce({
-      success: true,
-      courses: mockCourses,
-    });
-
+  it('should render the hero section with headline', async () => {
     renderStorefront();
 
     await waitFor(() => {
-      expect(screen.getByText('React Masterclass')).toBeInTheDocument();
+      expect(screen.getByText('Master the Craft')).toBeInTheDocument();
     });
-
-    expect(screen.getByText('Node.js Fundamentals')).toBeInTheDocument();
+    expect(screen.getByText('of Filmmaking.')).toBeInTheDocument();
   });
 
-  it('should handle API errors gracefully', async () => {
-    (coursesApi.getCourses as any).mockRejectedValueOnce(
-      new Error('Failed to fetch courses')
-    );
-
+  it('should render closing section with FAQ accordion', async () => {
     renderStorefront();
 
     await waitFor(() => {
-      expect(document.body).toBeTruthy();
+      expect(screen.getByText('Questions, answered. Then start shooting.')).toBeInTheDocument();
     });
+    // First default FAQ question is rendered in the accordion
+    expect(screen.getByText('Do I need expensive gear to start?')).toBeInTheDocument();
+  });
+
+  it('should render final CTA card', async () => {
+    renderStorefront();
+
+    await waitFor(() => {
+      expect(screen.getByText('Start today.')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /get full access/i })).toBeInTheDocument();
   });
 });

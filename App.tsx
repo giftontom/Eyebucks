@@ -4,7 +4,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
+import { LoadingState } from './components/states/LoadingState';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ScrollToTop } from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 const Storefront = lazy(() => import('./pages/Storefront').then(m => ({ default: m.Storefront })));
@@ -24,12 +26,9 @@ const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Pro
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })));
 const About = lazy(() => import('./pages/About').then(m => ({ default: m.About })));
 const Contact = lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
+const VerifyCertificate = lazy(() => import('./pages/VerifyCertificate').then(m => ({ default: m.VerifyCertificate })));
 
-const PageLoader: React.FC = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+const PageLoader: React.FC = () => <LoadingState variant="fullscreen" size="sm" message="" />;
 
 const App: React.FC = () => {
   return (
@@ -38,6 +37,7 @@ const App: React.FC = () => {
       <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Layout>
             <Routes>
               {/* Public Routes */}
@@ -49,6 +49,8 @@ const App: React.FC = () => {
               <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
               <Route path="/about" element={<Suspense fallback={<PageLoader />}><About /></Suspense>} />
               <Route path="/contact" element={<Suspense fallback={<PageLoader />}><Contact /></Suspense>} />
+              <Route path="/verify" element={<Suspense fallback={<PageLoader />}><VerifyCertificate /></Suspense>} />
+              <Route path="/verify/:certificateNumber" element={<Suspense fallback={<PageLoader />}><VerifyCertificate /></Suspense>} />
 
               {/* Protected Routes - Require Authentication (lazy-loaded) */}
               <Route

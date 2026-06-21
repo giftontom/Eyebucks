@@ -1,0 +1,642 @@
+- generic [ref=e3]:
+  - link "Skip to main content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - navigation "Main navigation" [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - link "Eyebuckz Home" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - img "Eyebuckz" [ref=e10]
+        - menubar [ref=e12]:
+          - menuitem "All Courses" [ref=e13] [cursor=pointer]
+          - menuitem "Visit our YouTube channel" [ref=e14] [cursor=pointer]: YouTube
+      - generic [ref=e17]:
+        - button "Switch to dark mode" [ref=e18]:
+          - img [ref=e19]
+        - button "Login or sign up to start learning" [ref=e21]: Start Learning
+  - main [ref=e22]:
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - generic [ref=e83]:
+          - generic [ref=e84]: New Cohort Starting Soon
+          - heading "Master the Craft of Filmmaking." [level=1] [ref=e88]:
+            - text: Master the Craft
+            - text: of Filmmaking.
+          - paragraph [ref=e89]: Professional courses, raw assets, and a community of working creators. Everything you need to go from beginner to full-time filmmaker.
+          - generic [ref=e90]:
+            - button "Start Learning" [ref=e91]:
+              - text: Start Learning
+              - img [ref=e92]
+            - button "See Courses" [ref=e94]:
+              - img [ref=e95]
+              - text: See Courses
+          - region "Featured courses" [ref=e98]:
+            - generic [ref=e99]:
+              - generic:
+                - img "Masterclass Series"
+                - generic: Masterclass Series
+              - generic [ref=e100]:
+                - img "Expert-Led Courses" [ref=e101]
+                - generic [ref=e103]: Expert-Led Courses
+              - generic:
+                - img "Behind the Lens"
+                - generic: Behind the Lens
+              - generic:
+                - img "Professional Workflow"
+                - generic: Professional Workflow
+            - button "Go to previous slide (2 of 4)" [ref=e104]:
+              - img [ref=e105]
+            - button "Go to next slide (2 of 4)" [ref=e107]:
+              - img [ref=e108]
+            - generic [ref=e110]:
+              - button "Go to slide 1 of 4" [ref=e111]
+              - button "Go to slide 2 of 4" [ref=e112]
+              - button "Go to slide 3 of 4" [ref=e113]
+              - button "Go to slide 4 of 4" [ref=e114]
+          - generic [ref=e115]:
+            - generic [ref=e116]:
+              - img [ref=e117]
+              - generic [ref=e120]: 5+ Courses
+            - generic [ref=e121]:
+              - img [ref=e122]
+              - text: Lifetime Access
+            - generic [ref=e125]:
+              - img [ref=e126]
+              - text: Certificate Included
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - img [ref=e135]
+            - text: 10,000+ Students
+          - generic [ref=e140]: /
+          - generic [ref=e141]:
+            - img [ref=e142]
+            - text: "Creators & Influencers Academy #1"
+          - generic [ref=e148]: /
+          - generic [ref=e149]:
+            - img [ref=e150]
+            - text: 50+ Countries
+          - generic [ref=e153]: /
+          - generic [ref=e154]:
+            - img [ref=e155]
+            - text: 10,000+ Students
+          - generic [ref=e160]: /
+          - generic [ref=e161]:
+            - img [ref=e162]
+            - text: "Creators & Influencers Academy #1"
+          - generic [ref=e168]: /
+          - generic [ref=e169]:
+            - img [ref=e170]
+            - text: 50+ Countries
+          - generic [ref=e173]: /
+          - generic [ref=e174]:
+            - img [ref=e175]
+            - text: 10,000+ Students
+          - generic [ref=e180]: /
+          - generic [ref=e181]:
+            - img [ref=e182]
+            - text: "Creators & Influencers Academy #1"
+          - generic [ref=e188]: /
+          - generic [ref=e189]:
+            - img [ref=e190]
+            - text: 50+ Countries
+          - generic [ref=e193]: /
+          - generic [ref=e194]:
+            - img [ref=e195]
+            - text: 10,000+ Students
+          - generic [ref=e200]: /
+          - generic [ref=e201]:
+            - img [ref=e202]
+            - text: "Creators & Influencers Academy #1"
+          - generic [ref=e208]: /
+          - generic [ref=e209]:
+            - img [ref=e210]
+            - text: 50+ Countries
+          - generic [ref=e213]: /
+          - generic [ref=e214]:
+            - img [ref=e215]
+            - text: 10,000+ Students
+          - generic [ref=e220]: /
+          - generic [ref=e221]:
+            - img [ref=e222]
+            - text: "Creators & Influencers Academy #1"
+          - generic [ref=e228]: /
+          - generic [ref=e229]:
+            - img [ref=e230]
+            - text: 50+ Countries
+          - generic [ref=e233]: /
+          - generic [ref=e234]:
+            - img [ref=e235]
+            - text: 10,000+ Students
+          - generic [ref=e240]: /
+          - generic [ref=e241]:
+            - img [ref=e242]
+            - text: "Creators & Influencers Academy #1"
+          - generic [ref=e248]: /
+          - generic [ref=e249]:
+            - img [ref=e250]
+            - text: 50+ Countries
+          - generic [ref=e253]: /
+      - generic [ref=e255]:
+        - generic [ref=e257]:
+          - generic [ref=e258]:
+            - generic [ref=e259]: Top Courses
+            - heading "Start Your Journey." [level=2] [ref=e260]
+            - paragraph [ref=e261]: Our most popular courses, handpicked by thousands of creators.
+          - button "View All Courses" [ref=e262]:
+            - text: View All Courses
+            - img [ref=e263]
+        - generic [ref=e265]:
+          - generic [ref=e267]:
+            - link "Test sha MODULE New Save to wishlist Preview Course" [ref=e268] [cursor=pointer]:
+              - /url: /course/cfb5c900-a5d3-4da7-ba75-911d45eb87de
+              - img "Test sha" [ref=e269]:
+                - img [ref=e270]
+              - generic [ref=e276]:
+                - generic [ref=e277]: MODULE
+                - generic [ref=e278]: New
+              - button "Save to wishlist" [ref=e280]:
+                - img [ref=e281]
+              - generic [ref=e284]:
+                - img [ref=e286]
+                - generic [ref=e288]: Preview Course
+            - generic [ref=e289]:
+              - generic [ref=e290]:
+                - generic [ref=e291]:
+                  - img [ref=e292]
+                  - text: "0"
+                - generic [ref=e297]:
+                  - img [ref=e298]
+                  - text: "2"
+              - link "Test sha jj" [ref=e303] [cursor=pointer]:
+                - /url: /course/cfb5c900-a5d3-4da7-ba75-911d45eb87de
+                - heading "Test sha" [level=3] [ref=e304]
+                - paragraph [ref=e305]: jj
+              - generic [ref=e306]:
+                - generic [ref=e308]: ₹999
+                - link "View" [ref=e309] [cursor=pointer]:
+                  - /url: /course/cfb5c900-a5d3-4da7-ba75-911d45eb87de
+                  - generic [ref=e310]: View
+                  - img [ref=e311]
+          - generic [ref=e314]:
+            - link "Complete Content Creation Masterclass MODULE Save to wishlist Preview Course" [ref=e315] [cursor=pointer]:
+              - /url: /course/c1-masterclass
+              - img "Complete Content Creation Masterclass" [ref=e316]
+              - generic [ref=e319]: MODULE
+              - button "Save to wishlist" [ref=e321]:
+                - img [ref=e322]
+              - generic [ref=e325]:
+                - img [ref=e327]
+                - generic [ref=e329]: Preview Course
+            - generic [ref=e330]:
+              - generic [ref=e331]:
+                - generic [ref=e332]:
+                  - img [ref=e333]
+                  - generic [ref=e335]: "5.0"
+                - generic [ref=e336]:
+                  - img [ref=e337]
+                  - text: "4200"
+                - generic [ref=e342]:
+                  - img [ref=e343]
+                  - text: "8"
+              - link "Complete Content Creation Masterclass A step-by-step content creation masterclass that covers the complete workflow—from generating strong ideas and planning content to shooting, editing, posting, and growing across digital platforms. Designed to bring clarity, consistency, and direction to the content creation process." [ref=e348] [cursor=pointer]:
+                - /url: /course/c1-masterclass
+                - heading "Complete Content Creation Masterclass" [level=3] [ref=e349]
+                - paragraph [ref=e350]: A step-by-step content creation masterclass that covers the complete workflow—from generating strong ideas and planning content to shooting, editing, posting, and growing across digital platforms. Designed to bring clarity, consistency, and direction to the content creation process.
+              - generic [ref=e351]:
+                - generic [ref=e353]: ₹150
+                - link "View" [ref=e354] [cursor=pointer]:
+                  - /url: /course/c1-masterclass
+                  - generic [ref=e355]: View
+                  - img [ref=e356]
+          - generic [ref=e359]:
+            - link "Content Selection & Engaging Scripts BUNDLE Best Value Save to wishlist Preview Course" [ref=e360] [cursor=pointer]:
+              - /url: /course/c2-scripting
+              - img "Content Selection & Engaging Scripts" [ref=e361]
+              - generic [ref=e363]:
+                - generic [ref=e364]: BUNDLE
+                - generic [ref=e365]: Best Value
+              - button "Save to wishlist" [ref=e367]:
+                - img [ref=e368]
+              - generic [ref=e371]:
+                - img [ref=e373]
+                - generic [ref=e375]: Preview Course
+            - generic [ref=e376]:
+              - generic [ref=e377]:
+                - generic [ref=e378]:
+                  - img [ref=e379]
+                  - text: "0"
+                - generic [ref=e384]:
+                  - img [ref=e385]
+                  - text: "3"
+              - link "Content Selection & Engaging Scripts Learn how to identify viral topics and write scripts that hook viewers instantly. Master the pre-production phase." [ref=e389] [cursor=pointer]:
+                - /url: /course/c2-scripting
+                - heading "Content Selection & Engaging Scripts" [level=3] [ref=e390]
+                - paragraph [ref=e391]: Learn how to identify viral topics and write scripts that hook viewers instantly. Master the pre-production phase.
+              - generic [ref=e392]:
+                - generic [ref=e394]: ₹35
+                - link "View" [ref=e395] [cursor=pointer]:
+                  - /url: /course/c2-scripting
+                  - generic [ref=e396]: View
+                  - img [ref=e397]
+          - generic [ref=e400]:
+            - 'link "Shooting: Fundamentals of Cinematography MODULE Save to wishlist Preview Course" [ref=e401] [cursor=pointer]':
+              - /url: /course/c3-cinematography
+              - 'img "Shooting: Fundamentals of Cinematography" [ref=e402]'
+              - generic [ref=e405]: MODULE
+              - button "Save to wishlist" [ref=e407]:
+                - img [ref=e408]
+              - generic [ref=e411]:
+                - img [ref=e413]
+                - generic [ref=e415]: Preview Course
+            - generic [ref=e416]:
+              - generic [ref=e417]:
+                - generic [ref=e418]:
+                  - img [ref=e419]
+                  - text: "0"
+                - generic [ref=e424]:
+                  - img [ref=e425]
+                  - text: "5"
+              - 'link "Shooting: Fundamentals of Cinematography Move beyond auto mode. Understand lighting, composition, and camera settings to create cinematic footage on any device." [ref=e430] [cursor=pointer]':
+                - /url: /course/c3-cinematography
+                - 'heading "Shooting: Fundamentals of Cinematography" [level=3] [ref=e431]'
+                - paragraph [ref=e432]: Move beyond auto mode. Understand lighting, composition, and camera settings to create cinematic footage on any device.
+              - generic [ref=e433]:
+                - generic [ref=e435]: ₹3,999
+                - link "View" [ref=e436] [cursor=pointer]:
+                  - /url: /course/c3-cinematography
+                  - generic [ref=e437]: View
+                  - img [ref=e438]
+      - generic [ref=e441]:
+        - generic [ref=e443]:
+          - generic [ref=e444]: How It Works
+          - heading "Your Path to Pro Filmmaker." [level=2] [ref=e445]
+          - paragraph [ref=e446]: Three simple steps from where you are now to where you want to be.
+        - generic [ref=e448]:
+          - tablist "How it works steps" [ref=e449]:
+            - 'tab "Step 01: Browse Courses" [ref=e450]':
+              - img [ref=e451]
+            - 'tab "Step 02: Enroll & Pay" [selected] [ref=e455]':
+              - img [ref=e456]
+            - 'tab "Step 03: Learn & Get Certified" [ref=e460]':
+              - img [ref=e461]
+          - tabpanel [ref=e464]:
+            - generic: "02"
+            - generic [ref=e465]:
+              - img [ref=e467]
+              - generic [ref=e469]:
+                - paragraph [ref=e470]: Step 02 / 03
+                - heading "Enroll & Pay" [level=3] [ref=e471]
+                - paragraph [ref=e472]: Secure checkout via Razorpay. Instant access after payment. 30-day money-back guarantee if you're not satisfied.
+      - generic [ref=e474]:
+        - generic [ref=e476]:
+          - generic [ref=e477]: Why Eyebuckz
+          - heading "Built for creators who mean it." [level=2] [ref=e478]
+          - paragraph [ref=e479]: More than courses. A complete production toolkit — taught by people who work the camera, not the textbook.
+        - generic [ref=e480]:
+          - generic [ref=e482]:
+            - img [ref=e484]
+            - heading "Practical Learning" [level=3] [ref=e486]
+            - paragraph [ref=e487]: Hands-on projects with professional raw footage. No theory-only lectures — you build real portfolio pieces.
+            - list [ref=e488]:
+              - listitem [ref=e489]:
+                - img [ref=e490]
+                - generic [ref=e492]: 50+ structured courses
+              - listitem [ref=e493]:
+                - img [ref=e494]
+                - generic [ref=e496]: 6K RAW footage included
+              - listitem [ref=e497]:
+                - img [ref=e498]
+                - generic [ref=e500]: Real client briefs
+          - generic [ref=e502]:
+            - img [ref=e504]
+            - heading "Industry Experts" [level=3] [ref=e507]
+            - paragraph [ref=e508]: Learn from working professionals who shoot for major brands. Insider techniques and workflows.
+            - list [ref=e509]:
+              - listitem [ref=e510]:
+                - img [ref=e511]
+                - generic [ref=e513]: Working DPs & colorists
+              - listitem [ref=e514]:
+                - img [ref=e515]
+                - generic [ref=e517]: Brand-shoot case studies
+              - listitem [ref=e518]:
+                - img [ref=e519]
+                - generic [ref=e521]: Live Q&A sessions
+          - generic [ref=e523]:
+            - img [ref=e525]
+            - heading "Creator Toolkit" [level=3] [ref=e531]
+            - paragraph [ref=e532]: "Everything you need to ship: LUTs, contract templates, business presets, and a working community."
+            - list [ref=e533]:
+              - listitem [ref=e534]:
+                - img [ref=e535]
+                - generic [ref=e537]: 1000+ assets & LUTs
+              - listitem [ref=e538]:
+                - img [ref=e539]
+                - generic [ref=e541]: Pricing & contract templates
+              - listitem [ref=e542]:
+                - img [ref=e543]
+                - generic [ref=e545]: Private Discord access
+        - link "Browse the full catalog" [ref=e548] [cursor=pointer]:
+          - /url: /courses
+          - text: Browse the full catalog
+          - img [ref=e549]
+      - generic [ref=e552]:
+        - generic [ref=e554]:
+          - generic [ref=e555]: Meet Your Instructors
+          - heading "Learn From Working Pros." [level=2] [ref=e556]
+          - paragraph [ref=e557]: Not YouTube theorists. These are filmmakers who shoot, grade, and deliver for paying clients every week.
+        - generic [ref=e558]:
+          - article [ref=e560]:
+            - generic [ref=e561]:
+              - img "Shahul Ameen" [ref=e562]
+              - generic [ref=e563]: Rec
+            - generic [ref=e567]:
+              - generic [ref=e568]: Cam 01 · 24 fps
+              - generic [ref=e569]: 00:00:00:15
+            - generic [ref=e570]:
+              - heading "Shahul Ameen" [level=3] [ref=e571]
+              - paragraph [ref=e573]: Colorist & Post-Production Lead
+              - paragraph [ref=e574]: Specialist in DaVinci Resolve node-based workflows. Graded feature films and 100+ commercial projects.
+          - article [ref=e576]:
+            - generic [ref=e577]:
+              - img "Shabeeb" [ref=e578]
+              - generic [ref=e579]: Rec
+            - generic [ref=e583]:
+              - generic [ref=e584]: Cam 02 · 24 fps
+              - generic [ref=e585]: 00:00:00:16
+            - generic [ref=e586]:
+              - heading "Shabeeb" [level=3] [ref=e587]
+              - paragraph [ref=e589]: Content Creator & Business Mentor
+              - paragraph [ref=e590]: "Full-time creator monetizing YouTube and Instagram. Teaches the business side: brand deals, contracts, and pricing."
+      - generic [ref=e592]:
+        - generic [ref=e594]:
+          - generic [ref=e595]: Real Students. Real Results.
+          - heading "You won't learn alone." [level=2] [ref=e596]
+          - paragraph [ref=e597]: A private community of working creators — feedback every week, real paid gigs, and people who'll push you forward.
+        - generic [ref=e598]:
+          - figure "M Marcus Chen" [ref=e600]:
+            - generic: ”
+            - generic "5 out of 5 stars" [ref=e602]:
+              - img [ref=e603]
+              - img [ref=e605]
+              - img [ref=e607]
+              - img [ref=e609]
+              - img [ref=e611]
+            - blockquote [ref=e613]: “I was stuck charging ₹15k per video. After the 'Business of Filmmaking' module, I landed my first ₹1.5L commercial client. The contract templates alone are worth the price.”
+            - generic [ref=e614]:
+              - generic [ref=e615]: M
+              - generic [ref=e616]:
+                - paragraph [ref=e617]: Marcus Chen
+                - paragraph
+          - figure "S Sarah Williams" [ref=e619]:
+            - generic: ”
+            - generic "5 out of 5 stars" [ref=e621]:
+              - img [ref=e622]
+              - img [ref=e624]
+              - img [ref=e626]
+              - img [ref=e628]
+              - img [ref=e630]
+            - blockquote [ref=e632]: “YouTube tutorials are fragmented. Eyebuckz gave me a roadmap. I stopped guessing if my lighting was right—now I know it is.”
+            - generic [ref=e633]:
+              - generic [ref=e634]: S
+              - generic [ref=e635]:
+                - paragraph [ref=e636]: Sarah Williams
+                - paragraph
+          - figure "D David Okonjo" [ref=e638]:
+            - generic: ”
+            - generic "5 out of 5 stars" [ref=e640]:
+              - img [ref=e641]
+              - img [ref=e643]
+              - img [ref=e645]
+              - img [ref=e647]
+              - img [ref=e649]
+            - blockquote [ref=e651]: “The DaVinci Resolve masterclass is insane. The node structures provided have saved me hours on every project.”
+            - generic [ref=e652]:
+              - generic [ref=e653]: D
+              - generic [ref=e654]:
+                - paragraph [ref=e655]: David Okonjo
+                - paragraph
+        - generic [ref=e658]:
+          - generic [ref=e659]:
+            - generic [ref=e660]:
+              - img [ref=e662]
+              - generic [ref=e667]:
+                - paragraph [ref=e668]:
+                  - generic [ref=e669]: 0+
+                - paragraph [ref=e670]: Active Members
+            - generic [ref=e671]:
+              - img [ref=e673]
+              - generic [ref=e675]:
+                - paragraph [ref=e676]:
+                  - generic [ref=e677]: 0k+
+                - paragraph [ref=e678]: Messages / Month
+            - generic [ref=e679]:
+              - img [ref=e681]
+              - generic [ref=e684]:
+                - paragraph [ref=e685]:
+                  - generic [ref=e686]: 0+
+                - paragraph [ref=e687]: Work Reviews
+            - generic [ref=e688]:
+              - img [ref=e690]
+              - generic [ref=e692]:
+                - paragraph [ref=e693]:
+                  - generic [ref=e694]: 0h
+                - paragraph [ref=e695]: Avg Response
+          - generic [ref=e696]:
+            - generic [ref=e697]: Live community
+            - heading "Join the Discord" [level=3] [ref=e701]
+            - paragraph [ref=e702]: Weekly work reviews, live Q&A with working filmmakers, and a job board that's already changed careers.
+            - link "Join the community" [ref=e703] [cursor=pointer]:
+              - /url: https://discord.gg/eyebuckz
+              - img [ref=e704]
+              - text: Join the community
+              - img [ref=e706]
+            - paragraph [ref=e708]: Free with any course enrollment.
+      - generic [ref=e710]:
+        - generic [ref=e712]:
+          - generic [ref=e713]: Simple Pricing
+          - heading "Invest in Your Craft." [level=2] [ref=e714]
+          - paragraph [ref=e715]: One-time payment. Lifetime access. No subscriptions, no recurring fees.
+        - generic [ref=e716]:
+          - generic [ref=e719]:
+            - generic [ref=e720]:
+              - generic [ref=e721]: Admit One
+              - generic [ref=e722]: No. 001
+            - generic [ref=e723]:
+              - heading "Individual Course" [level=3] [ref=e724]
+              - paragraph [ref=e725]: Single course, lifetime access
+            - generic [ref=e726]:
+              - generic [ref=e727]:
+                - generic [ref=e728]: ₹2,287
+                - generic [ref=e729]: ₹3,430
+              - paragraph [ref=e730]: One-time payment · No subscription
+            - generic [ref=e733]: SAVE 33%
+            - list [ref=e735]:
+              - listitem [ref=e736]:
+                - img [ref=e737]
+                - text: Full course curriculum
+              - listitem [ref=e739]:
+                - img [ref=e740]
+                - text: Downloadable assets & RAW footage
+              - listitem [ref=e742]:
+                - img [ref=e743]
+                - text: Certificate of completion
+              - listitem [ref=e745]:
+                - img [ref=e746]
+                - text: Lifetime access
+              - listitem [ref=e748]:
+                - img [ref=e749]
+                - text: Community Discord
+            - button "Browse Courses" [ref=e751]:
+              - text: Browse Courses
+              - img [ref=e752]
+          - generic [ref=e755]:
+            - generic [ref=e756]: Most Popular
+            - generic [ref=e757]:
+              - generic [ref=e758]:
+                - generic [ref=e759]: Admit One
+                - generic [ref=e760]: No. 002
+              - generic [ref=e761]:
+                - heading "Bundle" [level=3] [ref=e762]
+                - paragraph [ref=e763]: Multiple courses at a discount
+              - generic [ref=e764]:
+                - generic [ref=e765]:
+                  - generic [ref=e766]: ₹35
+                  - generic [ref=e767]: ₹70
+                - paragraph [ref=e768]: One-time payment · No subscription
+              - generic [ref=e771]: SAVE 50%
+              - list [ref=e773]:
+                - listitem [ref=e774]:
+                  - img [ref=e775]
+                  - text: 3–5 curated courses
+                - listitem [ref=e777]:
+                  - img [ref=e778]
+                  - text: All individual course benefits
+                - listitem [ref=e780]:
+                  - img [ref=e781]
+                  - text: Bonus business modules
+                - listitem [ref=e783]:
+                  - img [ref=e784]
+                  - text: Priority community feedback
+                - listitem [ref=e786]:
+                  - img [ref=e787]
+                  - text: Bundle-exclusive assets
+              - button "View Bundles" [ref=e789]:
+                - text: View Bundles
+                - img [ref=e790]
+        - generic [ref=e793]:
+          - generic [ref=e794]:
+            - img [ref=e795]
+            - text: Secure Razorpay checkout
+          - generic [ref=e798]:
+            - img [ref=e799]
+            - text: Instant access after payment
+          - generic [ref=e801]:
+            - img [ref=e802]
+            - text: Certificate of completion
+      - generic [ref=e806]:
+        - generic [ref=e808]:
+          - generic [ref=e809]: Ready when you are
+          - heading "Questions, answered. Then start shooting." [level=2] [ref=e810]
+        - generic [ref=e811]:
+          - generic [ref=e812]:
+            - generic [ref=e814]:
+              - button "Do I need expensive gear to start?" [expanded] [ref=e815]:
+                - heading "Do I need expensive gear to start?" [level=3] [ref=e816]
+                - img [ref=e818]
+              - generic [ref=e821]: Absolutely not. We have dedicated modules for smartphone filmmaking and budget DSLRs. The principles of lighting and composition apply regardless of the camera.
+            - button "Is this suitable for complete beginners?" [ref=e824]:
+              - heading "Is this suitable for complete beginners?" [level=3] [ref=e825]
+              - img [ref=e827]
+            - button "Do I get access to the raw footage?" [ref=e830]:
+              - heading "Do I get access to the raw footage?" [level=3] [ref=e831]
+              - img [ref=e833]
+            - button "How does the community feedback work?" [ref=e836]:
+              - heading "How does the community feedback work?" [level=3] [ref=e837]
+              - img [ref=e839]
+          - generic [ref=e843]:
+            - generic [ref=e845]:
+              - heading "Start today." [level=3] [ref=e846]
+              - paragraph [ref=e847]: Lifetime access. 30-day money back. The camera is rolling.
+              - button "Get Full Access" [ref=e848]:
+                - text: Get Full Access
+                - img [ref=e849]
+              - generic [ref=e851]:
+                - generic [ref=e852]:
+                  - img [ref=e853]
+                  - text: 30-Day Guarantee
+                - generic [ref=e856]:
+                  - img [ref=e857]
+                  - text: Lifetime Access
+            - generic [ref=e861]:
+              - generic [ref=e862]:
+                - img [ref=e863]
+                - paragraph [ref=e866]: Not ready? Stay close.
+              - paragraph [ref=e867]: Free filmmaking tips and early access to new courses.
+              - generic [ref=e868]:
+                - textbox "Email address" [ref=e869]:
+                  - /placeholder: your@email.com
+                - button "Subscribe" [ref=e870]
+  - contentinfo [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - link "Eyebuckz" [ref=e31] [cursor=pointer]:
+            - /url: /
+            - img "Eyebuckz" [ref=e32]
+          - paragraph [ref=e33]: Master the art of filmmaking. From pre-production planning to advanced post-production techniques. Join the community of creators.
+          - generic [ref=e34]:
+            - link "YouTube" [ref=e35] [cursor=pointer]:
+              - /url: https://youtube.com/@eyebuckz
+              - img [ref=e36]
+            - link "Instagram" [ref=e39] [cursor=pointer]:
+              - /url: https://instagram.com/eyebuckz
+              - img [ref=e40]
+            - link "WhatsApp" [ref=e43] [cursor=pointer]:
+              - /url: https://wa.me/918089541005
+              - img [ref=e44]
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - heading "Courses" [level=4] [ref=e48]
+            - list [ref=e49]:
+              - listitem [ref=e50]:
+                - link "Filmmaking" [ref=e51] [cursor=pointer]:
+                  - /url: /courses
+              - listitem [ref=e52]:
+                - link "Video Editing" [ref=e53] [cursor=pointer]:
+                  - /url: /courses
+              - listitem [ref=e54]:
+                - link "Photography" [ref=e55] [cursor=pointer]:
+                  - /url: /courses
+              - listitem [ref=e56]:
+                - link "Business" [ref=e57] [cursor=pointer]:
+                  - /url: /courses
+          - generic [ref=e58]:
+            - heading "Company" [level=4] [ref=e59]
+            - list [ref=e60]:
+              - listitem [ref=e61]:
+                - link "About Us" [ref=e62] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=e63]:
+                - link "YouTube" [ref=e64] [cursor=pointer]:
+                  - /url: https://youtube.com/@eyebuckz
+          - generic [ref=e65]:
+            - heading "Support" [level=4] [ref=e66]
+            - list [ref=e67]:
+              - listitem [ref=e68]:
+                - link "Contact Us" [ref=e69] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=e70]:
+                - link "Privacy Policy" [ref=e71] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=e72]:
+                - link "Terms of Service" [ref=e73] [cursor=pointer]:
+                  - /url: /terms
+      - generic [ref=e74]:
+        - paragraph [ref=e75]: © 2026 Eyebuckz. All rights reserved.
+        - generic [ref=e76]:
+          - link "Privacy Policy" [ref=e77] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms of Service" [ref=e78] [cursor=pointer]:
+            - /url: /terms
+  - button "Back to top" [ref=e871]:
+    - img [ref=e872]

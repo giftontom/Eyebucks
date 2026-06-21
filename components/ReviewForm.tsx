@@ -16,7 +16,7 @@ interface ReviewFormProps {
  * Form for submitting or editing a course review
  */
 export const ReviewForm: React.FC<ReviewFormProps> = ({
-  courseId,
+  courseId: _courseId, // Reserved for future use (analytics, API calls)
   onSubmit,
   onCancel,
   initialRating = 0,
@@ -68,7 +68,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Rating */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium t-text mb-2">
           Your Rating *
         </label>
         <StarRating
@@ -80,7 +80,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
       {/* Comment */}
       <div>
-        <label htmlFor="review-comment" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor="review-comment" className="block text-sm font-medium t-text mb-2">
           Your Review *
         </label>
         <textarea
@@ -90,11 +90,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           placeholder="Share your experience with this course. What did you learn? Would you recommend it?"
           rows={6}
           maxLength={1000}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg
+          className="w-full px-4 py-3 border t-border rounded-lg
+                     t-input-bg t-text placeholder:t-text-3
                      focus:ring-2 focus:ring-brand-500 focus:border-brand-500
                      resize-none"
         />
-        <div className="mt-1 flex justify-between text-xs text-gray-500">
+        <div className="mt-1 flex justify-between text-xs t-text-2">
           <span>Minimum 10 characters</span>
           <span>{comment.length}/1000</span>
         </div>
@@ -102,7 +103,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
       {/* Error message */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="p-3 t-status-danger border rounded-lg text-sm" role="alert">
           {error}
         </div>
       )}
@@ -135,8 +136,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg
-                       font-medium hover:bg-gray-50 disabled:opacity-50
+            className="px-6 py-3 border t-border t-text rounded-lg
+                       font-medium hover:t-bg-alt disabled:opacity-50
                        disabled:cursor-not-allowed transition-colors"
           >
             Cancel

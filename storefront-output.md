@@ -1,0 +1,21 @@
+- generic [ref=e3]:
+  - link "Skip to main content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - navigation "Main navigation" [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e8]
+      - generic [ref=e17]
+  - main [ref=e22]:
+    - generic [ref=e80]:
+      - generic [ref=e82]
+      - generic [ref=e132]
+      - generic [ref=e231]
+      - generic [ref=e238]
+      - generic [ref=e268]
+      - generic [ref=e320]
+      - generic [ref=e358]
+      - generic [ref=e385]
+  - contentinfo [ref=e25]:
+    - generic [ref=e26]:
+      - generic [ref=e27]
+      - generic [ref=e75]

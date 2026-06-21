@@ -1,6 +1,5 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act , renderHook } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { Toast, useToast } from '../../../components/Toast';
@@ -18,24 +17,24 @@ describe('Toast component', () => {
 
   it('renders error variant', () => {
     const { container } = render(<Toast message="Failed" type="error" />);
-    expect(container.firstChild).toHaveClass('bg-red-50');
+    expect(container.firstChild).toHaveClass('t-status-danger');
   });
 
   it('renders info variant', () => {
     const { container } = render(<Toast message="Info" type="info" />);
-    expect(container.firstChild).toHaveClass('bg-blue-50');
+    expect(container.firstChild).toHaveClass('t-status-info');
   });
 
   it('calls onClose when X button clicked', async () => {
     const onClose = vi.fn();
     render(<Toast message="Dismiss me" onClose={onClose} />);
-    await userEvent.click(screen.getByLabelText('Close'));
+    await userEvent.click(screen.getByLabelText('Close notification'));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('does not render close button when onClose not provided', () => {
     render(<Toast message="No close" />);
-    expect(screen.queryByLabelText('Close')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Close notification')).not.toBeInTheDocument();
   });
 });
 
@@ -77,7 +76,7 @@ describe('useToast hook', () => {
     act(() => { result.current.showToast('Dismiss me', 'error'); });
     rerender(<Wrapper />);
 
-    await userEvent.click(screen.getByLabelText('Close'));
+    await userEvent.click(screen.getByLabelText('Close notification'));
     rerender(<Wrapper />);
     expect(screen.queryByText('Dismiss me')).not.toBeInTheDocument();
   });

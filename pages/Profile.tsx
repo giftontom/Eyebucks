@@ -1,11 +1,13 @@
-import { User, Mail, Phone, Award, CreditCard, Download, Check, Edit2, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, Award, CreditCard, Download, Check, Edit2, Loader2, Eye } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-import { Badge, statusToVariant, Button, Input, Card } from '../components';
+import { Badge, statusToVariant, Button, EmptyState, Input, Card, CertificateView } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { certificatesApi } from '../services/api/certificates.api';
 import { paymentsApi } from '../services/api/payments.api';
+import { formatINR } from '../utils/format';
+import { downloadCertificatePdf } from '../utils/generateCertificatePdf';
 
 import type { Payment } from '../services/api/payments.api';
 import type { Certificate } from '../types';
@@ -30,6 +32,17 @@ export const Profile: React.FC = () => {
 
   const [certsError, setCertsError] = useState<string | null>(null);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
+  const [previewCert, setPreviewCert] = useState<Certificate | null>(null);
+  const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
+
+  const handleDownloadCertificate = async (cert: Certificate) => {
+    setDownloadingCertId(cert.id);
+    try {
+      await downloadCertificatePdf(cert);
+    } finally {
+      setDownloadingCertId(null);
+    }
+  };
 
   const loadCerts = () => {
     setCertsError(null);
@@ -114,7 +127,7 @@ export const Profile: React.FC = () => {
         <tr><td><strong>Course</strong></td><td>${esc(payment.courseTitle || '—')}</td></tr>
         <tr><td><strong>Payment ID</strong></td><td style="font-size:0.85em">${esc(payment.razorpayPaymentId || '—')}</td></tr>
         <tr><td><strong>Order ID</strong></td><td style="font-size:0.85em">${esc(payment.razorpayOrderId || '—')}</td></tr>
-        <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">₹${(payment.amount / 100).toLocaleString('en-IN')}</td></tr>
+        <tr><td class="total"><strong>Amount Paid</strong></td><td class="total">${formatINR(payment.amount)}</td></tr>
       </table>
       <p style="color:#666;font-size:0.85em;margin-top:30px">Thank you for your purchase. This receipt is for your records.</p>
       </body></html>
@@ -226,23 +239,37 @@ export const Profile: React.FC = () => {
             <button onClick={loadCerts} className="t-link hover:t-link-hover text-sm font-medium">Try again</button>
           </div>
         ) : certificates.length === 0 ? (
-          <p className="t-text-3 text-center py-8">No certificates earned yet. Complete a course to earn one!</p>
+          <EmptyState title="No certificates yet" description="Complete a course to earn one!" />
         ) : (
           <div className="space-y-4">
             {certificates.map(cert => (
-              <div key={cert.id} className="flex items-center justify-between p-4 t-card rounded-xl t-border border">
-                <div>
-                  <p className="font-semibold t-text">{cert.courseTitle}</p>
+              <div key={cert.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 t-card rounded-xl t-border border">
+                <div className="min-w-0">
+                  <p className="font-semibold t-text truncate">{cert.courseTitle}</p>
                   <p className="text-sm t-text-3">
                     Issued {new Date(cert.issueDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
                     {' · '}<span className="font-mono text-xs">{cert.certificateNumber}</span>
                   </p>
                 </div>
-                {cert.downloadUrl && (
-                  <a href={cert.downloadUrl} target="_blank" rel="noreferrer" className="text-brand-400 hover:text-brand-300 font-medium text-sm flex items-center gap-1">
-                    <Download size={14} /> Download
-                  </a>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    leftIcon={<Eye size={14} />}
+                    onClick={() => setPreviewCert(cert)}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Download size={14} />}
+                    loading={downloadingCertId === cert.id}
+                    onClick={() => handleDownloadCertificate(cert)}
+                  >
+                    Download
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -262,7 +289,7 @@ export const Profile: React.FC = () => {
             <button onClick={loadPayments} className="t-link hover:t-link-hover text-sm font-medium">Try again</button>
           </div>
         ) : payments.length === 0 ? (
-          <p className="t-text-3 text-center py-8">No transactions yet.</p>
+          <EmptyState title="No transactions yet" />
         ) : (
           <>
             {/* Desktop table */}
@@ -282,7 +309,7 @@ export const Profile: React.FC = () => {
                     <tr key={p.id} className="hover:bg-[var(--surface-hover)]">
                       <td className="py-3 t-text-2">{new Date(p.createdAt).toLocaleDateString('en-IN')}</td>
                       <td className="py-3 font-medium t-text">{p.courseTitle || '—'}</td>
-                      <td className="py-3 t-text-2">₹{(p.amount / 100).toLocaleString('en-IN')}</td>
+                      <td className="py-3 t-text-2">{formatINR(p.amount)}</td>
                       <td className="py-3">
                         <Badge variant={statusToVariant(p.status)}>{p.status}</Badge>
                       </td>
@@ -309,7 +336,7 @@ export const Profile: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between text-xs t-text-2">
                     <span>{new Date(p.createdAt).toLocaleDateString('en-IN')}</span>
-                    <span className="font-bold t-text">₹{(p.amount / 100).toLocaleString('en-IN')}</span>
+                    <span className="font-bold t-text">{formatINR(p.amount)}</span>
                   </div>
                   {p.status === 'captured' && (
                     <button onClick={() => handleDownloadReceipt(p)} className="mt-3 text-brand-400 hover:text-brand-300 text-xs font-medium flex items-center gap-1">
@@ -322,6 +349,10 @@ export const Profile: React.FC = () => {
           </>
         )}
       </Card>
+
+      {previewCert && (
+        <CertificateView certificate={previewCert} onClose={() => setPreviewCert(null)} />
+      )}
     </div>
   );
 };

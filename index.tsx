@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -7,23 +6,25 @@ import { supabase } from './services/supabase';
 import { logger } from './utils/logger';
 import './index.css';
 
-// Initialize Sentry if configured
+// Initialize Sentry asynchronously to keep it off the critical path
 if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE || 'development',
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: false,
-        blockAllMedia: false,
-      }),
-    ],
-    tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
+  import('@sentry/react').then((Sentry) => {
+    Sentry.init({
+      dsn: import.meta.env.VITE_SENTRY_DSN,
+      environment: import.meta.env.MODE || 'development',
+      integrations: [
+        Sentry.browserTracingIntegration(),
+        Sentry.replayIntegration({
+          maskAllText: false,
+          blockAllMedia: false,
+        }),
+      ],
+      tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
+      replaysSessionSampleRate: 0.1,
+      replaysOnErrorSampleRate: 1.0,
+    });
+    logger.info('[Sentry] Error monitoring initialized');
   });
-  logger.info('[Sentry] Error monitoring initialized');
 } else {
   logger.info('[Sentry] Not configured - skipping error monitoring');
 }
@@ -54,18 +55,17 @@ if (!rootElement) {
 }
 
 /**
- * Handle Supabase OAuth callback BEFORE React/HashRouter renders.
+ * Handle Supabase OAuth callback BEFORE React/BrowserRouter renders.
  *
  * Supabase implicit flow redirects back with tokens in the hash fragment:
  *   https://dev.eyebuckz.com#access_token=xxx&refresh_token=xxx&...
  *
- * HashRouter also uses the hash for routing (#/login, #/dashboard, etc.).
- * Without this guard, HashRouter sees the token hash, matches no route,
- * the catch-all redirects to #/ — wiping the tokens before Supabase can
- * parse them.
+ * BrowserRouter uses path-based routing (/login, /dashboard, etc.).
+ * Without this guard, the hash fragment with tokens would be ignored but
+ * the tokens must be consumed before React mounts.
  *
- * Fix: detect the OAuth hash, let Supabase consume it, then replace with
- * a clean #/ so HashRouter starts on the home route.
+ * Fix: detect the OAuth hash, let Supabase consume it, then strip
+ * the hash so BrowserRouter starts on the home route.
  */
 async function handleOAuthCallbackIfNeeded(): Promise<void> {
   const hash = window.location.hash;
@@ -74,7 +74,7 @@ async function handleOAuthCallbackIfNeeded(): Promise<void> {
     const params = new URLSearchParams(hash.substring(1));
     const errorDesc = params.get('error_description') || 'Authentication failed';
     logger.error('[OAuth] Error:', errorDesc);
-    window.history.replaceState(null, '', window.location.pathname + '#/login');
+    window.history.replaceState(null, '', window.location.pathname + '/login');
     // Store error for the login page to display
     sessionStorage.setItem('oauth_error', errorDesc);
     return;
@@ -83,8 +83,8 @@ async function handleOAuthCallbackIfNeeded(): Promise<void> {
     // getSession() awaits Supabase's internal _initialize(), which reads
     // window.location.hash (still intact — React hasn't rendered yet).
     await supabase.auth.getSession();
-    // Replace the token hash with a clean route for HashRouter
-    window.history.replaceState(null, '', window.location.pathname + '#/');
+    // Replace the token hash with a clean path for BrowserRouter
+    window.history.replaceState(null, '', window.location.pathname);
   }
 }
 

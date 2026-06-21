@@ -21,8 +21,9 @@ export interface QualityLevel {
  * VideoPlayer uses `React.forwardRef` and exposes a `VideoPlayerHandle` imperative API
  * for play/pause/seek/quality/PiP controls. HLS.js is loaded lazily (only on this component).
  *
- * URL resolution is handled by `useVideoUrl`: the CDN URL (`fallbackUrl`) is served
- * immediately while the signed URL is fetched in the background.
+ * URL resolution is handled by `useVideoUrl`: the signed HLS URL is fetched from the
+ * `video-signed-url` Edge Function first. `fallbackUrl` is only used if that call fails
+ * (unsigned CDN URLs return 403 with Bunny token auth enabled).
  */
 interface VideoPlayerProps {
   /** Bunny.net video GUID (not a URL). Used to fetch the signed HLS URL. */
@@ -30,8 +31,8 @@ interface VideoPlayerProps {
   /** Database module UUID — passed to `useVideoUrl` for logging. */
   moduleId?: string;
   /**
-   * CDN URL served immediately while the signed URL is loading.
-   * Also used as the permanent fallback if the `video-signed-url` Edge Function fails.
+   * CDN URL used as a fallback if the `video-signed-url` Edge Function fails.
+   * Not served eagerly — the signed URL is fetched first.
    */
   fallbackUrl: string;
   /** Additional CSS class names applied to the `<video>` element or loading/error containers. */
@@ -309,6 +310,10 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           if (destroyed) {return;}
           logger.error('[HLS] Error:', data);
           if (data.fatal) {
+            // Set flag immediately on any fatal error so the native <video> onError
+            // handler (which fires during recoverMediaError → video.load()) doesn't
+            // duplicate the error message before HLS finishes its recovery cycle.
+            hlsErrorFiredRef.current = true;
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkRetryCount++;
@@ -319,7 +324,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                   logger.debug('[HLS] Network error, max retries reached');
                   hls.destroy();
                   if (!destroyed && onErrorRef.current) {
-                    hlsErrorFiredRef.current = true;
                     onErrorRef.current('Network error: unable to load video. Please check your connection.');
                   }
                 }
@@ -333,7 +337,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                   logger.debug('[HLS] Media error, max retries reached');
                   hls.destroy();
                   if (!destroyed && onErrorRef.current) {
-                    hlsErrorFiredRef.current = true;
                     onErrorRef.current('Video playback error. Please try refreshing the page.');
                   }
                 }
@@ -342,7 +345,6 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
                 logger.debug('[HLS] Fatal error, destroying HLS');
                 hls.destroy();
                 if (!destroyed && onErrorRef.current) {
-                  hlsErrorFiredRef.current = true;
                   onErrorRef.current('Failed to load video stream. The video format may not be supported.');
                 }
                 break;

@@ -263,11 +263,19 @@ Video access is controlled by the `video-signed-url` Edge Function:
    - **Admin**: can access any video (no enrollment check).
    - **Enrolled user**: can access videos belonging to courses they are enrolled in.
    - **Free preview**: modules marked as free preview bypass the enrollment check.
-4. A signed token is generated:
+4. A signed token is generated using Bunny Advanced Token Authentication:
    ```
-   token = base64url(SHA256(tokenKey + path + expires))
+   tokenPath = "/{videoId}/"
+   sortedParams = "token_path=/{videoId}/"   # NOT URL-encoded
+   hashInput = tokenKey + tokenPath + expires + sortedParams
+   token = base64url(SHA256(hashInput))
    ```
-5. The signed HLS URL is returned with a 1-hour expiry.
+5. The token is embedded in the **URL path** (not query string) using Bunny's path-based format:
+   ```
+   https://{cdn}/bcdn_token={token}&expires={expires}&token_path=%2F{videoId}%2F/{videoId}/playlist.m3u8
+   ```
+   Path-based tokens allow HLS.js to automatically propagate authentication to all sub-manifest and segment requests. Query-parameter tokens (`?token=X`) are NOT forwarded by HLS.js to child URLs resolved from the manifest.
+6. The signed HLS URL is returned with a 1-hour expiry.
 
 ### Token Lifecycle
 

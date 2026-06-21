@@ -1,0 +1,238 @@
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/CommunityProofSection.tsx	2026-06-13 10:46:33
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/community-redesign/components/sections/CommunityProofSection.tsx	2026-06-13 12:04:07
+@@ -1,4 +1,4 @@
+-import { Star, MessageCircle, Users, Video, Zap, ArrowRight } from 'lucide-react';
++import { Star, MessageCircle, Users, Video, Zap, ArrowRight, Quote } from 'lucide-react';
+ import React, { useState, useEffect } from 'react';
+ 
+ import { siteContentApi } from '../../services/api';
+@@ -43,16 +43,16 @@
+   return name.charAt(0).toUpperCase();
+ }
+ 
+-/** Poster-acclaim star row — stars pop one by one on card hover. */
+-function StarRow({ rating }: { rating: number }) {
++/** Poster-acclaim star row. `size` controls the glyph; pops on the active card. */
++function StarRow({ rating, size = 16, className = '' }: { rating: number; size?: number; className?: string }) {
+   return (
+-    <div className="flex gap-1" aria-label={`${rating} out of 5 stars`}>
++    <div className={`flex gap-1 ${className}`} aria-label={`${rating} out of 5 stars`}>
+       {Array.from({ length: 5 }).map((_, i) => (
+         <Star
+           key={i}
+-          size={16}
++          size={size}
+           className={`transition-transform duration-300 group-live:scale-125 motion-reduce:transition-none ${
+-            i < rating ? 'text-yellow-400 fill-yellow-400' : 't-text-3'
++            i < rating ? 'text-yellow-400 fill-yellow-400' : 'text-white/20'
+           }`}
+           style={{ transitionDelay: `${i * 45}ms` }}
+         />
+@@ -72,48 +72,90 @@
+       .catch(err => logger.warn('[CommunityProofSection] Failed to load from CMS:', err));
+   }, []);
+ 
++  const featured = testimonials[0];
++  const supporting = testimonials.slice(1, 4);
++  const supportingGrid = supporting.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2';
++
+   return (
+-    <section className="py-20 md:py-28 t-bg-alt border-t t-border">
+-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+-        {/* The reviews are in — poster-acclaim cards */}
+-        <HorizontalGallery
+-          count={Math.min(testimonials.length, 3)}
+-          desktopGrid="md:grid-cols-3"
+-          heading={
+-            <FadeIn>
+-              <div className="text-center mb-16 max-w-2xl mx-auto">
+-                <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] scene-adaptive-brand font-bold tracking-widest uppercase text-xs mb-4">
+-                  Real Students. Real Results.
+-                </span>
+-                <h2 className="t-h2 scene-adaptive-text mb-4">You won't learn alone.</h2>
+-                <p className="t-body-lg scene-adaptive-text-2">
+-                  A private community of working creators — feedback every week, real paid gigs, and people who'll push you forward.
+-                </p>
+-              </div>
+-            </FadeIn>
+-          }
+-        >
+-          {testimonials.slice(0, 3).map((t, i) => (
+-              <figure key={`${t.name}-${i}`} data-scene-card className="group relative t-card t-border border rounded-2xl p-6 md:p-8 h-full flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/30 hover:shadow-(--shadow-elevated)">
+-                {/* Ghost quotation mark */}
++    // data-scene-dark + force-dark: the scroll-driven scene grade (useSceneGrade)
++    // keeps the canvas dark while this section holds the viewport — a cinematic
++    // "press wall" act between the dark Instructors section and light Pricing.
++    <section data-scene-dark className="relative py-24 md:py-32 t-bg force-dark overflow-hidden">
++      {/* Red projector key-light bleeding in from the top, echoing the hero */}
++      <div
++        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[760px] h-[420px] max-w-[140vw] rounded-full bg-brand-600/12 blur-[170px] pointer-events-none"
++        aria-hidden="true"
++      />
++
++      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
++        {/* Header */}
++        <FadeIn>
++          <div className="text-center mb-14 md:mb-16 max-w-2xl mx-auto">
++            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.35)] bg-[rgba(255,59,48,0.12)] text-brand-400 font-bold tracking-widest uppercase text-xs mb-5">
++              <span className="relative flex h-1.5 w-1.5">
++                <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75" />
++                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" />
++              </span>
++              Real Students. Real Results.
++            </span>
++            <h2 className="t-h2 t-text mb-4">You won't learn alone.</h2>
++            <p className="t-body-lg t-text-2">
++              A private community of working creators — feedback every week, real paid gigs, and people who'll push you forward.
++            </p>
++          </div>
++        </FadeIn>
++
++        {/* Featured pull-quote — the marquee review */}
++        {featured && (
++          <FadeIn delay={STAGGER_MS}>
++            <figure className="relative max-w-3xl mx-auto text-center mb-16 md:mb-20">
++              <Quote
++                size={88}
++                className="absolute -top-6 left-1/2 -translate-x-1/2 text-brand-500/15 fill-brand-500/15 pointer-events-none"
++                aria-hidden="true"
++              />
++              <StarRow rating={featured.rating} size={20} className="relative justify-center mb-6" />
++              <blockquote
++                className="relative text-2xl md:text-3xl lg:text-[2.5rem] font-medium leading-snug t-text text-balance"
++                style={{ fontFamily: 'var(--font-display)' }}
++              >
++                &ldquo;{featured.quote}&rdquo;
++              </blockquote>
++              <figcaption className="relative mt-8 flex items-center justify-center gap-3">
++                <div className="w-11 h-11 rounded-full bg-brand-500/15 border border-brand-500/40 flex items-center justify-center text-brand-400 font-bold shrink-0">
++                  {avatarFallback(featured.name)}
++                </div>
++                <div className="text-left">
++                  <p className="font-bold t-text text-sm leading-tight">{featured.name}</p>
++                  <p className="t-caption">{featured.course}</p>
++                </div>
++              </figcaption>
++            </figure>
++          </FadeIn>
++        )}
++
++        {/* Supporting reviews — glass quote cards */}
++        {supporting.length > 0 && (
++          <HorizontalGallery count={supporting.length} desktopGrid={supportingGrid}>
++            {supporting.map((t, i) => (
++              <figure
++                key={`${t.name}-${i}`}
++                data-scene-card
++                className="group relative t-card t-border border rounded-2xl p-6 md:p-7 h-full flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-brand-500/40"
++              >
+                 <span
+-                  className="absolute -top-5 right-3 text-[7rem] leading-none font-black text-brand-500/[0.08] group-live:text-brand-500/[0.16] transition-colors duration-500 select-none pointer-events-none"
++                  className="absolute -top-4 right-3 text-[6rem] leading-none font-black text-brand-500/10 group-live:text-brand-500/20 transition-colors duration-500 select-none pointer-events-none"
+                   style={{ fontFamily: 'var(--font-display)' }}
+                   aria-hidden="true"
+                 >
+                   &rdquo;
+                 </span>
+-
+-                <div className="relative mb-4">
+-                  <StarRow rating={t.rating} />
+-                </div>
+-
++                <StarRow rating={t.rating} className="relative mb-4" />
+                 <blockquote className="relative t-body t-text leading-relaxed flex-1">
+                   &ldquo;{t.quote}&rdquo;
+                 </blockquote>
+-
+                 <figcaption className="relative flex items-center gap-3 mt-6 pt-5 border-t border-dashed t-border">
+-                  <div className="w-10 h-10 rounded-full bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-500 font-bold text-sm shrink-0">
++                  <div className="w-9 h-9 rounded-full bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 font-bold text-sm shrink-0">
+                     {avatarFallback(t.name)}
+                   </div>
+                   <div className="min-w-0">
+@@ -122,36 +164,41 @@
+                   </div>
+                 </figcaption>
+               </figure>
+-          ))}
+-        </HorizontalGallery>
++            ))}
++          </HorizontalGallery>
++        )}
+ 
+-        {/* Community strip: counting stats + Discord CTA */}
++        {/* Box-office strip: counting stats (film-ledger) + Discord CTA */}
+         <FadeIn delay={3 * STAGGER_MS}>
+-          <div className="relative overflow-hidden t-card t-border border rounded-2xl p-8 md:p-10">
++          <div className="relative overflow-hidden t-card t-border border rounded-3xl mt-16 md:mt-20 backdrop-blur-xl">
++            {/* Top hairline like a film-strip edge */}
++            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-500/50 to-transparent" aria-hidden="true" />
+             <div
+-              className="absolute -top-24 -right-10 w-[300px] h-[300px] bg-brand-600/10 rounded-full blur-[100px] pointer-events-none"
++              className="absolute -top-24 -right-10 w-[300px] h-[300px] bg-brand-600/15 rounded-full blur-[110px] pointer-events-none"
+               aria-hidden="true"
+             />
+ 
+-            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+-              <div className="grid grid-cols-2 gap-x-6 gap-y-8">
++            <div className="relative grid grid-cols-1 lg:grid-cols-[1.2fr_1fr]">
++              {/* Stats ledger */}
++              <div className="grid grid-cols-2 gap-x-6 gap-y-8 p-8 md:p-10">
+                 {COMMUNITY_STATS.map(stat => (
+                   <div key={stat.label} className="flex items-start gap-3">
+-                    <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500 shrink-0">
++                    <div className="w-10 h-10 rounded-xl bg-brand-500/15 border border-brand-500/25 flex items-center justify-center text-brand-400 shrink-0">
+                       <stat.icon size={18} />
+                     </div>
+                     <div>
+                       <p className="text-2xl md:text-3xl font-black t-text leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+                         <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                       </p>
+-                      <p className="t-caption mt-1">{stat.label}</p>
++                      <p className="text-[11px] font-bold uppercase tracking-[0.15em] t-text-3 mt-1.5">{stat.label}</p>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+ 
+-              <div className="lg:border-l t-border lg:pl-10">
+-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] text-brand-700 dark:text-brand-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
++              {/* Discord CTA */}
++              <div className="relative p-8 md:p-10 lg:border-l t-border border-t lg:border-t-0">
++                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[rgba(255,59,48,0.35)] bg-[rgba(255,59,48,0.12)] text-brand-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
+                   <span className="relative flex h-1.5 w-1.5">
+                     <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75" />
+                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" />
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/PricingSection.tsx	2026-06-13 10:46:33
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/community-redesign/components/sections/PricingSection.tsx	2026-06-13 12:05:11
+@@ -226,7 +226,7 @@
+   }, []);
+ 
+   return (
+-    <section className="relative py-24 t-bg border-t t-border overflow-x-clip">
++    <section className="relative py-24 t-bg overflow-x-clip">
+       {/* Cinematic glow behind the cards, echoing the hero */}
+       <div
+         className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[320px] h-[320px] sm:w-[480px] sm:h-[480px] bg-brand-600/10 rounded-full blur-[140px] pointer-events-none"
+@@ -240,14 +240,18 @@
+           heading={
+             <FadeIn>
+               <div className="text-center mb-16">
+-                <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] text-brand-700 dark:text-brand-400 font-bold tracking-widest uppercase text-xs mb-4">
++                <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] scene-adaptive-brand font-bold tracking-widest uppercase text-xs mb-4">
+                   Simple Pricing
+                 </span>
+-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold t-text" style={{ fontFamily: 'var(--font-display)' }}>
++                {/* scene-adaptive: Pricing now flanks the dark→light dissolve as
++                    the dark Community section scrolls out, so the heading flips
++                    to light text while the canvas is still dark (mirrors how the
++                    sections flanking the Instructors island adapt). */}
++                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold scene-adaptive-text" style={{ fontFamily: 'var(--font-display)' }}>
+                   Invest in Your{' '}
+                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">Craft.</span>
+                 </h2>
+-                <p className="t-text-2 text-lg mt-4 max-w-2xl mx-auto">
++                <p className="scene-adaptive-text-2 text-lg mt-4 max-w-2xl mx-auto">
+                   One-time payment. Lifetime access. No subscriptions, no recurring fees.
+                 </p>
+               </div>

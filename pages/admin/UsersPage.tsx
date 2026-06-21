@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Avatar } from '../../components/Avatar';
 import { adminApi } from '../../services/api/admin.api';
+import { formatPrice } from '../../utils/format';
 import { logger } from '../../utils/logger';
 
 import { useAdmin } from './AdminContext';
@@ -305,7 +306,7 @@ export const UsersPage: React.FC = () => {
             >
               <option value="">-- Select a course --</option>
               {courses.map(c => (
-                <option key={c.id} value={c.id}>{c.title} (₹{(c.price / 100).toLocaleString()})</option>
+                <option key={c.id} value={c.id}>{c.title} ({formatPrice(c.price)})</option>
               ))}
             </select>
           </div>

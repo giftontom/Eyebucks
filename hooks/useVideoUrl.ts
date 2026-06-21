@@ -71,14 +71,12 @@ export const useVideoUrl = (
       setIsLoading(true);
     }
 
-    // Immediately set the direct CDN URL so video can start loading
+    // Prepare CDN fallback URL (used only if the Edge Function fails —
+    // not served immediately, because unsigned CDN URLs return 403 when
+    // Bunny token auth is enabled, which would trigger spurious HLS errors
+    // before the signed URL arrives).
     const directUrl = fallbackUrl || null;
     const directHlsUrl = directUrl && directUrl.includes('.m3u8') ? directUrl : null;
-
-    if (!isRefresh) {
-      setVideoUrl(directUrl);
-      setHlsUrl(directHlsUrl);
-    }
 
     // Try to get a signed URL from the Edge Function (enhances security when token auth is enabled)
     try {

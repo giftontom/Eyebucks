@@ -5,9 +5,17 @@ import { supabase } from '../supabase';
 
 import type { ReviewRow } from '../../types/supabase';
 
-// Query result type for review with user join
-type ReviewQueryRow = ReviewRow & {
-  users: { name: string; avatar: string | null } | null;
+// Query result type for review with user fields from secure view
+type ReviewQueryRow = {
+  id: string;
+  user_id: string;
+  rating: number;
+  comment: string | null;
+  helpful: number;
+  created_at: string;
+  updated_at: string;
+  user_name: string | null;
+  user_avatar: string | null;
 };
 
 export interface ReviewUser {
@@ -48,11 +56,10 @@ export const reviewsApi = {
     const offset = (page - 1) * limit;
 
     const [reviewsResult, summaryResult] = await Promise.all([
-      supabase
-        .from('reviews')
+      (supabase.from as any)('public_reviews')
         .select(`
           id, user_id, rating, comment, helpful, created_at, updated_at,
-          users:user_id (name, avatar)
+          user_name, user_avatar
         `, { count: 'exact' })
         .eq('course_id', courseId)
         .order('created_at', { ascending: false })
@@ -76,13 +83,13 @@ export const reviewsApi = {
 
     return {
       success: true,
-      reviews: (reviewsResult.data || []).map((r: ReviewQueryRow) => ({
+      reviews: (reviewsResult.data || []).map((r: any) => ({
         id: r.id,
         userId: r.user_id,
         rating: r.rating,
         comment: r.comment || '',
         helpful: r.helpful,
-        user: { name: r.users?.name || 'Anonymous', avatar: r.users?.avatar || '' },
+        user: { name: r.user_name || 'Anonymous', avatar: r.user_avatar || '' },
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       })),

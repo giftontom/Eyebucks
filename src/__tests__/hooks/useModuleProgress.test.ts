@@ -17,9 +17,9 @@ vi.mock('../../../utils/analytics', () => ({
   analytics: { track: vi.fn() },
 }));
 
+import { useModuleProgress } from '../../../hooks/useModuleProgress';
 import { progressApi } from '../../../services/api';
 import { analytics } from '../../../utils/analytics';
-import { useModuleProgress } from '../../../hooks/useModuleProgress';
 
 const mockProgressApi = progressApi as Record<string, ReturnType<typeof vi.fn>>;
 

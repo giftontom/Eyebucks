@@ -1,4 +1,4 @@
-import { Play, Star, ArrowRight, Users, Layers, Clapperboard } from 'lucide-react';
+import { Play, Star, ArrowRight, Layers, Clapperboard } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -14,21 +14,24 @@ import type { Course } from '../types';
 interface CourseCardProps {
   course: Course;
   index: number;
+  /** Skip the FadeIn entrance — used inside HorizontalGallery, where the
+   *  horizontal scrub is the motion (a per-card reveal won't trigger right
+   *  for cards translated off to the side). */
+  disableReveal?: boolean;
 }
 
-export const CourseCard: React.FC<CourseCardProps> = ({ course, index }) => {
+export const CourseCard: React.FC<CourseCardProps> = ({ course, index, disableReveal = false }) => {
   const isBundle = course.type === CourseType.BUNDLE;
   const isNew = course.publishedAt && (Date.now() - new Date(course.publishedAt).getTime()) < 30 * 24 * 60 * 60 * 1000;
-  return (
-    <FadeIn delay={index * 50} className="h-full">
-      <div className="group flex flex-col t-card rounded-3xl overflow-hidden t-border border hover:border-brand-500/30 dark:hover:border-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none h-full backdrop-blur-sm">
+  const card = (
+    <div data-scene-card className="group flex flex-col t-card rounded-3xl overflow-hidden t-border border hover:border-brand-500/30 dark:hover:border-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none h-full backdrop-blur-sm">
         <Link to={`/course/${course.id}`} className="relative overflow-hidden t-bg-alt block aspect-[4/3]">
           <Thumbnail
             src={course.thumbnail}
             alt={course.title}
             loading={index < 2 ? 'eager' : 'lazy'}
             fetchPriority={index === 0 ? 'high' : 'auto'}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 dark:opacity-75 group-hover:opacity-100"
+            className="w-full h-full object-cover transition-transform duration-700 group-live:scale-105 dark:opacity-75 group-live:opacity-100"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
           <div className="absolute top-4 left-4 flex gap-2">
@@ -39,8 +42,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index }) => {
           <div className="absolute top-3 right-3">
             <WishlistButton courseId={course.id} size={18} className="bg-black/40 backdrop-blur-sm p-2 rounded-full hover:bg-black/60" />
           </div>
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-            <div className="group-hover:scale-110 transition-transform duration-300 flex flex-col items-center gap-3">
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-live:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+            <div className="group-live:scale-110 transition-transform duration-300 flex flex-col items-center gap-3">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border border-white/50 backdrop-blur-md">
                 <Play size={32} fill="white" className="ml-1 text-white" />
               </div>
@@ -56,7 +59,6 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index }) => {
                 <span>{course.rating.toFixed(1)}</span>
               </div>
             ) : null}
-            <span className="inline-flex items-center gap-1 t-text-3 font-medium"><Users size={13} /> {course.totalStudents || 0}</span>
             {isBundle && course.bundledCourses ? (
               <span className="inline-flex items-center gap-1 t-text-3 font-medium"><Layers size={13} /> {course.bundledCourses.length}</span>
             ) : (
@@ -64,7 +66,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index }) => {
             )}
           </div>
           <Link to={`/course/${course.id}`} className="block flex-grow">
-            <h3 className="text-lg md:text-xl font-bold t-text mb-2 group-hover:text-brand-400 transition-colors leading-snug line-clamp-2 min-h-14">{course.title}</h3>
+            <h3 className="text-lg md:text-xl font-bold t-text mb-2 group-live:text-brand-400 transition-colors leading-snug line-clamp-2 min-h-14">{course.title}</h3>
             <p className="t-text-2 text-sm leading-relaxed line-clamp-2 mb-4">{course.description}</p>
           </Link>
           <div className="mt-auto pt-4 md:pt-5 border-t t-border flex items-center justify-between gap-4">
@@ -82,6 +84,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index }) => {
           </div>
         </div>
       </div>
+  );
+  if (disableReveal) { return card; }
+  return (
+    <FadeIn delay={index * 50} direction="right" className="h-full">
+      {card}
     </FadeIn>
   );
 };

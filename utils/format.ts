@@ -17,6 +17,20 @@ export function formatINR(paise: number, maximumFractionDigits = 2): string {
 }
 
 /**
+ * Whole-rupee price for catalog / marketing surfaces (course cards, pricing
+ * tiers, storefront). Drops paise so listings never mix `₹999` with `₹149.99`.
+ *
+ * House rule: use `formatPrice` for displayed *prices* (catalog), and
+ * `formatINR` for exact *amounts* (receipts, payments, refunds, revenue).
+ *
+ * @example formatPrice(149900)  // "₹1,499"
+ * @example formatPrice(15000000) // "₹1,50,000"
+ */
+export function formatPrice(paise: number): string {
+  return formatINR(paise, 0);
+}
+
+/**
  * Compact INR for dashboard KPIs and chart axes, using Indian units (k / L / Cr).
  * Unlike a fixed "÷100000 + k" scheme, this is adaptive so small values stay legible.
  *

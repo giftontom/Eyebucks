@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
-import { Avatar, Badge, Thumbnail } from '../components';
+import { Avatar, Badge, EmptyState, Thumbnail } from '../components';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
 import { WishlistButton } from '../components/WishlistButton';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import { useWishlist } from '../hooks/useWishlist';
 import { enrollmentsApi, coursesApi } from '../services/api';
 import { wishlistApi } from '../services/api/wishlist.api';
 import { CourseType } from '../types';
+import { formatPrice } from '../utils/format';
 import { logger } from '../utils/logger';
 
 import type { Course } from '../types';
@@ -341,7 +342,7 @@ export const Dashboard: React.FC = () => {
                     <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
                     <div className="p-4">
                       <p className="font-semibold t-text text-sm leading-tight mb-1 group-hover:text-brand-400 transition">{course.title}</p>
-                      <p className="text-xs t-text-3">₹{(course.price / 100).toLocaleString()}</p>
+                      <p className="text-xs t-text-3">{formatPrice(course.price)}</p>
                     </div>
                   </Link>
                 ))}
@@ -351,12 +352,11 @@ export const Dashboard: React.FC = () => {
         </>
       ) : (
         <div className="text-center py-20 t-card rounded-2xl t-border border">
-          <p className="text-xl font-bold t-text mb-2">No courses yet</p>
-          <p className="t-text-2 mb-6">You haven't enrolled in any masterclasses yet. Start your filmmaking journey today.</p>
-          <Link to="/" className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-full transition">
-            Browse Catalog <ArrowRight size={16} />
-          </Link>
-
+          <EmptyState
+            title="No courses yet"
+            description="You haven't enrolled in any masterclasses yet. Start your filmmaking journey today."
+            action={{ label: 'Browse Catalog', to: '/' }}
+          />
           {recommendedCourses.length > 0 && (
             <div className="mt-12 text-left max-w-3xl mx-auto px-4">
               <h3 className="text-lg font-bold t-text mb-6">Recommended for You</h3>
@@ -370,7 +370,7 @@ export const Dashboard: React.FC = () => {
                     <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
                     <div className="p-4">
                       <p className="font-semibold t-text text-sm leading-tight mb-1 group-hover:text-brand-400 transition">{course.title}</p>
-                      <p className="text-xs t-text-3">₹{(course.price / 100).toLocaleString()}</p>
+                      <p className="text-xs t-text-3">{formatPrice(course.price)}</p>
                     </div>
                   </Link>
                 ))}

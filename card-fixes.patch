@@ -1,0 +1,142 @@
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/HorizontalGallery.tsx	2026-06-13 10:46:33
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/card-fixes/components/HorizontalGallery.tsx	2026-06-14 07:41:55
+@@ -11,53 +11,81 @@
+   count?: number;
+   /** Desktop grid column classes, e.g. `md:grid-cols-2 lg:grid-cols-4`. */
+   desktopGrid: string;
++  /** Mobile layout: `'rail'` (horizontal swipe, default) or `'stack'`
++   *  (full-width cards stacked vertically — for tall cards like tickets and
++   *  instructor monitors that read better one-per-row on a phone). */
++  mobileLayout?: 'rail' | 'stack';
+ }
+ 
+ /**
+- * Responsive card gallery.
++ * Responsive card gallery. Desktop (`md+`) is always the section's static grid
++ * (`desktopGrid`). Mobile (`<md`) is one of:
+  *
+- * - **Mobile (`<md`)**: a native horizontal snap rail — swipe through cards
+- *   one at a time. Generous vertical padding lets each card's lift + shadow
+- *   breathe (a scroll container clips overflow, so the room is built in), and
+- *   there's no pinning, so cards are always fully visible and never collide
+- *   with the bottom nav.
+- * - **Desktop (`md+`)**: the section's normal static grid (`desktopGrid`).
++ * - **`rail`** (default): a native horizontal snap rail — swipe through cards
++ *   one at a time. The card snapped to the centre gets `.is-active` (shared
++ *   `useInViewActive`, horizontal band) so its `live:`/`group-live:` effects
++ *   play. Generous vertical padding keeps the lift + shadow from being clipped
++ *   by the scroll container (`overflow-x:auto` forces `overflow-y` to clip).
++ * - **`stack`**: full-width cards stacked vertically — no scroll container, so
++ *   tall cards are fully visible and shadows breathe. The vertically-centred
++ *   card gets `.is-active` (vertical band).
+  *
+- * The card snapped to the rail's centre gets `.is-active` (via the shared
+- * `useInViewActive`, horizontal-band mode), so the `live:`/`group-live:`
+- * card effects play for the card you've swiped to — the touch stand-in for
+- * `:hover`. Disabled on desktop and under reduced motion.
++ * Both modes no-op the active-card emphasis on desktop and under reduced motion.
+  */
+ export const HorizontalGallery: React.FC<HorizontalGalleryProps> = ({
+   heading,
+   children,
+   desktopGrid,
++  mobileLayout = 'rail',
+ }) => {
+-  const railRef = useRef<HTMLDivElement>(null);
++  const rootRef = useRef<HTMLDivElement>(null);
++  const isStack = mobileLayout === 'stack';
+ 
+-  // Light up the card centred in the rail (mobile only; the hook no-ops at
+-  // md+ and under reduced motion). Cards keep `data-scene-card`.
+-  useInViewActive(railRef, {
++  // Light up the centred card (mobile only; no-ops at md+ / reduced motion).
++  // Rail → horizontal band within the scroller; stack → vertical band in the
++  // viewport. Cards keep `data-scene-card`.
++  useInViewActive(rootRef, {
+     selector: '[data-scene-card]',
+-    ioRoot: railRef,
+-    bandAxis: 'horizontal',
+-    bandInset: 42,
++    ioRoot: isStack ? undefined : rootRef,
++    bandAxis: isStack ? 'vertical' : 'horizontal',
++    bandInset: isStack ? 38 : 42,
+   });
+ 
+   const items = React.Children.map(children, (child) => (
+-    <div className="w-[80vw] max-w-xs shrink-0 snap-center md:w-auto md:max-w-none">{child}</div>
++    <div
++      className={
++        isStack
++          ? 'w-full md:w-auto md:max-w-none'
++          : 'w-[80vw] max-w-xs shrink-0 snap-center md:w-auto md:max-w-none'
++      }
++    >
++      {child}
++    </div>
+   ));
+ 
++  if (isStack) {
++    // Vertical stack on mobile, grid on desktop. No scroll container → shadows
++    // and tall cards are never clipped.
++    return (
++      <>
++        {heading}
++        <div ref={rootRef} className={`mt-8 flex flex-col gap-6 md:mt-0 md:grid ${desktopGrid} md:gap-6`}>
++          {items}
++        </div>
++      </>
++    );
++  }
++
+   return (
+     <>
+       {heading}
+       {/* Native horizontal snap rail on mobile; grid on desktop. The vertical
+-          py keeps card lift + elevated shadow from being clipped by the
+-          scroll container (overflow-x:auto forces overflow-y to clip). The
+-          -my offset cancels that padding so vertical rhythm is unchanged. */}
++          py (≈32px) is the room a scroll container needs so the active card's
++          lift + elevated shadow aren't sliced flat at the top/bottom edges;
++          the matching -my cancels it so vertical rhythm is unchanged. */}
+       <div
+-        ref={railRef}
+-        className={`-mx-4 -my-3 mt-5 flex gap-5 overflow-x-auto px-4 py-3 snap-x snap-mandatory scrollbar-hide
++        ref={rootRef}
++        className={`-mx-4 -my-8 mt-2 flex gap-5 overflow-x-auto px-4 py-8 snap-x snap-mandatory scrollbar-hide
+           md:mx-0 md:my-0 md:mt-0 md:grid ${desktopGrid} md:gap-6 md:overflow-visible md:px-0 md:py-0`}
+       >
+         {items}
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/index.css	2026-06-13 10:46:33
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/card-fixes/index.css	2026-06-14 07:42:18
+@@ -301,7 +301,10 @@
+   [data-scene-card].is-active {
+     transform: translateY(-4px);
+     border-color: color-mix(in srgb, var(--color-brand-500) 35%, transparent);
+-    box-shadow: var(--shadow-elevated);
++    /* Tighter than --shadow-elevated (which casts ~42px below): sized so the
++       lifted active card's shadow fits inside the rail's vertical padding and
++       is not sliced flat at the scroll-container edge. */
++    box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.28);
+   }
+ }
+ 
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/InstructorsSection.tsx	2026-06-13 10:46:33
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/card-fixes/components/sections/InstructorsSection.tsx	2026-06-14 07:42:39
+@@ -116,6 +116,7 @@
+         <HorizontalGallery
+           count={instructors.length}
+           desktopGrid="md:grid-cols-2"
++          mobileLayout="stack"
+           heading={
+             <FadeIn>
+               <div className="text-center mb-16">
+--- /Users/apple/Documents/Project Eybuckz/Eyebucks/components/sections/PricingSection.tsx	2026-06-13 12:47:12
++++ /Users/apple/Documents/Project Eybuckz/Eyebucks/.claude/worktrees/card-fixes/components/sections/PricingSection.tsx	2026-06-14 07:42:41
+@@ -237,6 +237,7 @@
+         <HorizontalGallery
+           count={tiers.length}
+           desktopGrid="md:grid-cols-2"
++          mobileLayout="stack"
+           heading={
+             <FadeIn>
+               <div className="text-center mb-16">
