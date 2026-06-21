@@ -1,9 +1,9 @@
--- Migration 033: Create the lessons table (new video-bearing leaf under modules)
+-- Migration 034: Create the lessons table (new video-bearing leaf under modules)
 --
 -- New content hierarchy:  course -> modules (CHAPTER grouping) -> lessons (video leaf).
 -- This migration is PURE SCHEMA: it creates the lessons table, indexes, trigger,
 -- RLS, and the reorder_lessons RPC. The destructive data re-key (moving videos
--- off modules, re-pointing progress to lessons) happens in 034.
+-- off modules, re-pointing progress to lessons) happens in 035.
 --
 -- NOTE: remote dev DB carries 030_authz_hardening + 031_fix_execute_grants (authored
 -- on the worktree-fix-critical-high branch, not present as files here). All new RPCs

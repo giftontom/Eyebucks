@@ -1,4 +1,4 @@
--- Migration 034: Auto-wrap existing modules into lessons, re-key progress/enrollments
+-- Migration 035: Auto-wrap existing modules into lessons, re-key progress/enrollments
 -- to lessons, slim the modules table to chapters, and rewrite the progress RPCs.
 --
 -- DESTRUCTIVE + IRREVERSIBLE: re-keys progress.module_id -> progress.lesson_id and
@@ -222,7 +222,9 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.get_progress_stats(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_progress_stats(uuid, text) TO authenticated, service_role;
 
--- save_progress_timestamp: same arg shape, 3rd param now a lesson id
+-- save_progress_timestamp: same arg shape, 3rd param renamed module->lesson.
+-- CREATE OR REPLACE can't rename a parameter, so drop the old signature first.
+DROP FUNCTION IF EXISTS public.save_progress_timestamp(uuid, text, text, numeric);
 CREATE OR REPLACE FUNCTION public.save_progress_timestamp(
   p_user_id uuid, p_course_id text, p_lesson_id text, p_timestamp numeric DEFAULT 0
 ) RETURNS void
@@ -239,7 +241,9 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.save_progress_timestamp(uuid, text, text, numeric) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.save_progress_timestamp(uuid, text, text, numeric) TO authenticated, service_role;
 
--- increment_view_count: same arg shape, 3rd param now a lesson id
+-- increment_view_count: same arg shape, 3rd param renamed module->lesson.
+-- CREATE OR REPLACE can't rename a parameter, so drop the old signature first.
+DROP FUNCTION IF EXISTS public.increment_view_count(uuid, text, text, numeric);
 CREATE OR REPLACE FUNCTION public.increment_view_count(
   p_user_id uuid, p_course_id text, p_lesson_id text, p_timestamp numeric DEFAULT 0
 ) RETURNS void
