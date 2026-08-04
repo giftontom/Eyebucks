@@ -87,3 +87,12 @@ verify_jwt = true
 
 [functions.video-cleanup]
 verify_jwt = true
+
+[functions.admin-asset-upload]
+verify_jwt = true
+
+[functions.asset-download-url]
+verify_jwt = true
+
+[functions.asset-claim-free]
+verify_jwt = true

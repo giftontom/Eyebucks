@@ -3,9 +3,9 @@
 ## Naming
 `{NNN}_{snake_case_description}.sql` where NNN is zero-padded 3 digits.
 
-**Next migration number: 028**
+**Next migration number: 041**
 
-27 migrations exist (001–027). Review the most recent ones before adding to understand current patterns.
+Migrations 001–040 exist (numbering has gaps, e.g. 030/031 were folded in). Review the most recent ones before adding to understand current patterns.
 
 ## Rules
 - Migrations are **permanent** — never edit an existing migration file
