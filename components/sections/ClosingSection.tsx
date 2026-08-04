@@ -1,8 +1,9 @@
 import { Plus, ArrowRight, Mail, CheckCircle2 } from 'lucide-react';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { FadeIn, STAGGER_MS } from '../FadeIn';
+import { siteContentApi } from '../../services/api';
 import { logger } from '../../utils/logger';
 
 interface FAQItem {
@@ -14,9 +15,57 @@ interface ClosingSectionProps {
   faqs: FAQItem[];
 }
 
+// CTA + email-capture copy — defaults are the verbatim hardcoded literals; CMS
+// (section 'closing', singleton row) can override per-field. The FAQ accordion
+// is sourced from the faqs prop and is untouched by this.
+const DEFAULT_COPY = {
+  eyebrow: 'Ready when you are',
+  title: 'Questions, answered. Then start shooting.',
+  ctaHeading: 'Start today.',
+  ctaBody: 'Lifetime access. 30-day money back. The camera is rolling.',
+  ctaLabel: 'Get Full Access',
+  guarantee1: '30-Day Guarantee',
+  guarantee2: 'Lifetime Access',
+  emailHeading: 'Not ready? Stay close.',
+  emailSubtext: 'Free filmmaking tips and early access to new courses.',
+  emailPlaceholder: 'your@email.com',
+  subscribeLabel: 'Subscribe',
+  emailSuccessHeading: "You're on the list",
+  emailSuccessSubtext: 'Tips, free resources, and course updates.',
+};
+
 export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [copy, setCopy] = useState(DEFAULT_COPY);
+
+  // CMS override for CTA + email copy only — singleton row [0], per-field
+  // fallback to DEFAULT_COPY. Non-critical: failures keep the defaults.
+  useEffect(() => {
+    siteContentApi.getBySection('closing')
+      .then(items => {
+        const item = items[0];
+        if (!item) {return;}
+        const meta = (item.metadata || {}) as Record<string, unknown>;
+        const str = (v: unknown, fallback: string) => (typeof v === 'string' && v ? v : fallback);
+        setCopy({
+          eyebrow: str(meta.eyebrow, DEFAULT_COPY.eyebrow),
+          title: item.title || DEFAULT_COPY.title,
+          ctaHeading: str(meta.ctaHeading, DEFAULT_COPY.ctaHeading),
+          ctaBody: str(meta.ctaBody, DEFAULT_COPY.ctaBody),
+          ctaLabel: str(meta.ctaLabel, DEFAULT_COPY.ctaLabel),
+          guarantee1: str(meta.guarantee1, DEFAULT_COPY.guarantee1),
+          guarantee2: str(meta.guarantee2, DEFAULT_COPY.guarantee2),
+          emailHeading: str(meta.emailHeading, DEFAULT_COPY.emailHeading),
+          emailSubtext: str(meta.emailSubtext, DEFAULT_COPY.emailSubtext),
+          emailPlaceholder: str(meta.emailPlaceholder, DEFAULT_COPY.emailPlaceholder),
+          subscribeLabel: str(meta.subscribeLabel, DEFAULT_COPY.subscribeLabel),
+          emailSuccessHeading: str(meta.emailSuccessHeading, DEFAULT_COPY.emailSuccessHeading),
+          emailSuccessSubtext: str(meta.emailSuccessSubtext, DEFAULT_COPY.emailSuccessSubtext),
+        });
+      })
+      .catch(err => logger.warn('[ClosingSection] CMS load failed:', err));
+  }, []);
 
   // Email capture state
   const [email, setEmail] = useState('');
@@ -53,8 +102,8 @@ export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn>
           <div className="text-center mb-16 max-w-2xl mx-auto">
-            <span className="t-eyebrow mb-4 inline-block">Ready when you are</span>
-            <h2 className="t-h2 t-text mb-4">Questions, answered. Then start shooting.</h2>
+            <span className="t-eyebrow mb-4 inline-block">{copy.eyebrow}</span>
+            <h2 className="t-h2 t-text mb-4">{copy.title}</h2>
           </div>
         </FadeIn>
 
@@ -110,22 +159,22 @@ export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
                   {/* Primary CTA */}
                   <div className="relative p-8 text-center">
                     <h3 className="text-3xl font-black mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">Start today.</span>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">{copy.ctaHeading}</span>
                     </h3>
                     <p className="t-body t-text-2 mb-6">
-                      Lifetime access. 30-day money back. The camera is rolling.
+                      {copy.ctaBody}
                     </p>
                     <button
                       onClick={() => navigate('/courses')}
                       data-live
                       className="group cta-sheen inline-flex items-center justify-center gap-2 w-full px-8 py-4 rounded-full bg-brand-500 hover:bg-brand-600 text-white font-bold text-lg transition-all shadow-(--shadow-brand) hover:-translate-y-0.5"
                     >
-                      Get Full Access
+                      {copy.ctaLabel}
                       <ArrowRight size={20} className="transition-transform group-live:translate-x-1" />
                     </button>
                     <div className="mt-5 flex items-center justify-center gap-4 t-caption">
-                      <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-(color:--status-success-text)" /> 30-Day Guarantee</span>
-                      <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-(color:--status-success-text)" /> Lifetime Access</span>
+                      <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-(color:--status-success-text)" /> {copy.guarantee1}</span>
+                      <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-(color:--status-success-text)" /> {copy.guarantee2}</span>
                     </div>
                   </div>
 
@@ -138,23 +187,23 @@ export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
                       <div className="flex items-center gap-3">
                         <CheckCircle2 size={20} className="text-(color:--status-success-text) flex-shrink-0" />
                         <div>
-                          <p className="font-bold t-text text-sm">You're on the list</p>
-                          <p className="t-caption">Tips, free resources, and course updates.</p>
+                          <p className="font-bold t-text text-sm">{copy.emailSuccessHeading}</p>
+                          <p className="t-caption">{copy.emailSuccessSubtext}</p>
                         </div>
                       </div>
                     ) : (
                       <>
                         <div className="flex items-center gap-2 mb-2">
                           <Mail size={14} className="text-brand-500" />
-                          <p className="text-sm font-bold t-text">Not ready? Stay close.</p>
+                          <p className="text-sm font-bold t-text">{copy.emailHeading}</p>
                         </div>
-                        <p className="t-caption mb-3">Free filmmaking tips and early access to new courses.</p>
+                        <p className="t-caption mb-3">{copy.emailSubtext}</p>
                         <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-2">
                           <input
                             type="email"
                             value={email}
                             onChange={(e) => { setEmail(e.target.value); if (status === 'error') {setStatus('idle');} }}
-                            placeholder="your@email.com"
+                            placeholder={copy.emailPlaceholder}
                             aria-label="Email address"
                             className="flex-1 px-4 py-2.5 rounded-lg t-border border t-input-bg t-text placeholder:text-(color:--text-3) outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-sm"
                           />
@@ -163,7 +212,7 @@ export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
                             disabled={status === 'submitting'}
                             className="px-4 py-2.5 rounded-lg bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold text-sm transition shrink-0"
                           >
-                            {status === 'submitting' ? '…' : 'Subscribe'}
+                            {status === 'submitting' ? '…' : copy.subscribeLabel}
                           </button>
                         </form>
                         {status === 'error' && errorMsg && (

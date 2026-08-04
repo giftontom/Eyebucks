@@ -1,7 +1,9 @@
 import { Camera, TrendingUp, FileText, DollarSign, Instagram, Zap } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { FadeIn } from './FadeIn';
+import { siteContentApi } from '../services/api';
+import { logger } from '../utils/logger';
 import type { SiteContentItem } from '../types';
 
 interface CreatorCard {
@@ -26,6 +28,18 @@ const DEFAULT_CARDS: CreatorCard[] = [
   { title: 'Monetisation Blueprint', body: 'From 0 to paid — YouTube, Instagram, and direct client monetisation strategies from working creators.', icon: 'zap' },
 ];
 
+interface HeaderCopy {
+  eyebrow: string;
+  heading: string;
+  subheading: string;
+}
+
+const DEFAULT_COPY: HeaderCopy = {
+  eyebrow: 'Creators & Influencers Academy',
+  heading: 'Built for Creators Who Get Paid.',
+  subheading: 'Not just filmmaking — brand deals, content strategy, and the business side of being a creator.',
+};
+
 interface Props {
   items?: SiteContentItem[];
 }
@@ -39,19 +53,36 @@ export const CreatorsSection: React.FC<Props> = ({ items = [] }) => {
       }))
     : DEFAULT_CARDS;
 
+  const [copy, setCopy] = useState<HeaderCopy>(DEFAULT_COPY);
+
+  useEffect(() => {
+    siteContentApi.getBySection('creators_copy')
+      .then(rows => {
+        const item = rows[0];
+        if (!item) return;
+        const metadata = (item.metadata as Record<string, string>) ?? {};
+        setCopy({
+          eyebrow: metadata.pill ?? DEFAULT_COPY.eyebrow,
+          heading: item.title ?? DEFAULT_COPY.heading,
+          subheading: item.body ?? DEFAULT_COPY.subheading,
+        });
+      })
+      .catch(err => logger.warn('[CreatorsSection] header CMS load failed:', err));
+  }, []);
+
   return (
     <section className="py-24 t-bg-alt overflow-hidden border-t t-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn>
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 bg-brand-600/20 border border-brand-600/30 text-brand-500 rounded-full font-bold tracking-wider uppercase text-xs mb-4">
-              Creators &amp; Influencers Academy
+              {copy.eyebrow}
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold t-text mb-4" style={{ fontFamily: 'var(--font-display)' }}>
-              Built for Creators Who Get Paid.
+              {copy.heading}
             </h2>
             <p className="t-text-2 text-lg max-w-2xl mx-auto">
-              Not just filmmaking — brand deals, content strategy, and the business side of being a creator.
+              {copy.subheading}
             </p>
           </div>
         </FadeIn>

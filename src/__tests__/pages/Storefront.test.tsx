@@ -22,6 +22,9 @@ vi.mock('../../../services/api', () => ({
     getCourseCount: vi.fn().mockResolvedValue(0),
     getCourseModules: vi.fn().mockResolvedValue({ modules: [], hasAccess: false, success: true }),
   },
+  digitalAssetsApi: {
+    getAssets: vi.fn().mockResolvedValue({ success: true, assets: [], total: 0, hasMore: false }),
+  },
 }));
 
 let Storefront: any;

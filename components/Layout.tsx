@@ -9,6 +9,7 @@ import { AnnouncementBanner } from './AnnouncementBanner';
 import { BackToTop } from './BackToTop';
 import { Breadcrumbs } from './Breadcrumbs';
 import { JsonLd } from './JsonLd';
+import { LanguageToggle } from './LanguageToggle';
 import { MobileBottomNav, shouldShowBottomNav } from './MobileBottomNav';
 import { NotificationBell } from './NotificationBell';
 
@@ -102,6 +103,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     >
                       {isDark ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
                     </button>
+                    <LanguageToggle />
                     <NotificationBell />
                     <div className="text-right hidden lg:block">
                         <p className="text-sm font-bold t-text">{user.name}</p>
@@ -129,6 +131,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     >
                       {isDark ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
                     </button>
+                    <LanguageToggle />
                     <button
                       onClick={handleLogin}
                       className="bg-brand-600 text-white px-6 py-2.5 rounded-full font-semibold hover:bg-brand-500 transition text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
@@ -141,8 +144,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             </div>
 
-            {/* Mobile menu button */}
-            <div className="-mr-2 flex md:hidden">
+            {/* Mobile header actions — quick-access theme toggle + menu (top right) */}
+            <div className="-mr-1 flex items-center gap-1 md:hidden">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full t-text-2 hover:t-text hover:bg-[var(--surface-hover)] transition"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDark ? <Sun size={22} aria-hidden="true" /> : <Moon size={22} aria-hidden="true" />}
+              </button>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="z-50 relative inline-flex items-center justify-center p-2 rounded-md t-text-2 hover:t-text focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-600"
@@ -201,18 +212,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
              </nav>
 
              <div className="mt-auto mb-10 pb-10 border-t t-border pt-8">
-                {/* Theme toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className="w-full mb-4 flex items-center justify-between p-4 rounded-xl t-card hover:bg-[var(--surface-hover)] transition t-border border t-text"
-                  aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  <span className="text-base font-medium t-text flex items-center gap-2">
-                    {isDark ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
-                    {isDark ? 'Light Mode' : 'Dark Mode'}
-                  </span>
-                  <ChevronRight size={20} className="t-text-3" aria-hidden="true" />
-                </button>
+                {/* Language toggle */}
+                <LanguageToggle variant="full" />
                 {user ? (
                    <div className="space-y-4">
                       <div className="flex items-center gap-4 px-2">

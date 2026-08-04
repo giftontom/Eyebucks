@@ -4,7 +4,7 @@
  */
 import { supabase } from '../supabase';
 
-import type { Enrollment, EnrollmentWithCourse } from '../../types';
+import type { Enrollment, EnrollmentWithCourse, CourseLanguage } from '../../types';
 import type { EnrollmentRow, EnrollmentUpdate } from '../../types/supabase';
 
 function mapEnrollment(row: EnrollmentRow): Enrollment {
@@ -76,6 +76,8 @@ export const enrollmentsApi = {
         heroVideoId: row.courses.hero_video_id,
         type: row.courses.type,
         status: row.courses.status,
+        language: (row.courses.language ?? 'EN') as CourseLanguage,
+        courseGroupId: row.courses.course_group_id ?? null,
         rating: row.courses.rating,
         totalStudents: row.courses.total_students,
         features: row.courses.features || [],

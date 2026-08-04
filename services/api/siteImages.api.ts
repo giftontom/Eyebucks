@@ -12,6 +12,25 @@ import { logger } from '../../utils/logger';
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
+/**
+ * supabase-js wraps non-2xx function responses in a FunctionsHttpError whose
+ * `.message` is just "Edge Function returned a non-2xx status code". The real
+ * reason (e.g. "Image service not configured") is in the response body — dig it out.
+ */
+async function extractFnError(error: unknown): Promise<string> {
+  const fallback = (error as { message?: string })?.message || 'Image upload failed';
+  const ctx = (error as { context?: unknown })?.context;
+  if (ctx && typeof (ctx as Response).clone === 'function') {
+    try {
+      const body = await (ctx as Response).clone().json();
+      if (body?.error) { return String(body.error); }
+    } catch {
+      /* body wasn't JSON — fall through */
+    }
+  }
+  return fallback;
+}
+
 export type ImageFolder =
   | 'testimonials'
   | 'showcase'
@@ -44,7 +63,7 @@ export const siteImagesApi = {
     const { data, error } = await supabase.functions.invoke('admin-image-upload', { body: form });
     if (error) {
       logger.error('[siteImages] upload failed:', error);
-      throw new Error(error.message || 'Image upload failed');
+      throw new Error(await extractFnError(error));
     }
     if (!data?.success || !data?.url) {
       throw new Error(data?.error || 'Image upload failed');

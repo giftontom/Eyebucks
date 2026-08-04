@@ -237,8 +237,11 @@ export const ContentPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!form.title || !form.body) {
-      showToast(`${schema?.titleLabel ?? 'Title'} and ${schema?.bodyLabel ?? 'body'} are required`, 'error');
+    const missing: string[] = [];
+    if (schema?.coreTitle !== false && !form.title) { missing.push(schema?.titleLabel ?? 'Title'); }
+    if (schema?.coreBody !== false && !form.body) { missing.push(schema?.bodyLabel ?? 'Body'); }
+    if (missing.length > 0) {
+      showToast(`${missing.join(' and ')} required`, 'error');
       return;
     }
     // Required typed fields
@@ -305,8 +308,9 @@ export const ContentPage: React.FC = () => {
   const registrySections = GROUP_ORDER.flatMap((g) =>
     Object.values(SECTION_SCHEMAS).filter((s) => s.group === g).map((s) => s.section),
   );
+  // 'settings' rows are owned by the Settings page, not the content editor — hide them.
   const extraSections = Array.from(new Set(siteContent.map((c) => c.section))).filter(
-    (s) => !registrySections.includes(s),
+    (s) => !registrySections.includes(s) && s !== 'settings',
   );
   const orderedSections = [...registrySections, ...extraSections];
 
@@ -422,27 +426,37 @@ export const ContentPage: React.FC = () => {
             </div>
           )}
 
-          {/* Core title + body, with section-aware labels */}
-          <div>
-            <label className="block text-sm font-medium t-text-2 mb-2">{schema?.titleLabel ?? 'Title'} *</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className={inputCls}
-              placeholder={schema?.titlePlaceholder}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium t-text-2 mb-2">{schema?.bodyLabel ?? 'Body'} *</label>
-            <textarea
-              value={form.body}
-              onChange={(e) => setForm({ ...form, body: e.target.value })}
-              rows={schema?.bodyMultiline === false ? 2 : 4}
-              className={inputCls}
-              placeholder={schema?.bodyPlaceholder}
-            />
-          </div>
+          {schema?.singleton && (
+            <p className="text-xs t-text-3 -mt-1">
+              Single-row section — only the first row (lowest order) is shown on the site.
+            </p>
+          )}
+
+          {/* Core title + body, with section-aware labels (some singletons omit them) */}
+          {schema?.coreTitle !== false && (
+            <div>
+              <label className="block text-sm font-medium t-text-2 mb-2">{schema?.titleLabel ?? 'Title'} *</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className={inputCls}
+                placeholder={schema?.titlePlaceholder}
+              />
+            </div>
+          )}
+          {schema?.coreBody !== false && (
+            <div>
+              <label className="block text-sm font-medium t-text-2 mb-2">{schema?.bodyLabel ?? 'Body'} *</label>
+              <textarea
+                value={form.body}
+                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                rows={schema?.bodyMultiline === false ? 2 : 4}
+                className={inputCls}
+                placeholder={schema?.bodyPlaceholder}
+              />
+            </div>
+          )}
 
           {/* Metadata — typed sub-form or raw JSON */}
           {(schema?.fields.length ?? 0) > 0 || advancedMode ? (

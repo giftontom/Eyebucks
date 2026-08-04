@@ -34,8 +34,10 @@
   --color-dark-border: #1a1a1a;
   --color-dark-surface: #111111;
 
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'DM Sans', 'Inter', sans-serif;
+  /* 'Noto Sans Malayalam' is a glyph-coverage fallback: Latin text uses Inter/DM Sans,
+     Malayalam codepoints (U+0D00–U+0D7F) fall through to Noto automatically. */
+  --font-sans: 'Inter', 'Noto Sans Malayalam', sans-serif;
+  --font-display: 'DM Sans', 'Inter', 'Noto Sans Malayalam', sans-serif;
 
   --animate-fade-in: fade-in 0.8s ease-out forwards;
   --animate-fade-in-up: fade-in-up 0.8s ease-out forwards;
@@ -345,10 +347,22 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Noto Sans Malayalam', sans-serif;
   background-color: var(--page-bg);
   color: var(--text-1);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Malayalam glyphs sit taller than Latin; relax tight line-heights on ML content
+   so ascenders/conjuncts/chillus aren't clipped. Applies only to elements
+   explicitly marked lang="ml" (course titles/descriptions). */
+:lang(ml) {
+  line-height: 1.6;
+}
+[lang="ml"].line-clamp-2,
+[lang="ml"] {
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Eliminate 300ms tap delay on iOS */

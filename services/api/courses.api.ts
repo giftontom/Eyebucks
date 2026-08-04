@@ -8,7 +8,7 @@ import { logger } from '../../utils/logger';
 import { escapeOrFilter } from '../../utils/supabaseUtils';
 import { supabase } from '../supabase';
 
-import type { Course, Module, Lesson } from '../../types';
+import type { Course, Module, Lesson, CourseLanguage } from '../../types';
 import type { CourseRow, ModuleRow, LessonRow } from '../../types/supabase';
 
 // Query result types for joined queries
@@ -99,6 +99,8 @@ function mapCourse(row: CourseQueryRow): Course {
     heroVideoId: row.hero_video_id,
     type: row.type,
     status: row.status,
+    language: (row.language ?? 'EN') as CourseLanguage,
+    courseGroupId: row.course_group_id ?? null,
     rating: row.rating,
     totalStudents: row.total_students,
     features: row.features || [],
@@ -141,6 +143,8 @@ export interface GetCoursesOptions {
   pageSize?: number;
   /** Filter by course type. Omit for all types. */
   type?: 'BUNDLE' | 'MODULE';
+  /** Filter by content language (EN | ML). Omit for all languages. */
+  language?: CourseLanguage;
   /** Case-insensitive search across title + description. */
   search?: string;
   /** Minimum rating (1-5). 0 or omitted = no rating filter. */
@@ -179,11 +183,13 @@ export const coursesApi = {
    * hero "N+ Courses" stat — instead of fetching a full page just to read
    * `.total`.
    */
-  async getCourseCount(): Promise<number> {
-    const { count, error } = await supabase
+  async getCourseCount(language?: CourseLanguage): Promise<number> {
+    let query = supabase
       .from('courses')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'PUBLISHED');
+    if (language) { query = query.eq('language', language); }
+    const { count, error } = await query;
     if (error) { throw new Error(error.message); }
     return count ?? 0;
   },
@@ -212,7 +218,7 @@ export const coursesApi = {
   },
 
   async _getCoursesUncached(options: GetCoursesOptions = {}): Promise<GetCoursesResult> {
-    const { page = 1, pageSize = 12, type, search, minRating = 0, maxPrice = 0, sort = 'newest', withCount = true } = options;
+    const { page = 1, pageSize = 12, type, language, search, minRating = 0, maxPrice = 0, sort = 'newest', withCount = true } = options;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -236,6 +242,7 @@ export const coursesApi = {
       .eq('status', 'PUBLISHED');
 
     if (type) { query = query.eq('type', type); }
+    if (language) { query = query.eq('language', language); }
     if (minRating > 0) { query = query.gte('rating', minRating); }
     if (maxPrice > 0) { query = query.lte('price', maxPrice); }
     if (search?.trim()) {

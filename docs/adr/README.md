@@ -15,6 +15,9 @@ rationale behind the decision.
 | [003](003-why-razorpay.md) | Why Razorpay for payments | Accepted | 2026-03-14 |
 | [004](004-why-bunny-net.md) | Why Bunny.net for video hosting | Accepted | 2026-03-14 |
 | [005](005-why-tailwind-v4.md) | Why Tailwind CSS v4 | Accepted | 2026-03-14 |
+| [006](006-browserrouter-for-seo.md) | Why BrowserRouter over HashRouter for SEO | Accepted | 2026-03-14 |
+| [007](007-agent-skills-standard.md) | Standardize skills on the Agent Skills standard | Accepted | 2026-06-04 |
+| [008](008-digital-assets-feature.md) | Digital Assets (downloadable products) feature | Accepted | 2026-06-22 |
 
 ---
 

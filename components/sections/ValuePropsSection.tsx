@@ -46,6 +46,20 @@ const DEFAULT_PROPS: ValueProp[] = [
   },
 ];
 
+interface ValuePropsCopy {
+  pill: string;
+  title: string;
+  body: string;
+  footerLinkLabel: string;
+}
+
+const DEFAULT_COPY: ValuePropsCopy = {
+  pill: 'Why Eyebuckz',
+  title: 'Built for creators who mean it.',
+  body: 'More than courses. A complete production toolkit — taught by people who work the camera, not the textbook.',
+  footerLinkLabel: 'Browse the full catalog',
+};
+
 function parseProp(item: SiteContentItem): ValueProp {
   const meta = (item.metadata ?? {}) as Record<string, unknown>;
   const bulletsRaw = meta.bullets;
@@ -98,6 +112,7 @@ const SpotlightCard: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
 export const ValuePropsSection: React.FC = () => {
   const [props, setProps] = useState<ValueProp[]>(DEFAULT_PROPS);
+  const [copy, setCopy] = useState<ValuePropsCopy>(DEFAULT_COPY);
 
   useEffect(() => {
     siteContentApi.getBySection('value_cards')
@@ -105,6 +120,24 @@ export const ValuePropsSection: React.FC = () => {
         if (items.length > 0) {setProps(items.map(parseProp));}
       })
       .catch(err => logger.warn('[ValuePropsSection] Failed to load from CMS:', err));
+  }, []);
+
+  useEffect(() => {
+    siteContentApi.getBySection('value_props_copy')
+      .then(items => {
+        const item = items[0];
+        if (!item) { return; }
+        const meta = (item.metadata ?? {}) as Record<string, unknown>;
+        setCopy({
+          pill: typeof meta.pill === 'string' && meta.pill ? meta.pill : DEFAULT_COPY.pill,
+          title: item.title || DEFAULT_COPY.title,
+          body: item.body || DEFAULT_COPY.body,
+          footerLinkLabel: typeof meta.footerLinkLabel === 'string' && meta.footerLinkLabel
+            ? meta.footerLinkLabel
+            : DEFAULT_COPY.footerLinkLabel,
+        });
+      })
+      .catch(err => logger.warn('[ValuePropsSection] header CMS load failed:', err));
   }, []);
 
   return (
@@ -117,11 +150,11 @@ export const ValuePropsSection: React.FC = () => {
             <FadeIn>
               <div className="text-center mb-16 max-w-2xl mx-auto">
                 <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] scene-adaptive-brand font-bold tracking-widest uppercase text-xs mb-4">
-                  Why Eyebuckz
+                  {copy.pill}
                 </span>
-                <h2 className="t-h2 scene-adaptive-text mb-4">Built for creators who mean it.</h2>
+                <h2 className="t-h2 scene-adaptive-text mb-4">{copy.title}</h2>
                 <p className="t-body-lg scene-adaptive-text-2">
-                  More than courses. A complete production toolkit — taught by people who work the camera, not the textbook.
+                  {copy.body}
                 </p>
               </div>
             </FadeIn>
@@ -162,7 +195,7 @@ export const ValuePropsSection: React.FC = () => {
               data-live
               className="inline-flex items-center gap-2 scene-adaptive-text-2 hover:text-brand-500 font-semibold text-sm transition-colors group"
             >
-              Browse the full catalog
+              {copy.footerLinkLabel}
               <ArrowRight size={16} className="group-live:translate-x-1 transition-transform" />
             </Link>
           </div>

@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_purchases: {
+        Row: {
+          amount: number | null
+          asset_id: string
+          created_at: string
+          download_count: number
+          id: string
+          last_downloaded_at: string | null
+          order_id: string | null
+          payment_id: string | null
+          purchased_at: string
+          status: Database["public"]["Enums"]["enrollment_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          asset_id: string
+          created_at?: string
+          download_count?: number
+          id?: string
+          last_downloaded_at?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          purchased_at?: string
+          status?: Database["public"]["Enums"]["enrollment_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          asset_id?: string
+          created_at?: string
+          download_count?: number
+          id?: string
+          last_downloaded_at?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          purchased_at?: string
+          status?: Database["public"]["Enums"]["enrollment_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_purchases_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -248,8 +308,10 @@ export type Database = {
           deleted_at: string | null
           description: string
           features: string[] | null
+          course_group_id: string | null
           hero_video_id: string | null
           id: string
+          language: Database["public"]["Enums"]["course_language"]
           price: number
           published_at: string | null
           rating: number | null
@@ -266,8 +328,10 @@ export type Database = {
           deleted_at?: string | null
           description: string
           features?: string[] | null
+          course_group_id?: string | null
           hero_video_id?: string | null
           id?: string
+          language?: Database["public"]["Enums"]["course_language"]
           price: number
           published_at?: string | null
           rating?: number | null
@@ -284,8 +348,10 @@ export type Database = {
           deleted_at?: string | null
           description?: string
           features?: string[] | null
+          course_group_id?: string | null
           hero_video_id?: string | null
           id?: string
+          language?: Database["public"]["Enums"]["course_language"]
           price?: number
           published_at?: string | null
           rating?: number | null
@@ -296,6 +362,72 @@ export type Database = {
           total_students?: number | null
           type?: Database["public"]["Enums"]["course_type"]
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      digital_assets: {
+        Row: {
+          compare_price: number | null
+          created_at: string
+          deleted_at: string | null
+          description: string
+          download_count: number
+          file_ext: string | null
+          file_size: number | null
+          file_type: Database["public"]["Enums"]["asset_file_type"]
+          id: string
+          license: Database["public"]["Enums"]["asset_license"]
+          preview_url: string | null
+          price: number
+          slug: string
+          status: Database["public"]["Enums"]["course_status"]
+          storage_path: string
+          thumbnail: string
+          title: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          compare_price?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          description: string
+          download_count?: number
+          file_ext?: string | null
+          file_size?: number | null
+          file_type: Database["public"]["Enums"]["asset_file_type"]
+          id?: string
+          license?: Database["public"]["Enums"]["asset_license"]
+          preview_url?: string | null
+          price: number
+          slug: string
+          status?: Database["public"]["Enums"]["course_status"]
+          storage_path: string
+          thumbnail?: string
+          title: string
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          compare_price?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          description?: string
+          download_count?: number
+          file_ext?: string | null
+          file_size?: number | null
+          file_type?: Database["public"]["Enums"]["asset_file_type"]
+          id?: string
+          license?: Database["public"]["Enums"]["asset_license"]
+          preview_url?: string | null
+          price?: number
+          slug?: string
+          status?: Database["public"]["Enums"]["course_status"]
+          storage_path?: string
+          thumbnail?: string
+          title?: string
+          updated_at?: string
+          version?: string
         }
         Relationships: []
       }
@@ -541,6 +673,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          asset_id: string | null
           course_id: string | null
           created_at: string | null
           currency: string
@@ -561,6 +694,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          asset_id?: string | null
           course_id?: string | null
           created_at?: string | null
           currency?: string
@@ -581,6 +715,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          asset_id?: string | null
           course_id?: string | null
           created_at?: string | null
           currency?: string
@@ -600,6 +735,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_course_id_fkey"
             columns: ["course_id"]
@@ -782,6 +924,7 @@ export type Database = {
           name: string
           phone_e164: string | null
           phone_verified: boolean | null
+          preferred_language: Database["public"]["Enums"]["course_language"] | null
           role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string | null
         }
@@ -799,6 +942,7 @@ export type Database = {
           name: string
           phone_e164?: string | null
           phone_verified?: boolean | null
+          preferred_language?: Database["public"]["Enums"]["course_language"] | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
         }
@@ -816,6 +960,7 @@ export type Database = {
           name?: string
           phone_e164?: string | null
           phone_verified?: boolean | null
+          preferred_language?: Database["public"]["Enums"]["course_language"] | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
         }
@@ -924,7 +1069,19 @@ export type Database = {
       }
     }
     Enums: {
+      asset_file_type:
+        | "LUT"
+        | "PRESET"
+        | "SFX"
+        | "MUSIC"
+        | "OVERLAY"
+        | "PROJECT"
+        | "PDF"
+        | "TEMPLATE"
+        | "OTHER"
+      asset_license: "PERSONAL" | "COMMERCIAL" | "EXTENDED"
       certificate_status: "ACTIVE" | "REVOKED"
+      course_language: "EN" | "ML"
       course_status: "PUBLISHED" | "DRAFT"
       course_type: "BUNDLE" | "MODULE"
       enrollment_status: "ACTIVE" | "EXPIRED" | "REVOKED" | "PENDING"
@@ -1061,6 +1218,11 @@ export type CompositeTypes<
 
 
 // Convenience row type aliases used by API service modules
+export type DigitalAssetRow = Database['public']['Tables']['digital_assets']['Row']
+export type DigitalAssetInsert = Database['public']['Tables']['digital_assets']['Insert']
+export type DigitalAssetUpdate = Database['public']['Tables']['digital_assets']['Update']
+export type AssetPurchaseRow = Database['public']['Tables']['asset_purchases']['Row']
+export type AssetPurchaseInsert = Database['public']['Tables']['asset_purchases']['Insert']
 export type CertificateRow = Database['public']['Tables']['certificates']['Row']
 export type CourseRow = Database['public']['Tables']['courses']['Row']
 export type CourseUpdate = Database['public']['Tables']['courses']['Update']
@@ -1084,7 +1246,20 @@ export type UserRow = Database['public']['Tables']['users']['Row']
 export const Constants = {
   public: {
     Enums: {
+      asset_file_type: [
+        "LUT",
+        "PRESET",
+        "SFX",
+        "MUSIC",
+        "OVERLAY",
+        "PROJECT",
+        "PDF",
+        "TEMPLATE",
+        "OTHER",
+      ],
+      asset_license: ["PERSONAL", "COMMERCIAL", "EXTENDED"],
       certificate_status: ["ACTIVE", "REVOKED"],
+      course_language: ["EN", "ML"],
       course_status: ["PUBLISHED", "DRAFT"],
       course_type: ["BUNDLE", "MODULE"],
       enrollment_status: ["ACTIVE", "EXPIRED", "REVOKED", "PENDING"],

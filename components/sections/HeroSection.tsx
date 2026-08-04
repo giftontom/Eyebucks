@@ -2,25 +2,82 @@ import { Play, ArrowRight, Sparkles, CheckCircle2, Award } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useScrollParallax } from '../../hooks/useScrollParallax';
+import { coursesApi, siteContentApi } from '../../services/api';
+import { logger } from '../../utils/logger';
 import { AnimatedCounter } from '../AnimatedCounter';
 import { HeroCarousel } from '../HeroCarousel';
-import { useAuth } from '../../context/AuthContext';
-import { useScrollParallax } from '../../hooks/useScrollParallax';
-import { coursesApi } from '../../services/api';
-import { logger } from '../../utils/logger';
+
+const DEFAULT_COPY = {
+  pill: 'New Cohort Starting Soon',
+  title: 'Master the Craft',
+  headline2: 'of Filmmaking.',
+  body: 'Professional courses, raw assets, and a community of working creators. Everything you need to go from beginner to full-time filmmaker.',
+  ctaPrimaryGuest: 'Start Learning',
+  ctaPrimaryUser: 'Continue Learning',
+  ctaSecondary: 'See Courses',
+  statCoursesSuffix: '+ Courses',
+  stat2: 'Lifetime Access',
+  stat3: 'Certificate Included',
+};
 
 export const HeroSection: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { language } = useLanguage();
   const [courseCount, setCourseCount] = useState(15);
+  const [copy, setCopy] = useState(DEFAULT_COPY);
+  // CMS-managed carousel slides; undefined → HeroCarousel uses its built-in defaults.
+  const [slides, setSlides] = useState<{ image: string; title: string }[] | undefined>(undefined);
 
   const sectionRef = useRef<HTMLElement>(null);
   const parallaxOffset = useScrollParallax(sectionRef, { maxOffset: 40, factor: 0.18 });
 
   useEffect(() => {
-    coursesApi.getCourseCount()
+    coursesApi.getCourseCount(language)
       .then(count => { if (count > 0) {setCourseCount(count);} })
       .catch(err => logger.warn('[HeroSection] Failed to load course count:', err));
+  }, [language]);
+
+  useEffect(() => {
+    siteContentApi.getBySection('hero')
+      .then(items => {
+        const item = items[0];
+        if (!item) { return; }
+        const meta = (item.metadata ?? {}) as Record<string, unknown>;
+        const pick = (v: unknown, fallback: string) =>
+          typeof v === 'string' && v.trim() !== '' ? v : fallback;
+        setCopy({
+          pill: pick(meta.pill, DEFAULT_COPY.pill),
+          title: pick(item.title, DEFAULT_COPY.title),
+          headline2: pick(meta.headline2, DEFAULT_COPY.headline2),
+          body: pick(item.body, DEFAULT_COPY.body),
+          ctaPrimaryGuest: pick(meta.ctaPrimaryGuest, DEFAULT_COPY.ctaPrimaryGuest),
+          ctaPrimaryUser: pick(meta.ctaPrimaryUser, DEFAULT_COPY.ctaPrimaryUser),
+          ctaSecondary: pick(meta.ctaSecondary, DEFAULT_COPY.ctaSecondary),
+          statCoursesSuffix: pick(meta.statCoursesSuffix, DEFAULT_COPY.statCoursesSuffix),
+          stat2: pick(meta.stat2, DEFAULT_COPY.stat2),
+          stat3: pick(meta.stat3, DEFAULT_COPY.stat3),
+        });
+      })
+      .catch(err => logger.warn('[HeroSection] CMS load failed:', err));
+  }, []);
+
+  // Hero carousel slides (one CMS row per slide; metadata.image = uploaded image).
+  useEffect(() => {
+    siteContentApi.getBySection('hero_slides')
+      .then(items => {
+        const mapped = items
+          .map(i => {
+            const img = (i.metadata as Record<string, unknown> | null)?.image;
+            return typeof img === 'string' && img.trim() !== '' ? { image: img, title: i.title } : null;
+          })
+          .filter((s): s is { image: string; title: string } => s !== null);
+        if (mapped.length > 0) { setSlides(mapped); }
+      })
+      .catch(err => logger.warn('[HeroSection] slides CMS load failed:', err));
   }, []);
 
   const scrollToFeatured = () => {
@@ -70,22 +127,21 @@ export const HeroSection: React.FC = () => {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500" />
           </span>
-          New Cohort Starting Soon
+          {copy.pill}
         </div>
 
         {/* Headline */}
         <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tighter mb-6 leading-[0.9] animate-fade-in-up" style={{ fontFamily: 'var(--font-display)' }}>
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">
-            Master the Craft
+            {copy.title}
           </span>
           <br />
-          <span className="t-text">of Filmmaking.</span>
+          <span className="t-text">{copy.headline2}</span>
         </h1>
 
         {/* Subtitle */}
         <p className="t-body-lg md:text-xl t-text-2 mb-10 max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          Professional courses, raw assets, and a community of working creators.
-          Everything you need to go from beginner to full-time filmmaker.
+          {copy.body}
         </p>
 
         {/* CTAs */}
@@ -95,32 +151,32 @@ export const HeroSection: React.FC = () => {
             data-live
             className="group cta-sheen w-full sm:w-auto h-14 px-10 rounded-full bg-brand-500 text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-[var(--shadow-brand)] hover:shadow-[0_0_60px_-10px_rgba(220,38,38,0.7)] hover:-translate-y-0.5 hover:bg-brand-600"
           >
-            {user ? 'Continue Learning' : 'Start Learning'}
+            {user ? copy.ctaPrimaryUser : copy.ctaPrimaryGuest}
             <ArrowRight size={20} className="group-live:translate-x-1 transition-transform" />
           </button>
           <button
             onClick={scrollToFeatured}
             className="group w-full sm:w-auto h-14 px-10 rounded-full t-card t-border border hover:bg-[var(--surface-hover)] t-text font-bold text-lg flex items-center justify-center gap-3 transition-all backdrop-blur-sm hover:-translate-y-0.5"
           >
-            <Play size={18} fill="currentColor" /> See Courses
+            <Play size={18} fill="currentColor" /> {copy.ctaSecondary}
           </button>
         </div>
 
         {/* Hero Carousel */}
         <div className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-          <HeroCarousel />
+          <HeroCarousel slides={slides} />
         </div>
 
         {/* Stats row */}
         <div className="flex flex-wrap items-center justify-center gap-3 mt-10 animate-fade-in-up" style={{ animationDelay: '0.5s', opacity: 'var(--scene-dark, 1)' }}>
           <span className="px-5 py-2.5 rounded-full t-card t-border border text-sm font-bold t-text-2 flex items-center gap-2 backdrop-blur-sm">
-            <Sparkles size={16} className="text-brand-500" /> <AnimatedCounter value={courseCount} suffix="+ Courses" />
+            <Sparkles size={16} className="text-brand-500" /> <AnimatedCounter value={courseCount} suffix={copy.statCoursesSuffix} />
           </span>
           <span className="px-5 py-2.5 rounded-full t-card t-border border text-sm font-bold t-text-2 flex items-center gap-2 backdrop-blur-sm">
-            <CheckCircle2 size={16} className="text-[color:var(--status-success-text)]" /> Lifetime Access
+            <CheckCircle2 size={16} className="text-[color:var(--status-success-text)]" /> {copy.stat2}
           </span>
           <span className="px-5 py-2.5 rounded-full t-card t-border border text-sm font-bold t-text-2 flex items-center gap-2 backdrop-blur-sm">
-            <Award size={16} className="text-yellow-500" /> Certificate Included
+            <Award size={16} className="text-yellow-500" /> {copy.stat3}
           </span>
         </div>
       </div>

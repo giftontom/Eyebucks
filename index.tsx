@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { supabase } from './services/supabase';
 import { logger } from './utils/logger';
+import { initMetaPixel } from './utils/metaPixel';
 import './index.css';
 
 // Initialize Sentry asynchronously to keep it off the critical path
@@ -47,6 +48,17 @@ if (import.meta.env.VITE_POSTHOG_KEY) {
   });
 } else {
   logger.info('[PostHog] Not configured - skipping analytics');
+}
+
+// Initialize Meta (Facebook) Pixel — gated on the env var so it runs on
+// production + dev (set in Cloudflare) but stays off on localhost where the var
+// is unset, keeping local/test traffic out of Meta. <MetaPixel> fires PageView
+// on every route; the entry gate fires the SegmentSelected custom event.
+if (import.meta.env.VITE_META_PIXEL_ID) {
+  initMetaPixel(import.meta.env.VITE_META_PIXEL_ID);
+  logger.info('[MetaPixel] Initialized');
+} else {
+  logger.info('[MetaPixel] Not configured - skipping');
 }
 
 const rootElement = document.getElementById('root');

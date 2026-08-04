@@ -121,39 +121,45 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 ## Database Schema
 
-### 16 Tables
+### 18 Tables
 
 | Table | Purpose |
 |-------|---------|
-| `users` | User profiles synced from auth.users via trigger; has `role` ENUM, `phone_e164`, `google_id` |
-| `courses` | Course catalog; `slug` UNIQUE; `price` in paise; soft-delete via `deleted_at` |
+| `users` | User profiles synced from auth.users via trigger; has `role` ENUM, `phone_e164`, `google_id`, `preferred_language` (storefront language pref) |
+| `courses` | Course catalog; `slug` UNIQUE; `price` in paise; `language` (`course_language` ENUM, EN/ML) + optional `course_group_id` link siblings; soft-delete via `deleted_at` |
 | `modules` | Course chapters; `video_id` is Bunny GUID; `order_index`; `is_free_preview` |
 | `enrollments` | User-course access; `status` ENUM; `expires_at` for time-limited access |
 | `progress` | Per-module watch progress; `timestamp`, `completed`, `watch_time`, `view_count` |
-| `payments` | Razorpay transaction records; `razorpay_order_id`, `razorpay_payment_id` |
+| `payments` | Razorpay transaction records; `razorpay_order_id`, `razorpay_payment_id`; `course_id` nullable (XOR with `asset_id`) |
 | `certificates` | Course completion certificates; `certificate_number`, `download_url`, `pdf_data` |
 | `reviews` | Course ratings + comments; `helpful` upvote count |
 | `notifications` | User notification inbox; `type` ENUM, `link`, `read` boolean |
-| `site_content` | CMS blocks; `section`: faq\|testimonial\|showcase\|banner\|settings |
+| `site_content` | CMS blocks; `section` CHECK: 18 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, social_proof, featured_copy, how_it_works, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing |
 | `bundle_courses` | Junction: BUNDLE-type courses → individual courses; `order_index` |
-| `coupon_uses` | Atomic coupon redemption records; `discount_pct` captured at use time |
+| `coupon_uses` | Atomic coupon redemption records; `discount_pct` captured at use time; `course_id` nullable (XOR with `asset_id`) |
 | `coupons` | Discount codes; `discount_pct`, `max_uses`, `use_count`, `expires_at`, `is_active` |
 | `wishlists` | User favorites; UNIQUE constraint on `(user_id, course_id)` |
 | `login_attempts` | Auth audit trail; `ip_address`, `user_agent`, `success`, `fail_reason` |
 | `audit_logs` | Admin action log; `action`, `entity_type`, `entity_id`, `old_value`, `new_value` |
+| `digital_assets` | Downloadable product catalog; `slug`, `price` (paise), `file_type` ENUM, `license` ENUM, `storage_path` (private — server-only), `status` reuses `course_status`; soft-delete via `deleted_at` |
+| `asset_purchases` | Digital asset entitlement; `user_id`, `asset_id`, `status` reuses `enrollment_status`; UNIQUE `(user_id, asset_id)`; no client INSERT/UPDATE — service-role only |
 
-### 6 ENUMs
+### 9 ENUMs
 - `user_role`: `USER` | `ADMIN`
 - `course_type`: `BUNDLE` | `MODULE`
+- `course_language`: `EN` | `ML` (content language of a course; drives storefront language filtering — migration 041)
 - `course_status`: `PUBLISHED` | `DRAFT`
 - `enrollment_status`: `ACTIVE` | `EXPIRED` | `REVOKED` | `PENDING`
 - `certificate_status`: `ACTIVE` | `REVOKED`
 - `notification_type`: `enrollment` | `milestone` | `certificate` | `announcement` | `review`
+- `asset_file_type`: `LUT` | `PRESET` | `SFX` | `MUSIC` | `OVERLAY` | `PROJECT` | `PDF` | `TEMPLATE` | `OTHER`
+- `asset_license`: `PERSONAL` | `COMMERCIAL` | `EXTENDED`
 
-### 15 RPC Functions
+### 16 RPC Functions
 | RPC | Purpose |
 |-----|---------|
 | `apply_coupon(code, course_id, user_id)` | Atomic coupon validation + redemption → coupon_use_id, discount_pct |
+| `apply_asset_coupon(p_code, p_user_id, p_asset_id)` | Atomic coupon validation + redemption for digital assets → coupon_use_id, discount_pct (SECURITY DEFINER; REVOKE PUBLIC) |
 | `complete_module(user_id, module_id, course_id)` | Marks module done, checks course completion → JSONB status |
 | `expire_enrollments()` | Auto-expire past-due enrollments (run by pg_cron) → INTEGER count |
 | `generate_receipt_number()` | Unique receipt string for payments |
@@ -188,7 +194,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 030** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 042** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -208,7 +214,10 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `Privacy.tsx` | `/privacy` | Privacy policy (Last Updated hardcoded to "March 14, 2026") |
 | `Terms.tsx` | `/terms` | Terms of service (Last Updated hardcoded to "March 14, 2026") |
 | `Checkout.tsx` | `/checkout/:id` | Razorpay modal flow + `pages/checkout/CheckoutSummary` (protected) |
-| `Dashboard.tsx` | `/dashboard` | "My Studio" — enrolled courses + progress (protected) |
+| `AssetCheckout.tsx` | `/checkout/asset/:id` | Digital asset checkout — Razorpay modal or free-claim flow (protected) |
+| `Assets.tsx` | `/assets` | Digital assets shop — catalog, filters, search |
+| `AssetDetails.tsx` | `/asset/:slug` | Digital asset detail page — preview, pricing, purchase/claim CTA |
+| `Dashboard.tsx` | `/dashboard` | "My Studio" — enrolled courses + progress + "Library" tab for owned assets (protected) |
 | `Learn.tsx` | `/learn/:id` | HLS video player + module nav + notes (protected) |
 | `Profile.tsx` | `/profile` | User profile + certificate list (protected) |
 | `Notifications.tsx` | `/notifications` | Notification inbox — "Alerts" tab in mobile nav (protected) |
@@ -224,11 +233,13 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `UserDetailPage.tsx` | `/admin/users/:id` | User profile, enrollments, manual enroll |
 | `PaymentsPage.tsx` | `/admin/payments` | Payment history, refund processing |
 | `CertificatesPage.tsx` | `/admin/certificates` | Issue/revoke certificates |
-| `ContentPage.tsx` | `/admin/content` | CMS editor (FAQs, testimonials, banners) |
+| `ContentPage.tsx` | `/admin/content` | CMS editor — typed per-section sub-forms, image upload, JSON escape hatch; covers all 18 CMS section keys |
 | `CouponsPage.tsx` | `/admin/coupons` | Create/deactivate coupon codes |
 | `ReviewsPage.tsx` | `/admin/reviews` | Moderate + delete course reviews |
 | `AuditLogPage.tsx` | `/admin/audit` | Admin action log (created_at, action, entity, diff) |
 | `SettingsPage.tsx` | `/admin/settings` | Site-wide settings (maintenance mode, featured course, etc.) |
+| `DigitalAssetsPage.tsx` | `/admin/digital-assets` | Digital asset list — publish/draft toggle, soft-delete |
+| `DigitalAssetEditorPage.tsx` | `/admin/digital-assets/new` and `/:assetId` | Create/edit digital asset — metadata, file upload via `AssetUploader` |
 
 **Routing:** BrowserRouter (SPA fallback via `public/_redirects` → `index.html`), `React.lazy()` for all protected/admin routes, `Suspense` with `PageLoader` fallback.
 
@@ -270,9 +281,17 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 |-----------|-------|
 | `VideoPlayer` | `videoId`, `moduleId`, `fallbackUrl`; exposes ref handle (play/pause/seek/quality/PiP); HLS.js + Bunny CDN; retry on error (3 attempts) |
 | `VideoUploader` | Drag-drop TUS upload to Bunny; max 500MB; calls `admin-video-upload` Edge Function for credentials |
+| `ImageUpload` | Drag-drop CMS image uploader; calls `admin-image-upload` Edge Function; returns Bunny Storage Pull-Zone CDN URL |
 | `StarRating` | Controlled/uncontrolled star input |
 | `ReviewForm` | Create/edit review (rating + comment) |
 | `ReviewList` | Paginated review display with helpfulness votes |
+
+### Digital Assets
+| Component | Notes |
+|-----------|-------|
+| `AssetCard` | Product card for a digital asset (thumbnail, title, file type badge, price, license); used in `AssetsCatalogSection` and `/assets` shop |
+| `AssetUploader` | Signed-URL direct upload for digital asset files; calls `admin-asset-upload` Edge Function for a Supabase Storage signed upload URL; max 500MB; shows progress |
+| `OwnedAssetsTab` | "Library" tab rendered inside Dashboard; lists purchased/claimed assets with a download CTA that calls `asset-download-url` Edge Function |
 
 ### User Actions
 | Component | Purpose |
@@ -307,43 +326,49 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 
 ---
 
-## API Modules (13 total in `services/api/`)
+## API Modules (15 total in `services/api/`)
 
 | Module | Purpose |
 |--------|---------|
 | `courses.api.ts` | Course + module queries |
 | `enrollments.api.ts` | Enrollment access + progress tracking |
 | `progress.api.ts` | Module progress + completion logic |
-| `checkout.api.ts` | Razorpay order creation + verification |
+| `checkout.api.ts` | Razorpay order creation + verification for courses and digital assets (`createOrder`, `verifyPayment`, `createAssetOrder`, `verifyAssetPayment`, `claimFreeAsset`, `checkAssetOrderStatus`) |
 | `admin.api.ts` | Admin dashboard + CRUD |
 | `notifications.api.ts` | User notifications |
 | `payments.api.ts` | Payment history + refunds |
 | `certificates.api.ts` | User certificates |
 | `siteContent.api.ts` | CMS content |
+| `siteImages.api.ts` | CMS image upload/delete via Bunny Storage (`siteImagesApi`: uploadImage, deleteImage, pathFromUrl) |
 | `reviews.api.ts` | Course reviews CRUD |
 | `users.api.ts` | User profile operations |
-| `coupons.api.ts` | Coupon validation |
+| `coupons.api.ts` | Coupon validation for courses (`validateCoupon`) and digital assets (`applyAssetCoupon`) |
 | `wishlist.api.ts` | User wishlist (favorites) |
+| `digitalAssets.api.ts` | Digital asset catalog + entitlement (`digitalAssetsApi`: getAssets, getAsset, getAssetById, getAssetCount, checkOwnership, getOwnedAssets, getDownloadUrl; admin: getAdminAssets, getAdminAsset, createAsset, updateAsset, publishAsset, deleteAsset, restoreAsset) |
 
 ---
 
-## Edge Functions (11 total in `supabase/functions/`)
+## Edge Functions (15 total in `supabase/functions/`)
 
 | Function | Auth | Purpose |
 |----------|------|---------|
+| `admin-asset-upload` | JWT + admin | Returns a Supabase Storage signed upload URL for direct large-file upload to the private `digital-assets` bucket |
+| `admin-image-upload` | JWT + admin | Upload CMS images to Bunny Storage; returns Pull-Zone CDN URL |
 | `admin-video-upload` | JWT + admin | Generate Bunny TUS upload credentials |
+| `asset-claim-free` | JWT | Grants a price-0 digital asset to the authenticated user without payment |
+| `asset-download-url` | JWT | Entitlement-gated short-lived (~5 min) Supabase Storage signed download URL for a purchased asset |
 | `certificate-generate` | JWT | Generate PDF certificate + email |
-| `checkout-create-order` | JWT | Create Razorpay order |
-| `checkout-verify` | JWT | Verify Razorpay payment signature + create enrollment |
-| `checkout-webhook` | **No JWT** (HMAC) | Razorpay webhook async fallback |
-| `coupon-apply` | JWT | Atomic coupon validation via `apply_coupon` RPC |
+| `checkout-create-order` | JWT | Create Razorpay order — product-aware: accepts `courseId` or `assetId` discriminator |
+| `checkout-verify` | JWT | Verify Razorpay payment signature + create enrollment or asset purchase — product-aware |
+| `checkout-webhook` | **No JWT** (HMAC) | Razorpay webhook async fallback — product-aware |
+| `coupon-apply` | JWT | Atomic coupon validation — product-aware: calls `apply_coupon` RPC (courses) or `apply_asset_coupon` RPC (assets) |
 | `progress-complete` | JWT | Mark module complete via `complete_module` RPC; trigger certificate |
 | `refund-process` | JWT + admin | Initiate Razorpay refund + update records |
 | `session-enforce` | JWT | Enforce session validity on login (3s timeout, lenient) |
 | `video-cleanup` | JWT + admin | Delete video from Bunny after course module removal |
 | `video-signed-url` | JWT | Generate SHA256 Bunny CDN signed URL (1hr expiry) |
 
-Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `certificates.ts`, `email.ts`, `emailTemplates.ts`, `hmac.ts`, `supabaseAdmin.ts`
+Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `certificates.ts`, `email.ts`, `emailTemplates.ts` (incl. `assetDeliveryEmail`), `hmac.ts`, `supabaseAdmin.ts`
 
 ---
 
@@ -366,6 +391,8 @@ Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `respon
 **Admin:** `AdminStats {totalUsers, activeUsers, totalRevenue, totalCourses, totalEnrollments, totalCertificates}`, `SalesDataPoint {date, amount}`, `AdminUser (extended User)`, `CourseAnalytics {totalEnrollments, completionRate, avgWatchTimeMinutes, revenueTotal, activeStudents30d}`
 
 **Other:** `SiteContentItem {id, section, title, body, metadata, orderIndex, isActive}`, `Coupon {code, discount_pct, max_uses, use_count, expires_at, is_active}`, `WishlistEntry {id, courseId, createdAt}`, `Review {id, userId, rating, comment, helpful}`, `ReviewSummary {total, averageRating, distribution{5,4,3,2,1}}`
+
+**Digital Assets:** `AssetFileType ('LUT'|'PRESET'|'SFX'|'MUSIC'|'OVERLAY'|'PROJECT'|'PDF'|'TEMPLATE'|'OTHER')`, `AssetLicense ('PERSONAL'|'COMMERCIAL'|'EXTENDED')`, `DigitalAsset {id, slug, title, description, price(paise), comparePrice, fileType, license, thumbnail, previewUrl, version, status, downloadCount, deletedAt, timestamps}` (note: `storagePath` is NOT included — server-only), `AdminDigitalAsset extends DigitalAsset` (includes `storagePath`, `fileSizebytes`, `fileExt`), `AssetPurchase {id, userId, assetId, status, paymentId, orderId, amount, downloadCount, lastDownloadedAt, purchasedAt}`, `AssetPurchaseWithAsset extends AssetPurchase`
 
 ---
 
@@ -468,9 +495,10 @@ vi.mock('../../../services/api', () => ({ usersApi: mockApi }));
 
 ### Remaining Open Items
 - **`types/supabase.ts` regeneration** — pending Docker availability (item 8 above)
-- **Admin page unit tests** — 0 of 12 admin pages have unit tests; high-value gap before launch
+- ~~**Admin page unit tests**~~ — **RESOLVED** (March 2026): all 12 admin pages have unit tests
 - **TanStack Query migration** — not started; all pages still use raw `useEffect`/`useState`
 - ~~**HashRouter vs standard routing**~~ — **RESOLVED**: migrated to `BrowserRouter` with SPA fallback (`public/_redirects` → `/* /index.html 200`); public pages are now crawlable (see ADR-006)
+- ~~**CMS section coverage gaps**~~ — **RESOLVED** (June 21, 2026): migration 033 widened `site_content.section` CHECK to 18 keys; all landing sections now CMS-driven; `admin-image-upload` Edge Function + `siteImages.api.ts` + `ImageUpload` component enable image fields; `sectionSchemas.ts` is single source of truth for admin sub-forms
 
 ---
 
@@ -515,9 +543,10 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **29 sequential SQL migrations (001-029)**; next = 030
-- `supabase/functions/` — **11 Edge Functions** (see Edge Functions section above)
-- `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate)
+- `supabase/migrations/` — **41 sequential SQL migrations (001-041)**; next = 042
+- `supabase/functions/` — **15 Edge Functions** (see Edge Functions section above)
+- `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
+- `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)
 - `types/index.ts` — Business types (25+ interfaces/enums)
 - `types/supabase.ts` — Auto-generated DB types (run `/gen-db-types` to refresh; pending Docker)
 
@@ -697,8 +726,8 @@ docs/
     SECURITY_MODEL.md     — Auth, RLS, payment security, URL signing
     ACCESS_CONTROL.md     — Route protection, role-based access matrix
   api/
-    SERVICE_MODULES.md    — All 13 API modules with function signatures
-    EDGE_FUNCTIONS.md     — All 11 Edge Functions + _shared utilities
+    SERVICE_MODULES.md    — All 14 API modules with function signatures
+    EDGE_FUNCTIONS.md     — All 12 Edge Functions + _shared utilities
   archive/                 — Archived v1 documentation
   reference/
     COMPONENTS.md         — All components with props + usage examples

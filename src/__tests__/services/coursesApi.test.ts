@@ -104,6 +104,36 @@ describe('coursesApi', () => {
       expect(q.builder.or).toHaveBeenCalledWith(expect.stringContaining('title.ilike.%cinema%'));
     });
 
+    it('applies the language filter server-side when provided', async () => {
+      const q = makeMainQuery();
+      mockSupabase.from.mockReturnValue(q.from);
+      await coursesApi.getCourses({ language: 'ML' });
+      expect(q.builder.eq).toHaveBeenCalledWith('language', 'ML');
+    });
+
+    it('omits the language filter when not provided (default catalog shows all languages)', async () => {
+      const q = makeMainQuery();
+      mockSupabase.from.mockReturnValue(q.from);
+      await coursesApi.getCourses();
+      const langCalls = q.builder.eq.mock.calls.filter(c => c[0] === 'language');
+      expect(langCalls).toHaveLength(0);
+    });
+
+    it('maps language + courseGroupId from the row', async () => {
+      const q = makeMainQuery({ data: [{ ...mockCourseRow, language: 'ML', course_group_id: 'grp-1' }], count: 1 });
+      mockSupabase.from.mockReturnValue(q.from);
+      const result = await coursesApi.getCourses();
+      expect(result.courses[0].language).toBe('ML');
+      expect(result.courses[0].courseGroupId).toBe('grp-1');
+    });
+
+    it('defaults a course with no language column to EN', async () => {
+      const q = makeMainQuery(); // mockCourseRow has no `language` field
+      mockSupabase.from.mockReturnValue(q.from);
+      const result = await coursesApi.getCourses();
+      expect(result.courses[0].language).toBe('EN');
+    });
+
     it('escapes search input before passing it to .or() (injection guard)', async () => {
       const q = makeMainQuery();
       mockSupabase.from.mockReturnValue(q.from);
@@ -160,6 +190,42 @@ describe('coursesApi', () => {
       const result = await coursesApi.getCourses();
       expect(result.courses).toEqual([]);
       expect(result.total).toBe(0);
+    });
+  });
+
+  describe('getCourseCount', () => {
+    function makeCountQuery({ count = 5 as number | null, error = null as { message: string } | null } = {}) {
+      const builder = {
+        eq: vi.fn(),
+        then: (resolve: (v: { count: number | null; error: { message: string } | null }) => void) => resolve({ count, error }),
+      };
+      builder.eq.mockReturnValue(builder);
+      const select = vi.fn().mockReturnValue(builder);
+      return { from: { select }, builder };
+    }
+
+    it('counts published courses with no language filter by default', async () => {
+      const q = makeCountQuery({ count: 7 });
+      mockSupabase.from.mockReturnValue(q.from);
+      const n = await coursesApi.getCourseCount();
+      expect(n).toBe(7);
+      expect(q.builder.eq).toHaveBeenCalledWith('status', 'PUBLISHED');
+      const langCalls = q.builder.eq.mock.calls.filter(c => c[0] === 'language');
+      expect(langCalls).toHaveLength(0);
+    });
+
+    it('filters the count by language when provided', async () => {
+      const q = makeCountQuery({ count: 3 });
+      mockSupabase.from.mockReturnValue(q.from);
+      const n = await coursesApi.getCourseCount('ML');
+      expect(n).toBe(3);
+      expect(q.builder.eq).toHaveBeenCalledWith('language', 'ML');
+    });
+
+    it('returns 0 when count is null', async () => {
+      const q = makeCountQuery({ count: null });
+      mockSupabase.from.mockReturnValue(q.from);
+      expect(await coursesApi.getCourseCount()).toBe(0);
     });
   });
 

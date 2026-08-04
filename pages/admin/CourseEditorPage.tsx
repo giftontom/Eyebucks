@@ -10,7 +10,7 @@ import { BundleCoursePicker } from './components/BundleCoursePicker';
 import { CourseForm } from './components/CourseForm';
 import { ModuleManager } from './components/ModuleManager';
 
-import type { CourseType } from '../../types';
+import type { CourseType, CourseLanguage } from '../../types';
 
 export const CourseEditorPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -29,6 +29,7 @@ export const CourseEditorPage: React.FC = () => {
     price: '',
     thumbnail: '',
     type: 'MODULE' as CourseType,
+    language: 'EN' as CourseLanguage,
     features: [''],
     heroVideoId: undefined as string | undefined,
   });
@@ -59,6 +60,7 @@ export const CourseEditorPage: React.FC = () => {
           price: String(course.price / 100),
           thumbnail: course.thumbnail || '',
           type: course.type as CourseType,
+          language: (course.language ?? 'EN') as CourseLanguage,
           features: course.features.length > 0 ? course.features : [''],
           heroVideoId: course.heroVideoId || undefined,
         });
@@ -125,6 +127,7 @@ export const CourseEditorPage: React.FC = () => {
         price: Math.round(Number(formData.price) * 100),
         thumbnail: formData.thumbnail || undefined,
         type: formData.type,
+        language: formData.language,
         features: formData.features.filter(f => f.trim()),
         heroVideoId: formData.heroVideoId || undefined,
       };

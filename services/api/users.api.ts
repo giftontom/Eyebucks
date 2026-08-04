@@ -3,7 +3,7 @@
  */
 import { supabase } from '../supabase';
 
-import type { User } from '../../types';
+import type { User, CourseLanguage } from '../../types';
 import type { UserRow } from '../../types/supabase';
 
 export function mapUserProfile(profile: UserRow): User {
@@ -17,6 +17,7 @@ export function mapUserProfile(profile: UserRow): User {
     phoneVerified: profile.phone_verified || false,
     emailVerified: profile.email_verified || false,
     google_id: profile.google_id ?? undefined,
+    preferredLanguage: (profile.preferred_language as CourseLanguage | null) ?? null,
     created_at: profile.created_at ? new Date(profile.created_at) : undefined,
     last_login_at: profile.last_login_at ? new Date(profile.last_login_at) : undefined,
   };
@@ -80,5 +81,15 @@ export const usersApi = {
       .eq('id', userId);
 
     if (error) {throw new Error('Failed to update profile');}
+  },
+
+  /** Persist the user's storefront language preference. */
+  async updatePreferredLanguage(userId: string, language: CourseLanguage): Promise<void> {
+    const { error } = await supabase
+      .from('users')
+      .update({ preferred_language: language })
+      .eq('id', userId);
+
+    if (error) {throw new Error('Failed to update language preference');}
   },
 };

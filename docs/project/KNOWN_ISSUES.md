@@ -1,6 +1,6 @@
 # Known Issues
 
-Last updated: March 26, 2026
+Last updated: 2026-06-22
 
 ---
 
@@ -186,6 +186,52 @@ The app previously used `HashRouter` (URLs like `/#/course/x`), whose hash-based
 
 **Resolution:**
 Migrated to `BrowserRouter` (clean URLs like `/course/x`). The SPA deep-link fallback is configured in `public/_redirects` (`/* /index.html 200`), so direct hits and refreshes on any route resolve correctly on Cloudflare Pages. Public pages are now crawlable. See ADR-006 (supersedes ADR-002).
+
+---
+
+---
+
+### ~~12. CMS section coverage gaps — hardcoded landing copy, missing creators/instructors/value_cards, no image upload~~ — RESOLVED (June 21, 2026)
+
+| | |
+|---|---|
+| **Severity** | Medium |
+| **Status** | **Resolved — June 21, 2026** |
+| **Files** | `supabase/migrations/033_cms_section_keys.sql`, `supabase/functions/admin-image-upload/index.ts`, `services/api/siteImages.api.ts`, `components/ImageUpload.tsx`, `pages/admin/content/sectionSchemas.ts`, `pages/admin/ContentPage.tsx` |
+
+**Resolution:** Migration 033 widened the `site_content.section` CHECK constraint to 18 keys (faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, social_proof, featured_copy, how_it_works, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing). All 10 landing section components now read copy from the CMS via `siteContentApi.getBySection()` with hardcoded fallbacks. The `admin-image-upload` Edge Function (Bunny Storage proxy) + `siteImages.api.ts` + `ImageUpload` component enable image fields in the CMS editor. `pages/admin/content/sectionSchemas.ts` (`SECTION_SCHEMAS`) is the single source of truth for admin sub-form shapes.
+
+---
+
+### 13. Digital Assets feature built but not yet deployed (open)
+
+| | |
+|---|---|
+| **Severity** | Blocker for launch of the digital assets product line |
+| **Priority** | High |
+| **Status** | Open — files exist on branch `ui-ux-phase-0-2`; migrations 039/040 NOT applied; edge functions NOT deployed |
+
+**Description:**
+Phases 1–4 of the Digital Assets feature (foundation, admin pages, storefront + checkout, and coupons-on-assets) are fully built and test-locked (751/751 tests green). However, the feature is gated behind the deployment runbook and a security review before any migration is applied to the shared dev/prod Supabase database.
+
+**What is built (files only):**
+- Migrations 039 (`digital_assets`, `asset_purchases`, ENUMs, RLS, private Storage bucket, `payments.asset_id`) and 040 (`coupon_uses.asset_id`, `apply_asset_coupon` RPC).
+- 3 new Edge Functions: `admin-asset-upload`, `asset-download-url`, `asset-claim-free`.
+- 4 product-aware updated Edge Functions: `checkout-create-order`, `checkout-verify`, `checkout-webhook`, `coupon-apply`.
+- `services/api/digitalAssets.api.ts` + new methods on `checkout.api.ts` and `coupons.api.ts`.
+- Admin pages: `DigitalAssetsPage`, `DigitalAssetEditorPage`.
+- Public pages: `Assets` (`/assets`), `AssetDetails` (`/asset/:slug`), `AssetCheckout` (`/checkout/asset/:id`).
+- Components: `AssetCard`, `AssetUploader`, `OwnedAssetsTab`, `AssetsCatalogSection`, `AssetsShowcaseSection`.
+- Dashboard "Library" tab (`OwnedAssetsTab`).
+- `assetDeliveryEmail` template in `_shared/emailTemplates.ts`.
+
+**Go-live gate:**
+Follow `docs/operations/DIGITAL_ASSETS_GO_LIVE.md` — apply migrations 039+040, create the `digital-assets` Storage bucket, deploy 7 edge functions (webhook stays `--no-verify-jwt`), run `/rls-test digital_assets` and `/rls-test asset_purchases`, complete security-redteam review of entitlement + download paths.
+
+**Deferred scope (not built):**
+- Asset bundles / packs
+- Course-checkout upsells ("also add this asset")
+- Included-with-course bonuses
 
 ---
 

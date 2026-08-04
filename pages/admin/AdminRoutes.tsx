@@ -11,6 +11,8 @@ const CouponsPage = lazy(() => import('./CouponsPage').then(m => ({ default: m.C
 const CourseEditorPage = lazy(() => import('./CourseEditorPage').then(m => ({ default: m.CourseEditorPage })));
 const CoursesPage = lazy(() => import('./CoursesPage').then(m => ({ default: m.CoursesPage })));
 const DashboardPage = lazy(() => import('./DashboardPage').then(m => ({ default: m.DashboardPage })));
+const DigitalAssetEditorPage = lazy(() => import('./DigitalAssetEditorPage').then(m => ({ default: m.DigitalAssetEditorPage })));
+const DigitalAssetsPage = lazy(() => import('./DigitalAssetsPage').then(m => ({ default: m.DigitalAssetsPage })));
 const PaymentsPage = lazy(() => import('./PaymentsPage').then(m => ({ default: m.PaymentsPage })));
 const ReviewsPage = lazy(() => import('./ReviewsPage').then(m => ({ default: m.ReviewsPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then(m => ({ default: m.SettingsPage })));
@@ -26,6 +28,9 @@ export const AdminRoutes: React.FC = () => (
       <Route path="courses" element={<Suspense fallback={<AdminPageLoader />}><CoursesPage /></Suspense>} />
       <Route path="courses/new" element={<Suspense fallback={<AdminPageLoader />}><CourseEditorPage /></Suspense>} />
       <Route path="courses/:courseId" element={<Suspense fallback={<AdminPageLoader />}><CourseEditorPage /></Suspense>} />
+      <Route path="digital-assets" element={<Suspense fallback={<AdminPageLoader />}><DigitalAssetsPage /></Suspense>} />
+      <Route path="digital-assets/new" element={<Suspense fallback={<AdminPageLoader />}><DigitalAssetEditorPage /></Suspense>} />
+      <Route path="digital-assets/:assetId" element={<Suspense fallback={<AdminPageLoader />}><DigitalAssetEditorPage /></Suspense>} />
       <Route path="users" element={<Suspense fallback={<AdminPageLoader />}><UsersPage /></Suspense>} />
       <Route path="users/:userId" element={<Suspense fallback={<AdminPageLoader />}><UserDetailPage /></Suspense>} />
       <Route path="certificates" element={<Suspense fallback={<AdminPageLoader />}><CertificatesPage /></Suspense>} />

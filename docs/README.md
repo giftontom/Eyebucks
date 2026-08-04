@@ -74,6 +74,9 @@ Why key technologies and patterns were chosen.
 | [ADR-003: Why Razorpay](adr/003-why-razorpay.md) | Razorpay for Indian payments |
 | [ADR-004: Why Bunny.net](adr/004-why-bunny-net.md) | Bunny.net for HLS video |
 | [ADR-005: Why Tailwind v4](adr/005-why-tailwind-v4.md) | Tailwind CSS v4 with @theme |
+| [ADR-006: Why BrowserRouter](adr/006-browserrouter-for-seo.md) | BrowserRouter over HashRouter for SEO |
+| [ADR-007: Agent Skills standard](adr/007-agent-skills-standard.md) | Standardize the 49 skills on the Agent Skills standard |
+| 🚧 [ADR-008: Digital Assets feature](adr/008-digital-assets-feature.md) | Native downloadable-products shop with shared checkout |
 
 ### Operations
 
@@ -83,6 +86,7 @@ Step-by-step runbooks for administrative and incident response tasks.
 |----------|-------------|
 | [Admin Runbook](operations/ADMIN_RUNBOOK.md) | User management, course ops, payments, coupons, content |
 | [Incident Response](operations/INCIDENT_RESPONSE.md) | Severity levels, runbooks by symptom, rollback procedures |
+| 🚧 [Digital Assets Go-Live](operations/DIGITAL_ASSETS_GO_LIVE.md) | Apply→deploy→review→verify sequence for the Digital Assets feature (ADR-008) |
 
 ### Project
 

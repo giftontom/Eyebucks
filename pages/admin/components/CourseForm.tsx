@@ -5,7 +5,7 @@ import { Thumbnail } from '../../../components/Thumbnail';
 
 import { BundleCoursePicker } from './BundleCoursePicker';
 
-import type { AdminCourse, CourseFormData, CourseType } from '../../../types';
+import type { AdminCourse, CourseFormData, CourseType, CourseLanguage } from '../../../types';
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -138,6 +138,20 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           <option value="MODULE">Module</option>
           <option value="BUNDLE">Bundle</option>
         </select>
+      </div>
+
+      <div>
+        <label htmlFor="course-language" className="block text-xs font-semibold t-text-2 mb-1.5">Language *</label>
+        <select
+          id="course-language"
+          value={formData.language}
+          onChange={(e) => update({ language: e.target.value as CourseLanguage })}
+          className="w-full t-input-bg t-border border rounded-lg px-3.5 py-2.5 text-sm t-text outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition duration-150"
+        >
+          <option value="EN">English</option>
+          <option value="ML">Malayalam (മലയാളം)</option>
+        </select>
+        <p className="text-xs t-text-3 mt-1.5">Storefront lists this course only to visitors browsing in this language.</p>
       </div>
 
       {formData.type === 'BUNDLE' && (

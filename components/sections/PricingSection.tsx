@@ -2,7 +2,8 @@ import { ArrowRight, Award, Check, ShieldCheck, Zap } from 'lucide-react';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { coursesApi } from '../../services/api';
+import { useLanguage } from '../../context/LanguageContext';
+import { coursesApi, siteContentApi } from '../../services/api';
 import { formatPrice } from '../../utils/format';
 import { logger } from '../../utils/logger';
 import { Button } from '../Button';
@@ -40,6 +41,36 @@ const FALLBACK_TIERS: PricingTier[] = [
     highlighted: true,
   },
 ];
+
+// CMS-overridable header/chrome copy. Prices/tiers are NOT included here —
+// they are computed live from the courses table (see PricingSection effect).
+interface SectionCopy {
+  eyebrow: string;
+  heading: string;
+  subheading: string;
+  popularLabel: string;
+  paymentNote: string;
+  ticketLabel: string;
+  trustBadges: string[];
+}
+
+const DEFAULT_COPY: SectionCopy = {
+  eyebrow: 'Simple Pricing',
+  heading: 'Invest in Your Craft.',
+  subheading: 'One-time payment. Lifetime access. No subscriptions, no recurring fees.',
+  popularLabel: 'Most Popular',
+  paymentNote: 'One-time payment · No subscription',
+  ticketLabel: 'Admit One',
+  trustBadges: [
+    'Secure Razorpay checkout',
+    'Instant access after payment',
+    'Certificate of completion',
+  ],
+};
+
+// Icons for the trust badges row, by position. Preserves the original
+// ShieldCheck / Zap / Award order for the default 3-badge layout.
+const TRUST_BADGE_ICONS = [ShieldCheck, Zap, Award] as const;
 
 const NOTCH_RADIUS = 12;
 
@@ -82,7 +113,7 @@ const TicketPerforation = React.forwardRef<HTMLDivElement, { label?: string }>((
 ));
 TicketPerforation.displayName = 'TicketPerforation';
 
-const TicketCard: React.FC<{ tier: PricingTier }> = ({ tier }) => {
+const TicketCard: React.FC<{ tier: PricingTier; copy: SectionCopy }> = ({ tier, copy }) => {
   const navigate = useNavigate();
   const maskedRef = useRef<HTMLDivElement>(null);
   const perforationRef = useRef<HTMLDivElement>(null);
@@ -117,7 +148,7 @@ const TicketCard: React.FC<{ tier: PricingTier }> = ({ tier }) => {
     >
       {tier.highlighted && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1 bg-brand-600 text-white rounded-full text-xs font-bold tracking-wider uppercase shadow-[var(--shadow-brand)]">
-          Most Popular
+          {copy.popularLabel}
         </span>
       )}
 
@@ -142,7 +173,7 @@ const TicketCard: React.FC<{ tier: PricingTier }> = ({ tier }) => {
           className="relative flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.25em] t-text-3 mb-6"
           aria-hidden="true"
         >
-          <span>Admit One</span>
+          <span>{copy.ticketLabel}</span>
           <span className={tier.highlighted ? 'text-brand-500' : ''}>
             {`No. 00${tier.highlighted ? 2 : 1}`}
           </span>
@@ -160,7 +191,7 @@ const TicketCard: React.FC<{ tier: PricingTier }> = ({ tier }) => {
             </span>
             <span className="text-lg t-text-3 line-through">{formatPrice(tier.originalPrice)}</span>
           </div>
-          <p className="text-xs t-text-3 mt-2">One-time payment · No subscription</p>
+          <p className="text-xs t-text-3 mt-2">{copy.paymentNote}</p>
         </div>
 
         <TicketPerforation ref={perforationRef} label={savePct > 0 ? `SAVE ${savePct}%` : undefined} />
@@ -189,11 +220,37 @@ const TicketCard: React.FC<{ tier: PricingTier }> = ({ tier }) => {
 };
 
 export const PricingSection: React.FC = () => {
+  const { language } = useLanguage();
   const [tiers, setTiers] = useState<PricingTier[]>(FALLBACK_TIERS);
+  const [copy, setCopy] = useState<SectionCopy>(DEFAULT_COPY);
+
+  // CMS override for header/chrome copy only (prices stay computed live). Singleton: items[0].
+  useEffect(() => {
+    siteContentApi.getBySection('pricing_copy')
+      .then((items) => {
+        const item = items[0];
+        if (!item) { return; }
+        const meta = (item.metadata || {}) as Record<string, unknown>;
+        const str = (v: unknown, fallback: string) =>
+          typeof v === 'string' && v.trim() ? v : fallback;
+        const arr = (v: unknown, fallback: string[]) =>
+          Array.isArray(v) && v.length > 0 ? v.map(String) : fallback;
+        setCopy({
+          eyebrow: str(meta.pill, DEFAULT_COPY.eyebrow),
+          heading: str(item.title, DEFAULT_COPY.heading),
+          subheading: str(item.body, DEFAULT_COPY.subheading),
+          popularLabel: str(meta.popularLabel, DEFAULT_COPY.popularLabel),
+          paymentNote: str(meta.paymentNote, DEFAULT_COPY.paymentNote),
+          ticketLabel: str(meta.ticketLabel, DEFAULT_COPY.ticketLabel),
+          trustBadges: arr(meta.trustBadges, DEFAULT_COPY.trustBadges),
+        });
+      })
+      .catch(err => logger.warn('[PricingSection] CMS load failed:', err));
+  }, []);
 
   useEffect(() => {
     Promise.all([
-      coursesApi.getCourses({ page: 1, pageSize: 50, withCount: false }),
+      coursesApi.getCourses({ page: 1, pageSize: 50, withCount: false, language }),
     ])
       .then(([res]) => {
         const courses = res.courses;
@@ -223,7 +280,7 @@ export const PricingSection: React.FC = () => {
         ]);
       })
       .catch(err => logger.warn('[PricingSection] Failed to load course prices:', err));
-  }, []);
+  }, [language]);
 
   return (
     <section className="relative py-24 t-bg border-t t-border overflow-x-clip">
@@ -242,35 +299,40 @@ export const PricingSection: React.FC = () => {
             <FadeIn>
               <div className="text-center mb-16">
                 <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] text-brand-700 dark:text-brand-400 font-bold tracking-widest uppercase text-xs mb-4">
-                  Simple Pricing
+                  {copy.eyebrow}
                 </span>
                 <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold t-text" style={{ fontFamily: 'var(--font-display)' }}>
-                  Invest in Your{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">Craft.</span>
+                  {(() => {
+                    // Keep the last word in the brand gradient, matching the
+                    // default "Invest in Your <Craft.>" treatment for any override.
+                    const m = copy.heading.match(/^(.*\S)(\s+)(\S+)$/);
+                    return m
+                      ? <>{m[1]}{' '}<span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">{m[3]}</span></>
+                      : <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-500 to-orange-400">{copy.heading}</span>;
+                  })()}
                 </h2>
                 <p className="t-text-2 text-lg mt-4 max-w-2xl mx-auto">
-                  One-time payment. Lifetime access. No subscriptions, no recurring fees.
+                  {copy.subheading}
                 </p>
               </div>
             </FadeIn>
           }
         >
           {tiers.map((tier) => (
-            <TicketCard key={tier.title} tier={tier} />
+            <TicketCard key={tier.title} tier={tier} copy={copy} />
           ))}
         </HorizontalGallery>
 
         <FadeIn delay={2 * STAGGER_MS}>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 mt-12 text-sm t-text-3">
-            <span className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-brand-500" /> Secure Razorpay checkout
-            </span>
-            <span className="flex items-center gap-2">
-              <Zap size={16} className="text-brand-500" /> Instant access after payment
-            </span>
-            <span className="flex items-center gap-2">
-              <Award size={16} className="text-brand-500" /> Certificate of completion
-            </span>
+            {copy.trustBadges.map((badge, i) => {
+              const Icon = TRUST_BADGE_ICONS[i % TRUST_BADGE_ICONS.length];
+              return (
+                <span key={badge} className="flex items-center gap-2">
+                  <Icon size={16} className="text-brand-500" /> {badge}
+                </span>
+              );
+            })}
           </div>
         </FadeIn>
       </div>

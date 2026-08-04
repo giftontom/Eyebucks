@@ -1,4 +1,6 @@
 export { CatalogSection } from './CatalogSection';
+export { AssetsCatalogSection } from './AssetsCatalogSection';
+export { AssetsShowcaseSection } from './AssetsShowcaseSection';
 export { ClosingSection } from './ClosingSection';
 export { CommunityProofSection } from './CommunityProofSection';
 export { FAQSection } from './FAQSection';

@@ -1,19 +1,22 @@
-import { User, Mail, Phone, Award, CreditCard, Download, Check, Edit2, Loader2, Eye } from 'lucide-react';
+import { User, Mail, Phone, Award, CreditCard, Download, Check, Edit2, Loader2, Eye, Languages } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Badge, statusToVariant, Button, EmptyState, Input, Card, CertificateView } from '../components';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { certificatesApi } from '../services/api/certificates.api';
 import { paymentsApi } from '../services/api/payments.api';
+import { COURSE_LANGUAGE_LABELS } from '../types';
 import { formatINR } from '../utils/format';
 import { downloadCertificatePdf } from '../utils/generateCertificatePdf';
 
 import type { Payment } from '../services/api/payments.api';
-import type { Certificate } from '../types';
+import type { CourseLanguage , Certificate } from '../types';
 
 export const Profile: React.FC = () => {
   const { user, updatePhoneNumber, updateProfile } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoadingCerts, setIsLoadingCerts] = useState(true);
@@ -223,6 +226,29 @@ export const Profile: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+      </Card>
+
+      {/* Language Preference */}
+      <Card variant="default" radius="2xl" padding="lg" className="mb-8">
+        <h2 className="text-xl font-bold t-text mb-1 flex items-center gap-2">
+          <Languages size={22} className="t-text-3" /> Language
+        </h2>
+        <p className="text-sm t-text-2 mb-4">Choose the language for course listings. The app interface stays in English.</p>
+        <div className="inline-flex t-card p-1 rounded-full t-border border">
+          {(['EN', 'ML'] as CourseLanguage[]).map(l => (
+            <button
+              key={l}
+              onClick={() => setLanguage(l)}
+              aria-pressed={language === l}
+              lang={l === 'ML' ? 'ml' : undefined}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition ${
+                language === l ? 'bg-brand-500 text-white shadow-(--shadow-brand)' : 't-text-3 hover:t-text hover:bg-(--surface-hover)'
+              }`}
+            >
+              {COURSE_LANGUAGE_LABELS[l].label}
+            </button>
+          ))}
         </div>
       </Card>
 

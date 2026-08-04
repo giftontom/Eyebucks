@@ -176,6 +176,7 @@ export const CoursesPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="font-medium t-text">{c.title}</span>
                   <StatusBadge status={c.type} />
+                  <span className="px-2 py-0.5 t-bg-alt t-border border text-xs font-bold rounded uppercase t-text-3">{c.language}</span>
                   {c.deletedAt && <span className="px-2 py-0.5 t-status-danger border text-xs font-bold rounded">Archived</span>}
                 </div>
               ),

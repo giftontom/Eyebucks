@@ -5,6 +5,14 @@
 
 export { coursesApi } from './courses.api';
 export type { CourseSort, GetCoursesOptions } from './courses.api';
+export { digitalAssetsApi } from './digitalAssets.api';
+export type {
+  AssetSort,
+  GetAssetsOptions,
+  GetAssetsResult,
+  DigitalAssetInput,
+  AssetDownload,
+} from './digitalAssets.api';
 export { enrollmentsApi } from './enrollments.api';
 export { progressApi, AUTO_SAVE_INTERVAL, COMPLETION_THRESHOLD } from './progress.api';
 export { checkoutApi } from './checkout.api';

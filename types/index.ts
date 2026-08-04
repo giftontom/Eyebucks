@@ -10,6 +10,15 @@
 /** Maps to `user_role` DB ENUM. All new users default to 'USER'; only DB triggers or admin actions set 'ADMIN'. */
 export type Role = 'USER' | 'ADMIN';
 
+/** Maps to `course_language` DB ENUM. The content language of a course + the user's storefront preference. */
+export type CourseLanguage = 'EN' | 'ML';
+
+/** Human-readable labels for each course language (EN in Latin, ML in native script). */
+export const COURSE_LANGUAGE_LABELS: Record<CourseLanguage, { label: string; short: string }> = {
+  EN: { label: 'English', short: 'EN' },
+  ML: { label: 'മലയാളം', short: 'ML' },
+};
+
 /** User profile synced from `auth.users` via DB trigger. `phone_e164` is required by ProtectedRoute's PhoneGateModal. */
 export interface User {
   id: string;
@@ -21,6 +30,8 @@ export interface User {
   phoneVerified: boolean;
   emailVerified: boolean;
   google_id?: string;
+  /** Preferred storefront content language. `null` = never chosen (client resolves from device/browser). */
+  preferredLanguage?: CourseLanguage | null;
   created_at?: Date;
   last_login_at?: Date;
 }
@@ -46,6 +57,10 @@ export interface Course {
   heroVideoId: string | null;
   type: CourseType;
   status: CourseStatus;
+  /** Content language of this course (drives storefront language filtering). */
+  language: CourseLanguage;
+  /** Optional loose key linking the same course concept across languages. */
+  courseGroupId?: string | null;
   rating: number | null;
   totalStudents: number;
   features: string[];
@@ -159,6 +174,77 @@ export interface Enrollment {
 
 export interface EnrollmentWithCourse extends Enrollment {
   course: Course;
+}
+
+// ============================================
+// DIGITAL ASSET TYPES (downloadable products — see ADR-008)
+// ============================================
+
+/** Kind of downloadable file. Drives the catalog file-type filter + card badge. */
+export type AssetFileType =
+  | 'LUT'
+  | 'PRESET'
+  | 'SFX'
+  | 'MUSIC'
+  | 'OVERLAY'
+  | 'PROJECT'
+  | 'PDF'
+  | 'TEMPLATE'
+  | 'OTHER';
+
+/** Usage license granted with the asset. */
+export type AssetLicense = 'PERSONAL' | 'COMMERCIAL' | 'EXTENDED';
+
+/** A digital asset = a one-time-purchase downloadable product. `price` is in paise
+ *  (0 = free lead-magnet). `status` reuses CourseStatus (PUBLISHED|DRAFT).
+ *  SECURITY: the storefront shape deliberately OMITS the private `storage_path`; only
+ *  the asset-download-url Edge Function resolves it after an entitlement check. */
+export interface DigitalAsset {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  price: number; // in paise
+  comparePrice: number | null; // optional strike-through "MRP" (paise)
+  fileType: AssetFileType;
+  license: AssetLicense;
+  fileSize: number | null; // bytes
+  fileExt: string | null;
+  thumbnail: string;
+  previewUrl: string | null; // optional watermarked/low-res sample (public)
+  version: string;
+  status: CourseStatus;
+  downloadCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  /** Present only on already-owned assets in the user's library (computed). */
+  isOwned?: boolean;
+}
+
+/** User's ownership record for a digital asset. Created server-side only (checkout
+ *  Edge Function / admin) — never by the client. `status` reuses EnrollmentStatus. */
+export interface AssetPurchase {
+  id: string;
+  userId: string;
+  assetId: string;
+  status: EnrollmentStatus;
+  paymentId: string | null;
+  orderId: string | null;
+  amount: number; // paise actually paid (after coupon)
+  downloadCount: number;
+  lastDownloadedAt: Date | null;
+  purchasedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AssetPurchaseWithAsset extends AssetPurchase {
+  asset: DigitalAsset;
+}
+
+/** Admin-list shape — adds the soft-delete marker (omitted from the storefront type). */
+export interface AdminDigitalAsset extends DigitalAsset {
+  deletedAt: string | null;
 }
 
 // ============================================
@@ -349,6 +435,7 @@ export interface CourseFormData {
   price: string; // String for form input, converted to number
   thumbnail: string;
   type: CourseType;
+  language: CourseLanguage;
   features: string[];
   heroVideoId?: string;
 }
@@ -381,7 +468,26 @@ export interface UserUpdateData {
 
 export interface SiteContentItem {
   id: string;
-  section: 'faq' | 'testimonial' | 'showcase' | 'banner' | 'settings';
+  section:
+    | 'faq'
+    | 'testimonial'
+    | 'showcase'
+    | 'banner'
+    | 'settings'
+    | 'creators'
+    | 'instructors'
+    | 'value_cards'
+    | 'hero'
+    | 'hero_slides'
+    | 'social_proof'
+    | 'featured_copy'
+    | 'how_it_works'
+    | 'value_props_copy'
+    | 'instructors_copy'
+    | 'community_copy'
+    | 'creators_copy'
+    | 'pricing_copy'
+    | 'closing';
   title: string;
   body: string;
   metadata: Record<string, unknown>;

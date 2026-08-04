@@ -1,5 +1,5 @@
-import { Upload, X, Loader2, AlertCircle } from 'lucide-react';
-import React, { useState, useRef, type DragEvent } from 'react';
+import { Upload, X, Loader2, AlertCircle, ImageOff } from 'lucide-react';
+import React, { useState, useRef, useEffect, type DragEvent } from 'react';
 
 import { siteImagesApi, type ImageFolder } from '../services/api/siteImages.api';
 import { logger } from '../utils/logger';
@@ -34,8 +34,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imgBroken, setImgBroken] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevUrlRef = useRef<string | undefined>(value);
+
+  // Reset the broken-image flag whenever the URL changes.
+  useEffect(() => { setImgBroken(false); }, [value]);
 
   const pick = () => {
     if (!disabled && !uploading) { inputRef.current?.click(); }
@@ -85,10 +89,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <label className="block text-sm font-medium t-text-2">{label}</label>
 
       {value && !uploading ? (
-        <div className="relative group">
-          <div className={`w-full ${aspect} rounded-lg overflow-hidden t-bg-alt border t-border`}>
-            <img src={value} alt={label} className="w-full h-full object-cover" />
-          </div>
+        <div className={`relative group w-full max-w-[240px] ${aspect} rounded-lg overflow-hidden t-bg-alt border t-border`}>
+          {imgBroken ? (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-3 text-center">
+              <ImageOff className="w-6 h-6 t-text-3" />
+              <span className="text-xs t-text-3">Couldn't load image — replace it</span>
+            </div>
+          ) : (
+            <img
+              src={value}
+              alt={label}
+              className="w-full h-full object-cover"
+              onError={() => setImgBroken(true)}
+            />
+          )}
           <div className="absolute top-2 right-2 flex gap-2">
             <button
               type="button"
@@ -119,7 +133,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           role="button"
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}
-          className={`relative border-2 border-dashed rounded-lg ${aspect} flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
+          className={`relative border-2 border-dashed rounded-lg w-full max-w-[240px] ${aspect} flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
             dragActive ? 'border-brand-500 bg-brand-500/5' : 't-border hover:border-brand-400'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >

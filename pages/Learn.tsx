@@ -1,4 +1,4 @@
-import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, Layers, ArrowRight, ChevronUp, ChevronDown, X, PictureInPicture2 } from 'lucide-react';
+import { CheckCircle, Circle, Play, Pause, Maximize, Volume2, VolumeX, SkipBack, SkipForward, Edit3, Film, Loader2, Layers, ArrowRight, ChevronDown, PictureInPicture2 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 
@@ -43,9 +43,6 @@ export const Learn: React.FC = () => {
   const { hasAccess, isLoading: isCheckingAccess } = useAccessControl(id);
   const [activeLessonId, setActiveLessonId] = useState<string | undefined>(undefined);
   const [expandedModuleIds, setExpandedModuleIds] = useState<Set<string>>(new Set());
-
-  // Mobile responsiveness
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   const videoRef = useRef<VideoPlayerHandle>(null);
 
@@ -224,10 +221,9 @@ export const Learn: React.FC = () => {
   // Keyboard shortcuts are handled by useMobileGestures via onKeyDown on the video container.
 
   // Previous / Next Lesson Logic (traverses lessons across chapter boundaries)
-  const selectLesson = useCallback((lessonId: string, closeDrawer = false) => {
+  const selectLesson = useCallback((lessonId: string) => {
     setActiveLessonId(lessonId);
     setIsPlaying(false);
-    if (closeDrawer) {setMobileDrawerOpen(false);}
   }, [setIsPlaying]);
 
   const handlePrev = () => {
@@ -352,11 +348,92 @@ export const Learn: React.FC = () => {
     );
   }
 
+  // Shared curriculum outline (chapters → lessons) used by both the mobile inline
+  // panel and the desktop sidebar — single source of truth so they can't drift.
+  const renderOutline = () => (
+    <>
+      {modules.map((module, mIdx) => {
+        const moduleLessons = module.lessons ?? [];
+        const moduleComplete = isModuleComplete(module, lessonCompletionMap);
+        const expanded = expandedModuleIds.has(module.id);
+        const doneCount = moduleLessons.filter(l => lessonCompletionMap[l.id]).length;
+        return (
+          <div key={module.id} className="border-b t-border">
+            <button
+              onClick={() => toggleModule(module.id)}
+              className="w-full text-left p-4 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition"
+            >
+              <div className="mt-0.5">
+                {moduleComplete
+                  ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" />
+                  : <Circle size={16} className="t-text-3" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Chapter {String(mIdx + 1).padStart(2, '0')}</span>
+                <h3 className="text-sm font-semibold leading-tight t-text">{module.title}</h3>
+                <p className="text-xs t-text-3 mt-1">{doneCount}/{moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}</p>
+              </div>
+              <ChevronDown size={18} className={`flex-shrink-0 t-text-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+            {expanded && moduleLessons.map((lesson, lIdx) => {
+              const isCompleted = lessonCompletionMap[lesson.id] || false;
+              const isActive = activeLessonId === lesson.id;
+              return (
+                <button
+                  key={lesson.id}
+                  onClick={() => selectLesson(lesson.id)}
+                  aria-current={isActive ? 'true' : undefined}
+                  className={`w-full text-left pl-10 pr-4 py-3 border-t t-border transition flex items-start gap-3 group ${
+                    isActive ? 't-card border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <div className="mt-0.5 flex-shrink-0">
+                    {isCompleted
+                      ? <CheckCircle size={15} fill="currentColor" className="text-brand-500" />
+                      : isActive
+                        ? <Play size={15} fill="currentColor" className="text-brand-600" />
+                        : <Circle size={15} className="t-text-3 group-hover:t-text-2" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`text-sm font-medium leading-tight ${isActive ? 'text-brand-600' : 't-text-2 group-hover:t-text'}`}>{lesson.title}</h4>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-[10px] t-text-3 font-mono">{String(mIdx + 1).padStart(2, '0')}.{String(lIdx + 1).padStart(2, '0')}</span>
+                      <span className="text-xs t-text-3 font-mono">{lesson.duration}</span>
+                      {lesson.isFreePreview && (
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-brand-400">Free</span>
+                      )}
+                      {isActive && (
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-brand-500">Now playing</span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+    </>
+  );
+
+  const renderNotes = (id: string) => (
+    <>
+      <label htmlFor={id} className="font-bold text-sm mb-2 t-text-2 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</label>
+      <textarea
+        id={id}
+        className="flex-grow w-full t-bg t-border border rounded-lg p-3 text-xs t-text-2 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
+        placeholder="Take notes for this lesson..."
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+      />
+    </>
+  );
+
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100dvh-80px)] overflow-hidden bg-black">
 
       {/* Main Video Player Area */}
-      <div className="flex-grow flex flex-col h-full overflow-y-auto relative">
+      <div className="flex-grow flex flex-col h-full overflow-y-auto relative t-bg">
         <div
             className="relative w-full aspect-video bg-black group flex-shrink-0 outline-none select-none"
             onMouseMove={handleMouseMove}
@@ -612,9 +689,16 @@ export const Learn: React.FC = () => {
 
         {/* Course Progress Bar (Global) — hidden in mobile landscape to maximize video */}
         <div className={`t-bg border-b t-border p-4 ${isMobileLandscape ? 'hidden' : ''}`}>
-             <div className="flex justify-between text-xs t-text-2 mb-2 font-medium">
-                 <span className="flex items-center gap-2"><Film size={14}/> {course.title}</span>
-                 <span>{Math.round(progressPercent)}% Completed</span>
+             <div className="flex items-center justify-between gap-3 mb-2">
+                 <div className="min-w-0">
+                     <p className="text-[10px] uppercase tracking-wider t-text-3 font-bold flex items-center gap-1.5"><Film size={12}/> {course.title}</p>
+                     <h2 className="text-sm font-bold t-text truncate mt-0.5">
+                         {activeModule ? `Ch ${String(activeModuleIndex + 1).padStart(2, '0')} · ` : ''}{activeLesson?.title}
+                     </h2>
+                 </div>
+                 <span className="text-xs font-semibold t-text-2 flex-shrink-0 tabular-nums">
+                     {flatLessons.filter(l => lessonCompletionMap[l.id]).length}/{flatLessons.length} · {Math.round(progressPercent)}%
+                 </span>
              </div>
              <div className="w-full t-bg-alt h-1.5 rounded-full overflow-hidden">
                  <div
@@ -642,83 +726,18 @@ export const Learn: React.FC = () => {
           </button>
         </div>
 
-        {/* Mobile Lesson Toggle Bar — hidden in mobile landscape to maximize video */}
-        <button
-          onClick={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          className={`lg:hidden sticky bottom-0 w-full t-bg border-t t-border p-3 flex items-center justify-between t-text z-20 ${isMobileLandscape ? 'hidden' : ''}`}
-        >
-          <span className="text-sm font-medium truncate mr-2">
-            Ch {String(activeModuleIndex + 1).padStart(2, '0')} · {activeLesson?.title}
-          </span>
-          <ChevronUp size={20} className={`transition-transform flex-shrink-0 ${mobileDrawerOpen ? 'rotate-180' : ''}`} />
-        </button>
-      </div>
-
-      {/* Mobile Content Drawer */}
-      {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 t-bg border-t t-border rounded-t-2xl max-h-[70vh] overflow-y-auto animate-slide-up pb-safe">
-          <div className="sticky top-0 t-bg p-4 border-b t-border flex items-center justify-between z-10">
-            <h2 className="font-bold t-text">Course Content</h2>
-            <button onClick={() => setMobileDrawerOpen(false)} className="t-text-2 p-2">
-              <X size={20} />
-            </button>
+        {/* Mobile: inline curriculum + notes — fills the space below the player */}
+        <div className={`lg:hidden flex flex-col ${isMobileLandscape ? 'hidden' : ''}`}>
+          <div className="px-4 py-3 border-y t-border flex items-center justify-between sticky top-0 t-bg z-[5]">
+            <h2 className="font-bold t-text text-sm">Course Content</h2>
+            <span className="text-xs t-text-3">{modules.length} Ch · {flatLessons.length} Lessons</span>
           </div>
-          {modules.map((module, mIdx) => {
-            const moduleLessons = module.lessons ?? [];
-            const moduleComplete = isModuleComplete(module, lessonCompletionMap);
-            const expanded = expandedModuleIds.has(module.id);
-            return (
-              <div key={module.id} className="border-b t-border">
-                <button
-                  onClick={() => toggleModule(module.id)}
-                  className="w-full text-left p-4 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition"
-                >
-                  <div className="mt-0.5">
-                    {moduleComplete ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Chapter {String(mIdx + 1).padStart(2, '0')}</span>
-                    <h3 className="text-sm font-semibold leading-tight t-text">{module.title}</h3>
-                    <p className="text-xs t-text-3 mt-1">{moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}</p>
-                  </div>
-                  <ChevronDown size={18} className={`flex-shrink-0 t-text-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                </button>
-                {expanded && moduleLessons.map(lesson => {
-                  const isCompleted = lessonCompletionMap[lesson.id] || false;
-                  const isActive = activeLessonId === lesson.id;
-                  return (
-                    <button
-                      key={lesson.id}
-                      onClick={() => selectLesson(lesson.id, true)}
-                      className={`w-full text-left pl-10 pr-4 py-3 border-t t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
-                        isActive ? 't-card border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
-                      }`}
-                    >
-                      <div className="mt-0.5">
-                        {isCompleted ? <CheckCircle size={14} fill="currentColor" className="text-brand-500" /> : <Circle size={14} className="t-text-3 group-hover:t-text-2" />}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className={`text-sm font-medium leading-tight ${isActive ? 't-text' : 't-text-2 group-hover:t-text'}`}>{lesson.title}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xs t-text-3 font-mono">{lesson.duration}</p>
-                          {lesson.isFreePreview && (
-                            <span className="text-[9px] uppercase font-bold tracking-wider text-brand-400">Free</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
+          {renderOutline()}
+          <div className="flex flex-col p-4 border-t t-border">
+            {renderNotes('lesson-notes-mobile')}
+          </div>
         </div>
-      )}
-
-      {/* Mobile drawer backdrop */}
-      {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/50 z-20" onClick={() => setMobileDrawerOpen(false)} />
-      )}
+      </div>
 
       {/* Desktop Curriculum Sidebar */}
       <div className="hidden lg:flex w-96 t-bg border-l t-border flex-col h-full z-10">
@@ -728,74 +747,12 @@ export const Learn: React.FC = () => {
          </div>
 
          <div className="flex-grow overflow-y-auto custom-scrollbar">
-            {modules.map((module, mIdx) => {
-                const moduleLessons = module.lessons ?? [];
-                const moduleComplete = isModuleComplete(module, lessonCompletionMap);
-                const expanded = expandedModuleIds.has(module.id);
-
-                return (
-                <div key={module.id} className="border-b t-border">
-                    <button
-                        onClick={() => toggleModule(module.id)}
-                        className="w-full text-left p-4 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition"
-                    >
-                        <div className="mt-0.5">
-                            {moduleComplete ? <CheckCircle size={16} fill="currentColor" className="text-brand-500" /> : <Circle size={16} className="t-text-3" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <span className="text-[10px] uppercase tracking-wider t-text-3 font-bold mb-1 block">Chapter {String(mIdx + 1).padStart(2, '0')}</span>
-                            <h3 className="text-sm font-semibold leading-tight t-text">{module.title}</h3>
-                            <p className="text-xs t-text-3 mt-1">{moduleLessons.length} lesson{moduleLessons.length !== 1 ? 's' : ''}</p>
-                        </div>
-                        <ChevronDown size={18} className={`flex-shrink-0 t-text-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {expanded && moduleLessons.map(lesson => {
-                        const isCompleted = lessonCompletionMap[lesson.id] || false;
-                        const isActive = activeLessonId === lesson.id;
-                        return (
-                        <button
-                            key={lesson.id}
-                            onClick={() => selectLesson(lesson.id)}
-                            className={`w-full text-left pl-10 pr-4 py-3 border-t t-border hover:bg-[var(--surface-hover)] transition flex items-start gap-3 group ${
-                                isActive ? 'bg-brand-900/20 border-l-4 border-l-brand-600' : 'border-l-4 border-l-transparent'
-                            }`}
-                        >
-                            <div className="mt-0.5">
-                                {isCompleted ? <CheckCircle size={14} fill="currentColor" className="text-brand-500" /> : <Circle size={14} className="t-text-3 group-hover:t-text-2" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h4 className={`text-sm font-medium leading-tight ${isActive ? 't-text' : 't-text-2 group-hover:t-text'}`}>{lesson.title}</h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <p className="text-xs t-text-3 font-mono">{lesson.duration}</p>
-                                  {lesson.isFreePreview && (
-                                    <span className="text-[9px] uppercase font-bold tracking-wider text-brand-400">Free</span>
-                                  )}
-                                  {isCompleted && isActive && (
-                                    <span className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: 'var(--status-success-text)' }}>
-                                      <CheckCircle size={10} fill="currentColor" /> Completed
-                                    </span>
-                                  )}
-                                </div>
-                            </div>
-                        </button>
-                        );
-                    })}
-                </div>
-                );
-            })}
+            {renderOutline()}
          </div>
 
          {/* Desktop Notes Area */}
          <div className="flex flex-col p-4 border-t t-border t-bg h-1/3">
-            <label htmlFor="module-notes" className="font-bold text-sm mb-2 t-text-2 flex items-center gap-2"><Edit3 size={14}/> Personal Notes</label>
-            <textarea
-                id="module-notes"
-                className="flex-grow w-full t-bg t-border border rounded-lg p-3 text-xs t-text-2 resize-none focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600"
-                placeholder="Take notes for this lesson..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-            ></textarea>
+            {renderNotes('lesson-notes-desktop')}
          </div>
       </div>
 

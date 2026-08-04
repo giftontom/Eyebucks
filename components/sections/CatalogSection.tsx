@@ -2,14 +2,15 @@ import { Search, X, SlidersHorizontal, Star, ChevronDown } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { CourseCard } from '../CourseCard';
-import { CourseCardSkeleton } from '../CourseCardSkeleton';
+import { useLanguage } from '../../context/LanguageContext';
 import { coursesApi } from '../../services/api';
 import { formatPrice } from '../../utils/format';
 import { logger } from '../../utils/logger';
+import { CourseCard } from '../CourseCard';
+import { CourseCardSkeleton } from '../CourseCardSkeleton';
 
 import type { CourseSort, GetCoursesOptions } from '../../services/api';
-import type { Course } from '../../types';
+import type { Course, CourseLanguage } from '../../types';
 
 const PAGE_SIZE = 12;
 const DEBOUNCE_MS = 300;
@@ -48,20 +49,21 @@ function readFiltersFromParams(params: URLSearchParams): FilterState {
 
 function filtersToParams(filters: FilterState): URLSearchParams {
   const p = new URLSearchParams();
-  if (filters.typeFilter !== 'ALL') p.set('type', filters.typeFilter);
-  if (filters.searchQuery) p.set('q', filters.searchQuery);
-  if (filters.minRating > 0) p.set('rating', String(filters.minRating));
-  if (filters.maxPrice > 0) p.set('max', String(filters.maxPrice));
-  if (filters.sort !== DEFAULT_SORT) p.set('sort', filters.sort);
+  if (filters.typeFilter !== 'ALL') {p.set('type', filters.typeFilter);}
+  if (filters.searchQuery) {p.set('q', filters.searchQuery);}
+  if (filters.minRating > 0) {p.set('rating', String(filters.minRating));}
+  if (filters.maxPrice > 0) {p.set('max', String(filters.maxPrice));}
+  if (filters.sort !== DEFAULT_SORT) {p.set('sort', filters.sort);}
   return p;
 }
 
 /** Map the UI filter state to the server-side query options. */
-function filtersToQuery(filters: FilterState, page: number): GetCoursesOptions {
+function filtersToQuery(filters: FilterState, page: number, language: CourseLanguage): GetCoursesOptions {
   return {
     page,
     pageSize: PAGE_SIZE,
     type: filters.typeFilter === 'ALL' ? undefined : filters.typeFilter,
+    language,
     search: filters.searchQuery || undefined,
     minRating: filters.minRating || undefined,
     maxPrice: filters.maxPrice || undefined,
@@ -70,6 +72,7 @@ function filtersToQuery(filters: FilterState, page: number): GetCoursesOptions {
 }
 
 export const CatalogSection: React.FC = () => {
+  const { language } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromParams(searchParams));
   const [searchInput, setSearchInput] = useState(filters.searchQuery);
@@ -115,9 +118,9 @@ export const CatalogSection: React.FC = () => {
     } else {
       setIsLoading(true);
     }
-    coursesApi.getCourses(filtersToQuery(filters, 1))
+    coursesApi.getCourses(filtersToQuery(filters, 1, language))
       .then(res => {
-        if (loadId !== loadIdRef.current) return; // a newer request superseded this one
+        if (loadId !== loadIdRef.current) {return;} // a newer request superseded this one
         setCourses(res.courses);
         setTotal(res.total);
         setHasMore(res.hasMore);
@@ -125,23 +128,23 @@ export const CatalogSection: React.FC = () => {
         hasLoadedRef.current = true;
       })
       .catch(err => {
-        if (loadId !== loadIdRef.current) return;
+        if (loadId !== loadIdRef.current) {return;}
         logger.error('[CatalogSection] Failed to load courses:', err);
         setLoadError(true);
       })
       .finally(() => {
-        if (loadId !== loadIdRef.current) return;
+        if (loadId !== loadIdRef.current) {return;}
         setIsLoading(false);
         setIsRefetching(false);
       });
-  }, [filters]);
+  }, [filters, language]);
 
   useEffect(() => { loadCourses(); }, [loadCourses]);
 
   const loadMore = useCallback(() => {
     const nextPage = page + 1;
     setIsLoadingMore(true);
-    coursesApi.getCourses(filtersToQuery(filters, nextPage))
+    coursesApi.getCourses(filtersToQuery(filters, nextPage, language))
       .then(res => {
         setCourses(prev => [...prev, ...res.courses]);
         setHasMore(res.hasMore);
@@ -149,7 +152,7 @@ export const CatalogSection: React.FC = () => {
       })
       .catch(err => { logger.error('[CatalogSection] Failed to load more courses:', err); })
       .finally(() => setIsLoadingMore(false));
-  }, [page, filters]);
+  }, [page, filters, language]);
 
   const isFiltered = filters.typeFilter !== 'ALL' || !!filters.searchQuery || filters.minRating > 0 || filters.maxPrice > 0;
 

@@ -28,6 +28,40 @@ const COMMUNITY_STATS = [
   { icon: Zap, value: 24, suffix: 'h', label: 'Avg Response' },
 ];
 
+/** Icons stay code-side, keyed by position; CMS may override value/suffix/label per stat. */
+const STAT_ICONS = COMMUNITY_STATS.map(s => s.icon);
+
+interface CommunityStat { value: number; suffix: string; label: string; }
+
+interface CommunityCopy {
+  eyebrow: string;
+  heading: string;
+  subheading: string;
+  verifiedLabel: string;
+  stats: CommunityStat[];
+  discordEyebrow: string;
+  discordTitle: string;
+  discordBody: string;
+  discordCtaLabel: string;
+  discordUrl: string;
+  discordFootnote: string;
+}
+
+/** Verbatim copy currently rendered; CMS section 'community_copy' overrides per-field. */
+const DEFAULT_COPY: CommunityCopy = {
+  eyebrow: 'Real Students. Real Results.',
+  heading: "You won't learn alone.",
+  subheading: "A private community of working creators — feedback every week, real paid gigs, and people who'll push you forward.",
+  verifiedLabel: 'Verified student',
+  stats: COMMUNITY_STATS.map(({ value, suffix, label }) => ({ value, suffix, label })),
+  discordEyebrow: 'Live community',
+  discordTitle: 'Join the Discord',
+  discordBody: "Weekly work reviews, live Q&A with working filmmakers, and a job board that's already changed careers.",
+  discordCtaLabel: 'Join the community',
+  discordUrl: 'https://discord.gg/eyebuckz',
+  discordFootnote: 'Free with any course enrollment.',
+};
+
 function parseTestimonialItem(item: SiteContentItem): Testimonial {
   const meta = (item.metadata ?? {}) as Record<string, string>;
   return {
@@ -80,6 +114,7 @@ function SupportingCard({ t }: { t: Testimonial }) {
 
 export const CommunityProofSection: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>(DEFAULT_TESTIMONIALS);
+  const [copy, setCopy] = useState<CommunityCopy>(DEFAULT_COPY);
 
   useEffect(() => {
     siteContentApi.getBySection('testimonial')
@@ -87,6 +122,30 @@ export const CommunityProofSection: React.FC = () => {
         if (items.length > 0) {setTestimonials(items.map(parseTestimonialItem));}
       })
       .catch(err => logger.warn('[CommunityProofSection] Failed to load from CMS:', err));
+  }, []);
+
+  useEffect(() => {
+    siteContentApi.getBySection('community_copy')
+      .then(items => {
+        const item = items[0];
+        if (!item) {return;}
+        const meta = (item.metadata ?? {}) as Record<string, unknown>;
+        const metaStats = Array.isArray(meta.stats) ? (meta.stats as CommunityStat[]) : null;
+        setCopy({
+          eyebrow: (meta.pill as string) ?? DEFAULT_COPY.eyebrow,
+          heading: item.title ?? DEFAULT_COPY.heading,
+          subheading: item.body ?? DEFAULT_COPY.subheading,
+          verifiedLabel: (meta.verifiedLabel as string) ?? DEFAULT_COPY.verifiedLabel,
+          stats: metaStats && metaStats.length > 0 ? metaStats : DEFAULT_COPY.stats,
+          discordEyebrow: (meta.discordEyebrow as string) ?? DEFAULT_COPY.discordEyebrow,
+          discordTitle: (meta.discordTitle as string) ?? DEFAULT_COPY.discordTitle,
+          discordBody: (meta.discordBody as string) ?? DEFAULT_COPY.discordBody,
+          discordCtaLabel: (meta.discordCtaLabel as string) ?? DEFAULT_COPY.discordCtaLabel,
+          discordUrl: (meta.discordUrl as string) ?? DEFAULT_COPY.discordUrl,
+          discordFootnote: (meta.discordFootnote as string) ?? DEFAULT_COPY.discordFootnote,
+        });
+      })
+      .catch(err => logger.warn('[CommunityProofSection] copy CMS load failed:', err));
   }, []);
 
   const featured = testimonials[0];
@@ -101,11 +160,11 @@ export const CommunityProofSection: React.FC = () => {
         <FadeIn>
           <div className="text-center mb-12 md:mb-16 max-w-2xl mx-auto">
             <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] scene-adaptive-brand font-bold tracking-widest uppercase text-xs mb-4">
-              Real Students. Real Results.
+              {copy.eyebrow}
             </span>
-            <h2 className="t-h2 scene-adaptive-text mb-4">You won't learn alone.</h2>
+            <h2 className="t-h2 scene-adaptive-text mb-4">{copy.heading}</h2>
             <p className="t-body-lg scene-adaptive-text-2">
-              A private community of working creators — feedback every week, real paid gigs, and people who'll push you forward.
+              {copy.subheading}
             </p>
           </div>
         </FadeIn>
@@ -141,7 +200,7 @@ export const CommunityProofSection: React.FC = () => {
                     <p className="t-caption">{featured.course}</p>
                   </div>
                   <span className="ml-auto hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full t-status-success border text-[10px] font-bold uppercase tracking-wider shrink-0">
-                    Verified student
+                    {copy.verifiedLabel}
                   </span>
                 </figcaption>
               </figure>
@@ -169,10 +228,12 @@ export const CommunityProofSection: React.FC = () => {
 
             <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
               <div className="grid grid-cols-2 gap-x-6 gap-y-8">
-                {COMMUNITY_STATS.map(stat => (
+                {copy.stats.map((stat, i) => {
+                  const StatIcon = STAT_ICONS[i] ?? STAT_ICONS[0];
+                  return (
                   <div key={stat.label} className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500 shrink-0">
-                      <stat.icon size={18} />
+                      <StatIcon size={18} />
                     </div>
                     <div>
                       <p className="text-2xl md:text-3xl font-black t-text leading-none" style={{ fontFamily: 'var(--font-display)' }}>
@@ -181,7 +242,8 @@ export const CommunityProofSection: React.FC = () => {
                       <p className="t-caption mt-1">{stat.label}</p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="lg:border-l t-border lg:pl-10">
@@ -190,24 +252,24 @@ export const CommunityProofSection: React.FC = () => {
                     <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" />
                   </span>
-                  Live community
+                  {copy.discordEyebrow}
                 </span>
-                <h3 className="t-h3 t-text mb-2">Join the Discord</h3>
+                <h3 className="t-h3 t-text mb-2">{copy.discordTitle}</h3>
                 <p className="t-body t-text-2 mb-6">
-                  Weekly work reviews, live Q&A with working filmmakers, and a job board that's already changed careers.
+                  {copy.discordBody}
                 </p>
                 <a
-                  href="https://discord.gg/eyebuckz"
+                  href={copy.discordUrl}
                   target="_blank"
                   rel="noreferrer"
                   data-live
                   className="group cta-sheen inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 rounded-full bg-brand-500 hover:bg-brand-600 text-white font-bold transition-all shadow-[var(--shadow-brand)] hover:-translate-y-0.5"
                 >
                   <MessageCircle size={18} />
-                  Join the community
+                  {copy.discordCtaLabel}
                   <ArrowRight size={16} className="group-live:translate-x-1 transition-transform" />
                 </a>
-                <p className="t-caption mt-3">Free with any course enrollment.</p>
+                <p className="t-caption mt-3">{copy.discordFootnote}</p>
               </div>
             </div>
           </div>

@@ -1,9 +1,13 @@
 import { Search, CreditCard, Award, Check } from 'lucide-react';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
+import { siteContentApi } from '../../services/api';
+import { logger } from '../../utils/logger';
 import { FadeIn } from '../FadeIn';
+
+import type { SiteContentItem } from '../../types';
 
 const STEPS = [
   {
@@ -26,9 +30,33 @@ const STEPS = [
   },
 ];
 
+const DEFAULT_COPY = {
+  pill: 'How It Works',
+  heading: 'Your Path to Pro Filmmaker.',
+  subheading: 'Three simple steps from where you are now to where you want to be.',
+};
+
 export const HowItWorksSection: React.FC = () => {
   const [active, setActive] = useState(0);
+  const [copy, setCopy] = useState(DEFAULT_COPY);
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  // Header copy is CMS-overridable (singleton: items[0]); steps stay hardcoded.
+  // Per-field fallback keeps the visual output identical when CMS is empty.
+  useEffect(() => {
+    siteContentApi.getBySection('how_it_works')
+      .then((items: SiteContentItem[]) => {
+        const item = items[0];
+        if (!item) { return; }
+        const meta = (item.metadata ?? {}) as Record<string, unknown>;
+        setCopy({
+          pill: (meta.pill as string) || DEFAULT_COPY.pill,
+          heading: item.title || DEFAULT_COPY.heading,
+          subheading: item.body || DEFAULT_COPY.subheading,
+        });
+      })
+      .catch(err => logger.warn('[HowItWorksSection] CMS load failed:', err));
+  }, []);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -73,13 +101,13 @@ export const HowItWorksSection: React.FC = () => {
       <FadeIn>
         <div className="text-center mb-14">
           <span className="inline-block px-4 py-1.5 rounded-full border border-[rgba(255,59,48,0.3)] bg-[rgba(255,59,48,0.1)] text-brand-700 dark:text-brand-400 font-bold tracking-widest uppercase text-xs mb-4">
-            How It Works
+            {copy.pill}
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold t-text" style={{ fontFamily: 'var(--font-display)' }}>
-            Your Path to Pro Filmmaker.
+            {copy.heading}
           </h2>
           <p className="t-text-2 text-lg mt-4 max-w-2xl mx-auto">
-            Three simple steps from where you are now to where you want to be.
+            {copy.subheading}
           </p>
         </div>
       </FadeIn>

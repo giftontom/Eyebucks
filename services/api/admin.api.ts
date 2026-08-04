@@ -12,6 +12,7 @@ import type { Payment } from './payments.api';
 import type {
   AdminStats, SalesDataPoint, Module, Lesson, CourseAnalytics,
   SiteContentItem, AdminCourse, AdminUser, AdminCertificate, RecentActivity,
+  CourseLanguage,
 } from '../../types';
 import type {
   CourseRow, ModuleRow, UserRow, CourseUpdate, UserUpdate, SiteContentUpdate,
@@ -251,6 +252,8 @@ export const adminApi = {
       heroVideoId: c.hero_video_id,
       type: c.type,
       status: c.status,
+      language: (c.language ?? 'EN') as CourseLanguage,
+      courseGroupId: c.course_group_id ?? null,
       rating: c.rating,
       totalStudents: c.total_students,
       features: c.features,
@@ -277,6 +280,8 @@ export const adminApi = {
     type: string;
     features?: string[];
     heroVideoId?: string;
+    language?: CourseLanguage;
+    courseGroupId?: string | null;
   }): Promise<{ success: boolean; message: string; course: CourseRow }> {
     const { data, error } = await supabase
       .from('courses')
@@ -289,6 +294,8 @@ export const adminApi = {
         type: courseData.type as 'BUNDLE' | 'MODULE',
         features: courseData.features || [],
         hero_video_id: courseData.heroVideoId,
+        language: courseData.language ?? 'EN',
+        course_group_id: courseData.courseGroupId ?? null,
         status: 'DRAFT',
       })
       .select()
@@ -302,6 +309,7 @@ export const adminApi = {
     title?: string; slug?: string; description?: string; price?: number;
     thumbnail?: string; type?: string; features?: string[];
     heroVideoId?: string; status?: string;
+    language?: CourseLanguage; courseGroupId?: string | null;
   }): Promise<{
     success: boolean;
     message: string;
@@ -317,6 +325,8 @@ export const adminApi = {
     if (courseData.features !== undefined) {update.features = courseData.features;}
     if (courseData.heroVideoId !== undefined) {update.hero_video_id = courseData.heroVideoId;}
     if (courseData.status !== undefined) {update.status = courseData.status as 'PUBLISHED' | 'DRAFT';}
+    if (courseData.language !== undefined) {update.language = courseData.language;}
+    if (courseData.courseGroupId !== undefined) {update.course_group_id = courseData.courseGroupId;}
 
     const { data, error } = await supabase
       .from('courses')

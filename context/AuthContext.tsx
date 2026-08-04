@@ -5,7 +5,7 @@ import { supabase } from '../services/supabase';
 import { analytics } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
-import type { User } from '../types';
+import type { User, CourseLanguage } from '../types';
 import type { UserUpdate } from '../types/supabase';
 import type { Session } from '@supabase/supabase-js';
 
@@ -20,6 +20,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updatePhoneNumber: (phone: string) => Promise<void>;
   updateProfile: (data: { name?: string }) => Promise<void>;
+  updatePreferredLanguage: (language: CourseLanguage) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -250,6 +251,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser({ ...user, ...data });
   };
 
+  const updatePreferredLanguage = async (language: CourseLanguage) => {
+    if (!user) {return;}
+
+    const { error } = await supabase
+      .from('users')
+      .update({ preferred_language: language })
+      .eq('id', user.id);
+
+    if (error) {throw new Error('Failed to update language preference');}
+
+    setUser({ ...user, preferredLanguage: language });
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -261,6 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       updatePhoneNumber,
       updateProfile,
+      updatePreferredLanguage,
     }}>
       {children}
     </AuthContext.Provider>

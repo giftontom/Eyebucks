@@ -206,11 +206,11 @@ describe('Learn', () => {
     // The sidebar header shows chapter titles; lessons appear after expand.
     // Chapter 1 is auto-expanded (it contains the default active lesson).
     await waitFor(() => {
-      expect(screen.getByText('Chapter 1')).toBeInTheDocument();
-      // Lessons inside the expanded chapter are also visible
-      expect(screen.getByText('Lesson 1')).toBeInTheDocument();
-      expect(screen.getByText('Lesson 2')).toBeInTheDocument();
-      expect(screen.getByText('Lesson 3')).toBeInTheDocument();
+      // Outline renders in both the mobile inline panel and the desktop sidebar.
+      expect(screen.getAllByText('Chapter 1').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Lesson 1').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Lesson 2').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Lesson 3').length).toBeGreaterThan(0);
     });
   });
 
@@ -225,7 +225,8 @@ describe('Learn', () => {
   it('shows progress percentage', async () => {
     renderLearn();
     await waitFor(() => {
-      expect(screen.getByText('50% Completed')).toBeInTheDocument();
+      // Progress header now reads "{done}/{total} · {pct}%"
+      expect(screen.getAllByText(/50%/).length).toBeGreaterThan(0);
     });
   });
 
@@ -261,8 +262,9 @@ describe('Learn', () => {
   it('shows personal notes section', async () => {
     renderLearn();
     await waitFor(() => {
-      expect(screen.getByText(/personal notes/i)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/take notes/i)).toBeInTheDocument();
+      // Notes render in both the mobile and desktop panels.
+      expect(screen.getAllByText(/personal notes/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByPlaceholderText(/take notes/i).length).toBeGreaterThan(0);
     });
   });
 });

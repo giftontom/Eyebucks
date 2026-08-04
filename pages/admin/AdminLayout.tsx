@@ -55,7 +55,9 @@ export const AdminLayout: React.FC = () => {
     <AdminProvider>
       <div className="flex min-h-screen t-bg-alt">
         <AdminSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-        <main className="flex-1 overflow-auto min-w-0">
+        {/* No nested overflow scroll — use the document scroll so the sticky
+            sub-header offsets correctly and never overlaps content. */}
+        <main className="flex-1 min-w-0">
           {/* Mobile sub-header — the desktop sidebar is hidden below `lg`.
               Sticks just under the global nav (h-20 = top-20); kept below the
               nav's z-50 so it never occludes / gets occluded by it. */}

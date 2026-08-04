@@ -61,6 +61,11 @@ export interface SectionSchema {
   fields: FieldDef[];
   /** Hidden from the "create" dropdown (still editable if rows already exist). */
   deprecated?: boolean;
+  /** Whether the core `title`/`body` columns are used by this section (default true). */
+  coreTitle?: boolean;
+  coreBody?: boolean;
+  /** "Copy singleton" — only the first (lowest order_index) row is read by the storefront. */
+  singleton?: boolean;
 }
 
 const ICON_OPTIONS_VALUE: FieldOption[] = [
@@ -177,6 +182,173 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     fields: [
       { key: 'image', label: 'Image', type: 'image', folder: 'showcase', aspect: 'aspect-video' },
       { key: 'type', label: 'Type', type: 'text', placeholder: 'Color Grading' },
+    ],
+  },
+
+  // ---- Copy singletons (one row each; storefront reads the first row) ----
+  hero: {
+    section: 'hero',
+    label: 'Hero',
+    group: 'Landing copy',
+    singleton: true,
+    titleLabel: 'Headline (line 1)',
+    titlePlaceholder: 'Master the Craft',
+    bodyLabel: 'Subtitle',
+    bodyMultiline: true,
+    fields: [
+      { key: 'headline2', label: 'Headline (line 2)', type: 'text', placeholder: 'of Filmmaking.' },
+      { key: 'pill', label: 'Announcement pill', type: 'text' },
+      { key: 'ctaPrimaryGuest', label: 'Primary CTA (logged-out)', type: 'text' },
+      { key: 'ctaPrimaryUser', label: 'Primary CTA (logged-in)', type: 'text' },
+      { key: 'ctaSecondary', label: 'Secondary CTA', type: 'text' },
+      { key: 'statCoursesSuffix', label: 'Courses stat suffix', type: 'text', help: 'Text after the live course count, e.g. "+ Courses".' },
+      { key: 'stat2', label: 'Stat 2', type: 'text' },
+      { key: 'stat3', label: 'Stat 3', type: 'text' },
+    ],
+  },
+  hero_slides: {
+    section: 'hero_slides',
+    label: 'Hero Slide',
+    group: 'Landing copy',
+    coreBody: false,
+    titleLabel: 'Slide caption',
+    titlePlaceholder: 'Masterclass Series',
+    bodyLabel: 'Body',
+    fields: [
+      { key: 'image', label: 'Slide image', type: 'image', folder: 'hero', aspect: 'aspect-video' },
+    ],
+  },
+  social_proof: {
+    section: 'social_proof',
+    label: 'Social Proof Ticker',
+    group: 'Social proof',
+    singleton: true,
+    coreTitle: false,
+    coreBody: false,
+    titleLabel: 'Title',
+    bodyLabel: 'Body',
+    fields: [
+      { key: 'items', label: 'Ticker items (one per line)', type: 'string-array', help: 'Each line is a ticker item, e.g. "10,000+ Students".' },
+    ],
+  },
+  featured_copy: {
+    section: 'featured_copy',
+    label: 'Featured Courses Copy',
+    group: 'Landing copy',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+      { key: 'ctaLabel', label: 'CTA label', type: 'text' },
+    ],
+  },
+  how_it_works: {
+    section: 'how_it_works',
+    label: 'How It Works Copy',
+    group: 'Landing copy',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+    ],
+  },
+  value_props_copy: {
+    section: 'value_props_copy',
+    label: 'Value Props Header',
+    group: 'Landing copy',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+      { key: 'footerLinkLabel', label: 'Footer link label', type: 'text' },
+    ],
+  },
+  instructors_copy: {
+    section: 'instructors_copy',
+    label: 'Instructors Header',
+    group: 'Social proof',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+    ],
+  },
+  community_copy: {
+    section: 'community_copy',
+    label: 'Community Header & Discord',
+    group: 'Social proof',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+      { key: 'verifiedLabel', label: 'Verified badge label', type: 'text' },
+      { key: 'discordEyebrow', label: 'Discord eyebrow', type: 'text' },
+      { key: 'discordTitle', label: 'Discord title', type: 'text' },
+      { key: 'discordBody', label: 'Discord body', type: 'text' },
+      { key: 'discordCtaLabel', label: 'Discord CTA label', type: 'text' },
+      { key: 'discordUrl', label: 'Discord URL', type: 'url' },
+      { key: 'discordFootnote', label: 'Discord footnote', type: 'text' },
+    ],
+  },
+  creators_copy: {
+    section: 'creators_copy',
+    label: 'Creators Academy Header',
+    group: 'Landing copy',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+    ],
+  },
+  pricing_copy: {
+    section: 'pricing_copy',
+    label: 'Pricing Copy',
+    group: 'Landing copy',
+    singleton: true,
+    titleLabel: 'Heading',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+      { key: 'popularLabel', label: '"Most Popular" badge', type: 'text' },
+      { key: 'paymentNote', label: 'Payment note', type: 'text' },
+      { key: 'ticketLabel', label: 'Ticket label', type: 'text' },
+      { key: 'trustBadges', label: 'Trust badges (one per line)', type: 'string-array' },
+    ],
+  },
+  closing: {
+    section: 'closing',
+    label: 'Closing CTA & Newsletter',
+    group: 'Landing copy',
+    singleton: true,
+    coreBody: false,
+    titleLabel: 'Heading',
+    bodyLabel: 'Body',
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow', type: 'text' },
+      { key: 'ctaHeading', label: 'CTA heading', type: 'text' },
+      { key: 'ctaBody', label: 'CTA body', type: 'text' },
+      { key: 'ctaLabel', label: 'CTA label', type: 'text' },
+      { key: 'guarantee1', label: 'Guarantee chip 1', type: 'text' },
+      { key: 'guarantee2', label: 'Guarantee chip 2', type: 'text' },
+      { key: 'emailHeading', label: 'Email heading', type: 'text' },
+      { key: 'emailSubtext', label: 'Email subtext', type: 'text' },
+      { key: 'emailPlaceholder', label: 'Email placeholder', type: 'text' },
+      { key: 'subscribeLabel', label: 'Subscribe button', type: 'text' },
+      { key: 'emailSuccessHeading', label: 'Success heading', type: 'text' },
+      { key: 'emailSuccessSubtext', label: 'Success subtext', type: 'text' },
     ],
   },
 };

@@ -66,8 +66,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index, disableRe
             )}
           </div>
           <Link to={`/course/${course.id}`} className="block flex-grow">
-            <h3 className="text-lg md:text-xl font-bold t-text mb-2 group-live:text-brand-400 transition-colors leading-snug line-clamp-2 min-h-14">{course.title}</h3>
-            <p className="t-text-2 text-sm leading-relaxed line-clamp-2 mb-4">{course.description}</p>
+            <h3 lang={course.language === 'ML' ? 'ml' : undefined} className="text-lg md:text-xl font-bold t-text mb-2 group-live:text-brand-400 transition-colors leading-snug line-clamp-2 min-h-14">{course.title}</h3>
+            <p lang={course.language === 'ML' ? 'ml' : undefined} className="t-text-2 text-sm leading-relaxed line-clamp-2 mb-4">{course.description}</p>
           </Link>
           <div className="mt-auto pt-4 md:pt-5 border-t t-border flex items-center justify-between gap-4">
             <div className="flex flex-col">

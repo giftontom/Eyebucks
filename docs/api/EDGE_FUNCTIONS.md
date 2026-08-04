@@ -8,7 +8,7 @@ All Edge Functions are deployed as Supabase Edge Functions (Deno runtime) at:
 https://<project-ref>.supabase.co/functions/v1/<function-name>
 ```
 
-Every function (except `checkout-webhook`) requires a valid Supabase JWT in the `Authorization: Bearer <token>` header. All functions accept only `POST` requests and handle `OPTIONS` preflight for CORS.
+Every function (except `checkout-webhook` and `asset-claim-free` for price-0 assets) requires a valid Supabase JWT in the `Authorization: Bearer <token>` header. All functions accept only `POST` requests and handle `OPTIONS` preflight for CORS.
 
 **Base URL (production):** `https://pdengtcdtszpvwhedzxn.supabase.co/functions/v1/`
 
@@ -26,17 +26,21 @@ Every function (except `checkout-webhook`) requires a valid Supabase JWT in the 
   - [emailTemplates.ts](#8-emailtemplatests)
   - [supabaseAdmin.ts](#7-supabaseadmints)
 - [Edge Functions](#edge-functions)
-  - [checkout-create-order](#1-checkout-create-order)
-  - [checkout-verify](#2-checkout-verify)
-  - [checkout-webhook](#3-checkout-webhook)
-  - [video-signed-url](#4-video-signed-url)
-  - [admin-video-upload](#5-admin-video-upload)
-  - [certificate-generate](#6-certificate-generate)
-  - [progress-complete](#7-progress-complete)
-  - [refund-process](#8-refund-process)
-  - [session-enforce](#9-session-enforce)
-  - [coupon-apply](#10-coupon-apply)
-  - [video-cleanup](#11-video-cleanup)
+  - [admin-asset-upload](#0-admin-asset-upload)
+  - [admin-image-upload](#1-admin-image-upload)
+  - [asset-claim-free](#1a-asset-claim-free)
+  - [asset-download-url](#1b-asset-download-url)
+  - [checkout-create-order](#2-checkout-create-order)
+  - [checkout-verify](#3-checkout-verify)
+  - [checkout-webhook](#4-checkout-webhook)
+  - [video-signed-url](#5-video-signed-url)
+  - [admin-video-upload](#6-admin-video-upload)
+  - [certificate-generate](#7-certificate-generate)
+  - [progress-complete](#8-progress-complete)
+  - [refund-process](#9-refund-process)
+  - [session-enforce](#10-session-enforce)
+  - [coupon-apply](#11-coupon-apply)
+  - [video-cleanup](#12-video-cleanup)
 
 ---
 
@@ -241,10 +245,11 @@ Branded HTML email template factory. All templates return a complete inline-styl
 | `enrollmentWelcomeEmail(opts)` | Welcome email sent immediately after purchase. Contains course title and "Start Learning Now" CTA. |
 | `paymentReceiptEmail(opts)` | Payment receipt with order ID, payment ID, and amount formatted in INR. |
 | `certificateEmail(opts)` | Congratulations email with certificate number and "Download Certificate" CTA. |
+| `assetDeliveryEmail(opts)` | Asset delivery email sent after a digital asset is purchased or claimed free. Contains asset title, file type, and "Go to My Library" CTA. |
 
-All three functions accept an `opts` object and return a fully self-contained HTML string. The layout uses a fixed-width (600px) table structure compatible with major email clients.
+All four functions accept an `opts` object and return a fully self-contained HTML string. The layout uses a fixed-width (600px) table structure compatible with major email clients.
 
-**Used by:** `checkout-verify` (enrollment welcome + payment receipt), `certificate-generate` (certificate email).
+**Used by:** `checkout-verify` (enrollment welcome + payment receipt; or asset delivery for digital assets), `certificate-generate` (certificate email), `asset-claim-free` (asset delivery email).
 
 ---
 
@@ -271,9 +276,186 @@ Creates a Supabase client using `SUPABASE_SERVICE_ROLE_KEY`, which **bypasses al
 
 ## Edge Functions
 
-### 1. `checkout-create-order`
+> **Total: 15 Edge Functions** (was 12; added `admin-asset-upload`, `asset-claim-free`, `asset-download-url` for the Digital Assets feature; `checkout-create-order`, `checkout-verify`, `checkout-webhook`, and `coupon-apply` are now product-aware — see notes in each section).
 
-Creates a Razorpay order for a published, paid course.
+---
+
+### 0. `admin-asset-upload`
+
+Returns a Supabase Storage signed upload URL so the admin browser can PUT a large digital asset file directly into the private `digital-assets` bucket without routing the binary through the Edge Function body.
+
+**Source:** `supabase/functions/admin-asset-upload/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/admin-asset-upload` |
+| **Auth** | JWT + Admin role required |
+| **External APIs** | Supabase Storage (`createSignedUploadUrl`) |
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `fileName` | `string` | Yes | Destination path within the `digital-assets` bucket |
+| `contentType` | `string` | No | MIME type hint |
+
+#### Response (200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `boolean` | Always `true` |
+| `signedUrl` | `string` | Supabase Storage signed upload URL (PUT) |
+| `path` | `string` | Canonical storage path (used as `storage_path` on the `digital_assets` row) |
+
+#### Error Responses
+
+| Status | Error | Condition |
+|--------|-------|-----------|
+| 400 | `fileName is required` | Missing field |
+| 403 | `Admin access required` | Authenticated user is not an admin |
+| 500 | `Failed to create signed upload URL` | Storage API error |
+
+**Security note:** The private `digital-assets` Supabase Storage bucket has no public read policy. Files are accessible only via short-lived signed download URLs generated by `asset-download-url` after an entitlement check.
+
+---
+
+### 1a. `asset-claim-free`
+
+Grants a price-0 digital asset to the authenticated user, creating an `asset_purchases` row without going through Razorpay.
+
+**Source:** `supabase/functions/asset-claim-free/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/asset-claim-free` |
+| **Auth** | JWT required |
+| **External APIs** | Resend (asset delivery email) |
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `assetId` | `string` | Yes | UUID of the digital asset to claim |
+
+#### Response (200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `boolean` | Always `true` |
+| `purchaseId` | `string` | UUID of the created `asset_purchases` record |
+
+#### Error Responses
+
+| Status | Error | Condition |
+|--------|-------|-----------|
+| 400 | `assetId is required` | Missing field |
+| 400 | `Asset is not free` | `digital_assets.price > 0` |
+| 404 | `Asset not found` | No published asset with that ID |
+| 409 | `Already owned` | Duplicate `asset_purchases` row |
+
+#### Side Effects
+
+1. `asset_purchases` row inserted with `status: 'ACTIVE'`, `amount: 0`
+2. Asset delivery email sent via `assetDeliveryEmail()` template (non-blocking)
+
+---
+
+### 1b. `asset-download-url`
+
+Entitlement-checked short-lived signed download URL for a purchased digital asset. The actual file is stored in the private `digital-assets` Supabase Storage bucket; this function is the only way to access it.
+
+**Source:** `supabase/functions/asset-download-url/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/asset-download-url` |
+| **Auth** | JWT required |
+| **External APIs** | Supabase Storage (`createSignedUrl`) |
+
+#### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `assetId` | `string` | Yes | UUID of the digital asset |
+
+#### Response (200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `boolean` | Always `true` |
+| `downloadUrl` | `string` | Supabase Storage signed URL, TTL ~5 minutes |
+| `expiresAt` | `number` | Unix timestamp when the URL expires |
+
+#### Error Responses
+
+| Status | Error | Condition |
+|--------|-------|-----------|
+| 400 | `assetId is required` | Missing field |
+| 403 | `Not authorized to download this asset` | No `ACTIVE` `asset_purchases` row (and user is not admin) |
+| 404 | `Asset not found` | No published asset with that ID |
+| 500 | `Failed to create download URL` | Storage API error |
+
+#### Security
+
+- `storage_path` is fetched server-side using the service-role client and is never exposed to the browser.
+- The signed URL has a short TTL (~5 minutes). A copied URL is useless after expiry.
+- Admins bypass the entitlement check and can download any asset.
+
+---
+
+### 1. `admin-image-upload`
+
+Uploads a CMS image to Bunny Storage and returns the Pull-Zone CDN URL. Admin-gated proxy that keeps Bunny Storage credentials server-side.
+
+**Source:** `supabase/functions/admin-image-upload/index.ts`
+
+| Property | Value |
+|----------|-------|
+| **Endpoint** | `POST /functions/v1/admin-image-upload` |
+| **Auth** | JWT + Admin role required |
+| **External APIs** | Bunny Storage API (HTTP PUT to Storage Zone endpoint) |
+
+#### Request
+
+`multipart/form-data` with a single `file` field containing the image binary.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | `File` | Yes | Image file to upload |
+
+#### Response (200)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `boolean` | Always `true` |
+| `url` | `string` | Full Bunny Pull-Zone CDN URL for the uploaded image |
+| `path` | `string` | Storage path within the zone (used for deletion) |
+
+#### Error Responses
+
+| Status | Error | Condition |
+|--------|-------|-----------|
+| 400 | `file is required` | No file in request |
+| 403 | `Admin access required` | Authenticated user is not an admin |
+| 500 | `Image storage not configured` | Missing Bunny Storage environment variables |
+| 502 | `Failed to upload image` | Bunny Storage API returned an error |
+
+#### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `BUNNY_STORAGE_ZONE_NAME` | Yes | Bunny Storage Zone name |
+| `BUNNY_STORAGE_API_KEY` | Yes | Bunny Storage Zone API key |
+| `BUNNY_STORAGE_CDN_HOSTNAME` | Yes | Pull-Zone CDN hostname for constructing the public URL |
+| `BUNNY_STORAGE_HOST` | No | Storage Zone region host (default: `storage.bunnycdn.com`) |
+
+**Owner action required:** Provision a Bunny Storage Zone + linked Pull Zone and set the four secrets above via `supabase secrets set`.
+
+---
+
+### 2. `checkout-create-order`
+
+Creates a Razorpay order for a published, paid course **or digital asset** (product-aware).
 
 **Source:** `supabase/functions/checkout-create-order/index.ts`
 
@@ -285,9 +467,12 @@ Creates a Razorpay order for a published, paid course.
 
 #### Request Body
 
+Exactly one of `courseId` or `assetId` must be provided (`productType` discriminator).
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `courseId` | `string` | Yes | UUID of the course to purchase |
+| `courseId` | `string` | Conditional | UUID of the course to purchase |
+| `assetId` | `string` | Conditional | UUID of the digital asset to purchase |
 
 #### Response (200)
 
@@ -298,26 +483,27 @@ Creates a Razorpay order for a published, paid course.
 | `amount` | `number` | Amount in paise (e.g., `49900` = INR 499) |
 | `currency` | `string` | Always `"INR"` |
 | `key` | `string` | Razorpay public key ID (for client SDK) |
-| `courseTitle` | `string` | Course title for display |
+| `courseTitle` | `string` | Product title for display |
 
 #### Error Responses
 
 | Status | Error | Condition |
 |--------|-------|-----------|
-| 400 | `courseId is required` | Missing `courseId` in request body |
-| 400 | `This course is free -- no payment required` | Course price is 0 or negative |
-| 404 | `Course not found` | Course does not exist or is not `PUBLISHED` |
-| 409 | `Already enrolled in this course` | User has an `ACTIVE` enrollment |
+| 400 | `courseId or assetId is required` | Neither discriminator provided |
+| 400 | `This course/asset is free -- no payment required` | Price is 0 or negative |
+| 404 | `Course/Asset not found` | Product does not exist or is not `PUBLISHED` |
+| 409 | `Already enrolled` / `Already owned` | Duplicate entitlement |
 | 500 | `Failed to create payment order` | Razorpay API returned an error |
 
 #### Flow
 
 1. Verify JWT authentication
-2. Fetch course (must be `PUBLISHED`)
-3. Reject if `price <= 0` (free courses)
-4. Check for existing `ACTIVE` enrollment
-5. Create Razorpay order with `amount` in paise, `currency: "INR"`, and `notes` containing `courseId`, `userId`, `courseTitle`
-6. Return order details and Razorpay public key
+2. Detect product type from the discriminator field
+3. Fetch product (must be `PUBLISHED`)
+4. Reject if `price <= 0`
+5. Check for existing entitlement (enrollment for courses; `asset_purchases` for assets)
+6. Create Razorpay order with `amount` in paise, `currency: "INR"`, and `notes` containing product ID, `userId`, product title, and `productType`
+7. Return order details and Razorpay public key
 
 #### Environment Variables
 
@@ -328,9 +514,9 @@ Creates a Razorpay order for a published, paid course.
 
 ---
 
-### 2. `checkout-verify`
+### 3. `checkout-verify`
 
-Verifies a Razorpay payment signature, creates enrollment and payment records, and sends confirmation emails.
+Verifies a Razorpay payment signature, creates enrollment or asset purchase and payment records, and sends confirmation emails (product-aware).
 
 **Source:** `supabase/functions/checkout-verify/index.ts`
 
@@ -342,12 +528,16 @@ Verifies a Razorpay payment signature, creates enrollment and payment records, a
 
 #### Request Body
 
+Exactly one of `courseId` or `assetId` must be provided. `couponUseId` is optional.
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `orderId` | `string` | Yes | Razorpay order ID |
 | `paymentId` | `string` | Yes | Razorpay payment ID |
 | `signature` | `string` | Yes | HMAC-SHA256 signature from Razorpay client SDK |
-| `courseId` | `string` | Yes | UUID of the purchased course |
+| `courseId` | `string` | Conditional | UUID of the purchased course |
+| `assetId` | `string` | Conditional | UUID of the purchased digital asset |
+| `couponUseId` | `string` | No | UUID from `coupon_uses`; used for amount re-derivation when a coupon was applied |
 
 #### Response (200)
 
@@ -377,12 +567,18 @@ Verifies a Razorpay payment signature, creates enrollment and payment records, a
 
 #### Side Effects
 
+**For course purchases:**
 1. **Enrollment created** with status `ACTIVE`, linked to `paymentId` and `orderId`
 2. **Bundle expansion:** If `course.type === 'BUNDLE'`, creates additional enrollments for all courses in `bundle_courses` table (amount `0`, upsert with `ignoreDuplicates`)
 3. **Payment record** inserted with status `captured` and auto-generated receipt number (`EYB-{base36_timestamp}`)
 4. **Notification** created (type `enrollment`)
 5. **Enrollment welcome email** sent via Resend using `enrollmentWelcomeEmail()` template (non-blocking, branded HTML)
 6. **Payment receipt email** sent via Resend using `paymentReceiptEmail()` template (non-blocking, formatted in INR, includes order/payment IDs)
+
+**For digital asset purchases:**
+1. **`asset_purchases` row created** with status `ACTIVE`, linked to `paymentId` and `orderId`
+2. **Payment record** inserted (same as above; `asset_id` column populated, `course_id` NULL)
+3. **Asset delivery email** sent via Resend using `assetDeliveryEmail()` template (non-blocking)
 
 #### Environment Variables
 
@@ -396,9 +592,9 @@ Verifies a Razorpay payment signature, creates enrollment and payment records, a
 
 ---
 
-### 3. `checkout-webhook`
+### 4. `checkout-webhook`
 
-Handles asynchronous Razorpay webhook events. Acts as a safety net for payment processing -- if `checkout-verify` fails, this webhook ensures enrollment is still created.
+Handles asynchronous Razorpay webhook events. Acts as a safety net for payment processing — if `checkout-verify` fails, this webhook ensures the entitlement (enrollment or `asset_purchases` row) is still created. Product-aware: reads `productType` from `payment.notes` to branch between course enrollment and asset purchase.
 
 **Source:** `supabase/functions/checkout-webhook/index.ts`
 
@@ -485,7 +681,7 @@ This function does **not** use CORS headers since it is called server-to-server 
 
 ---
 
-### 4. `video-signed-url`
+### 5. `video-signed-url`
 
 Generates time-limited, token-authenticated Bunny.net CDN URLs for HLS video streaming.
 
@@ -559,7 +755,7 @@ Token expiry: **1 hour** (3600 seconds).
 
 ---
 
-### 5. `admin-video-upload`
+### 6. `admin-video-upload`
 
 Creates a Bunny.net video entry and returns TUS upload credentials for direct client-side upload.
 
@@ -637,7 +833,7 @@ LibraryId: <libraryId>
 
 ---
 
-### 6. `certificate-generate`
+### 7. `certificate-generate`
 
 Generates a certificate record for a completed course and sends a congratulations email.
 
@@ -709,7 +905,7 @@ Generates a certificate record for a completed course and sends a congratulation
 
 ---
 
-### 7. `progress-complete`
+### 8. `progress-complete`
 
 Marks a module as completed, updates course progress, and triggers auto-certification at 100%.
 
@@ -788,7 +984,7 @@ Creates a milestone notification. Only one notification per milestone crossing (
 
 ---
 
-### 8. `refund-process`
+### 9. `refund-process`
 
 Processes a full refund through the Razorpay API, updates the payment record, revokes enrollment, and notifies the user.
 
@@ -881,13 +1077,17 @@ refunded  -->  refunded     (rejected: 409)
 | `BUNNY_STREAM_LIBRARY_ID` | admin-video-upload, video-cleanup | Bunny Stream library ID |
 | `BUNNY_STREAM_CDN_HOSTNAME` | video-signed-url, admin-video-upload | Bunny CDN hostname |
 | `BUNNY_STREAM_TOKEN_KEY` | video-signed-url | Bunny token authentication key |
+| `BUNNY_STORAGE_ZONE_NAME` | admin-image-upload | Bunny Storage Zone name |
+| `BUNNY_STORAGE_API_KEY` | admin-image-upload | Bunny Storage Zone API key |
+| `BUNNY_STORAGE_CDN_HOSTNAME` | admin-image-upload | Bunny Storage Pull-Zone CDN hostname |
+| `BUNNY_STORAGE_HOST` | admin-image-upload | Storage region host (optional; default `storage.bunnycdn.com`) |
 | `RESEND_API_KEY` | checkout-verify, certificate-generate | Resend email API key |
 | `RESEND_FROM_EMAIL` | checkout-verify, certificate-generate | Sender email address |
 | `APP_URL` | checkout-verify, certificate-generate | Base URL for email links |
 
 ---
 
-### 9. `session-enforce`
+### 10. `session-enforce`
 
 Verifies and enforces user session state. Used for server-side session invalidation and admin-controlled session management.
 
@@ -909,9 +1109,9 @@ Verifies and enforces user session state. Used for server-side session invalidat
 
 ---
 
-### 10. `coupon-apply`
+### 11. `coupon-apply`
 
-Atomically validates and redeems a coupon code for a course purchase.
+Atomically validates and redeems a coupon code for a course or digital asset purchase (product-aware).
 
 **Source:** `supabase/functions/coupon-apply/index.ts`
 
@@ -923,10 +1123,13 @@ Atomically validates and redeems a coupon code for a course purchase.
 
 #### Request Body
 
+Exactly one of `courseId` or `assetId` must be provided.
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `code` | `string` | Yes | Coupon code to apply |
-| `courseId` | `string` | Yes | UUID of the course being purchased |
+| `courseId` | `string` | Conditional | UUID of the course being purchased |
+| `assetId` | `string` | Conditional | UUID of the digital asset being purchased |
 
 #### Response (200)
 
@@ -939,26 +1142,30 @@ Atomically validates and redeems a coupon code for a course purchase.
 
 #### Validation Logic
 
-Delegates to the `apply_coupon(code, course_id, user_id)` PostgreSQL RPC, which is executed atomically with row-level locking:
+**For courses:** delegates to the `apply_coupon(code, course_id, user_id)` PostgreSQL RPC.
+
+**For digital assets:** delegates to the `apply_asset_coupon(p_code, p_user_id, p_asset_id)` PostgreSQL RPC (migration 040; SECURITY DEFINER; REVOKE PUBLIC + GRANT authenticated/service_role).
+
+Both RPCs execute atomically with row-level locking:
 
 1. Validates the coupon is `is_active = true` and not expired
 2. Checks `use_count < max_uses` (or `max_uses` is null for unlimited)
-3. Verifies the user has not already used this coupon for this course
+3. Verifies the user has not already used this coupon for this product
 4. Atomically increments `use_count` and inserts a `coupon_uses` record
 
 #### Error Responses
 
 | Status | Error | Condition |
 |--------|-------|-----------|
-| 400 | `code and courseId are required` | Missing required fields |
+| 400 | `code and (courseId or assetId) are required` | Missing required fields |
 | 400 | `Invalid or expired coupon` | Coupon not found, inactive, expired, or max uses reached |
-| 409 | `Coupon already used` | User has already redeemed this coupon for this course |
-| 404 | `Course not found` | Invalid `courseId` |
-| 500 | `Failed to apply coupon` | `apply_coupon()` RPC error |
+| 409 | `Coupon already used` | User has already redeemed this coupon for this product |
+| 404 | `Course/Asset not found` | Invalid product ID |
+| 500 | `Failed to apply coupon` | RPC error |
 
 ---
 
-### 11. `video-cleanup`
+### 12. `video-cleanup`
 
 Deletes a video from Bunny.net after the corresponding course module has been removed.
 

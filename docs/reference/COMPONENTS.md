@@ -1,8 +1,8 @@
 # Components Reference
 
-> Last updated: March 26, 2026
+> Last updated: 2026-06-22
 
-This document covers all shared components (19) and admin components (12) in the Eyebuckz LMS frontend.
+This document covers all shared components (23) and admin components (12) in the Eyebuckz LMS frontend.
 
 ---
 
@@ -184,7 +184,92 @@ interface VideoUploaderProps {
 
 ---
 
-### 7. NotificationBell
+### 7. ImageUpload
+
+Drag-and-drop CMS image uploader for admin use.
+
+```tsx
+import { ImageUpload } from '../components';
+
+interface ImageUploadProps {
+  onUploadComplete: (url: string) => void;
+  currentUrl?: string;
+  disabled?: boolean;
+}
+```
+
+**Behavior:**
+- Drag-and-drop zone or click-to-select file input (images only).
+- Invokes `siteImagesApi.uploadImage()` which calls the `admin-image-upload` Edge Function.
+- Returns the Bunny Storage Pull-Zone CDN URL via `onUploadComplete`.
+- Shows upload progress and a thumbnail preview of `currentUrl` when set.
+- Barrel-exported from `components/index.ts`.
+
+---
+
+### 7a. AssetCard
+
+Product card for a digital asset in the `/assets` shop and homepage showcase section.
+
+```tsx
+import { AssetCard } from '../components';
+
+interface AssetCardProps {
+  asset: DigitalAsset;
+  onBuy?: (asset: DigitalAsset) => void;
+  owned?: boolean;
+}
+```
+
+**Behavior:**
+- Renders asset thumbnail, title, file type badge (`asset_file_type`), license label, and formatted price.
+- When `owned` is `true`, shows a "Download" CTA instead of "Buy".
+- `onBuy` is called when the purchase/claim CTA is clicked.
+
+---
+
+### 7b. AssetUploader
+
+Signed-URL direct upload component for admin digital asset files. Mirrors the `VideoUploader` pattern but targets Supabase Storage instead of Bunny TUS.
+
+```tsx
+import { AssetUploader } from '../components';
+
+interface AssetUploaderProps {
+  onUploadComplete: (storagePath: string, fileSize: number, fileExt: string) => void;
+  disabled?: boolean;
+}
+```
+
+**Behavior:**
+- Drag-and-drop zone or click-to-select file input (any file type; max 500 MB).
+- Calls `admin-asset-upload` Edge Function to obtain a Supabase Storage signed upload URL.
+- Uploads directly to the `digital-assets` private bucket using the signed URL (no binary passes through the Edge Function).
+- Shows upload progress bar.
+- Calls `onUploadComplete` with `storagePath`, `fileSize` (bytes), and `fileExt` (without dot) on completion.
+
+---
+
+### 7c. OwnedAssetsTab
+
+"Library" tab component rendered inside the Dashboard (`/dashboard`). Displays the authenticated user's purchased and claimed digital assets.
+
+```tsx
+import { OwnedAssetsTab } from '../components';
+
+// No props — reads owned assets via digitalAssetsApi.getOwnedAssets() internally
+```
+
+**Behavior:**
+- Fetches `AssetPurchaseWithAsset[]` from `digitalAssetsApi.getOwnedAssets()` on mount.
+- Renders a grid of asset cards with "Download" CTA.
+- On download click, calls `digitalAssetsApi.getDownloadUrl(assetId)` which invokes the `asset-download-url` Edge Function.
+- Opens the short-lived signed URL in a new tab.
+- Shows an empty state when no assets are owned.
+
+---
+
+### 8. NotificationBell
 
 Real-time notification dropdown in the navigation bar.
 
@@ -202,7 +287,7 @@ import { NotificationBell } from '../components';
 
 ---
 
-### 8. Toast
+### 9. Toast
 
 Dismissible toast notification system.
 
@@ -239,7 +324,7 @@ function MyComponent() {
 
 ---
 
-### 9. Catalog filtering & search
+### 10. Catalog filtering & search
 
 Course filtering, search, and sort live **inline in `components/sections/CatalogSection.tsx`** and are driven **server-side** through `coursesApi.getCourses(options)` — the query (not the client) applies `type`, `search`, `minRating`, `maxPrice`, and `sort`, so results cover the whole catalog rather than just a loaded page.
 
@@ -252,7 +337,7 @@ getCourses({ page, pageSize, type, search, minRating, maxPrice, sort });
 
 ---
 
-### 10. CourseCardSkeleton
+### 11. CourseCardSkeleton
 
 Loading skeleton placeholders for course cards and dashboard.
 
@@ -270,7 +355,7 @@ import { CourseCardSkeleton, DashboardSkeleton } from '../components';
 
 ---
 
-### 11. ReviewForm
+### 12. ReviewForm
 
 Course review submission form.
 
@@ -295,7 +380,7 @@ interface ReviewFormProps {
 
 ---
 
-### 12. ReviewList
+### 13. ReviewList
 
 Reviews display with summary statistics and pagination.
 
@@ -319,7 +404,7 @@ interface ReviewListProps {
 
 ---
 
-### 13. StarRating
+### 14. StarRating
 
 Interactive or readonly star rating display.
 
@@ -343,7 +428,7 @@ interface StarRatingProps {
 
 ---
 
-### 14. Badge
+### 15. Badge
 
 Color-coded pill label for status, categories, and counts. See [Design System](DESIGN_SYSTEM.md) for full token reference.
 
@@ -367,7 +452,7 @@ interface BadgeProps {
 
 ---
 
-### 15. Button
+### 16. Button
 
 Accessible button with loading state, icon slots, and multiple variants. Forwards a ref.
 
@@ -392,7 +477,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 ---
 
-### 16. Input
+### 17. Input
 
 Labeled form input with error, hint, and leading/trailing icon slots. Forwards a ref.
 
@@ -418,7 +503,7 @@ interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, '
 
 ---
 
-### 17. Card
+### 18. Card
 
 Surface container with optional bordered header and footer slots.
 

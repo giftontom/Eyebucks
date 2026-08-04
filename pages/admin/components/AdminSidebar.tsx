@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   BookOpen,
+  Package,
   Users,
   Award,
   FileText,
@@ -17,6 +18,7 @@ import { NavLink } from 'react-router-dom';
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/courses', label: 'Courses', icon: BookOpen },
+  { to: '/admin/digital-assets', label: 'Digital Assets', icon: Package },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/certificates', label: 'Certificates', icon: Award },
   { to: '/admin/content', label: 'Content', icon: FileText },
@@ -63,7 +65,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose 
     <>
       {/* Mobile drawer (opened from the sticky sub-header in AdminLayout) */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-[60] lg:hidden">
           <div
             className="absolute inset-0 t-overlay"
             onClick={onClose}
@@ -80,8 +82,9 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose 
         </div>
       )}
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-60 shrink-0 t-border border-r t-bg min-h-screen">
+      {/* Desktop sidebar — pinned under the global nav (h-20) so it stays in
+          view while the page scrolls (the admin main no longer scrolls itself). */}
+      <aside className="hidden lg:block w-60 shrink-0 t-border border-r t-bg lg:sticky lg:top-20 lg:self-start lg:h-[calc(100vh-5rem)] lg:overflow-y-auto">
         <div className="px-4 py-5 border-b t-border">
           <h2 className="text-lg font-bold t-text">Admin Portal</h2>
           <p className="text-xs t-text-2">Platform Management</p>

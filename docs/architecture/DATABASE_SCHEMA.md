@@ -1,8 +1,8 @@
 # Eyebuckz LMS -- Database Schema Reference
 
 > **Database:** Supabase PostgreSQL (with RLS, pg_cron, Storage)
-> **Last updated:** 2026-03-14
-> **Migration count:** 21 (001 through 021)
+> **Last updated:** 2026-06-22
+> **Migration count:** 40 (001 through 040; next: 041)
 
 ---
 
@@ -32,12 +32,14 @@
 | `enrollment_status` | `ACTIVE`, `EXPIRED`, `REVOKED`, `PENDING`                        |
 | `certificate_status`| `ACTIVE`, `REVOKED`                                              |
 | `notification_type` | `enrollment`, `milestone`, `certificate`, `announcement`, `review`|
+| `asset_file_type`   | `LUT`, `PRESET`, `SFX`, `MUSIC`, `OVERLAY`, `PROJECT`, `PDF`, `TEMPLATE`, `OTHER` |
+| `asset_license`     | `PERSONAL`, `COMMERCIAL`, `EXTENDED`                             |
 
 ---
 
 ## Tables
 
-16 active tables, 2 dropped (sessions, refresh_tokens -- dropped in migration 009).
+18 active tables, 2 dropped (sessions, refresh_tokens -- dropped in migration 009).
 
 ### 1. `users`
 
@@ -191,13 +193,14 @@ Linked 1:1 to Supabase Auth. Created automatically by the `handle_new_user()` tr
 
 ### 9. `payments`
 
-Added in migration 006. Tracks Razorpay transactions, receipts, and refunds.
+Added in migration 006. Tracks Razorpay transactions, receipts, and refunds. Extended in migration 039 to support digital assets.
 
 | Column                | Type          | Constraints / Default                                        |
 |-----------------------|---------------|---------------------------------------------------------------|
 | `id`                  | `TEXT`        | **PK**, DEFAULT `gen_random_uuid()::text`                    |
 | `user_id`             | `UUID`        | NOT NULL, FK -> `auth.users(id)` ON DELETE CASCADE           |
-| `course_id`           | `TEXT`        | FK -> `courses(id)` ON DELETE CASCADE (nullable for failures)|
+| `course_id`           | `TEXT`        | FK -> `courses(id)` ON DELETE CASCADE (nullable — XOR with `asset_id`) |
+| `asset_id`            | `TEXT`        | FK -> `digital_assets(id)` ON DELETE CASCADE (nullable — XOR with `course_id`) |
 | `enrollment_id`       | `TEXT`        | FK -> `enrollments(id)` ON DELETE SET NULL                   |
 | `razorpay_order_id`   | `TEXT`        |                                                              |
 | `razorpay_payment_id` | `TEXT`        | UNIQUE (partial index, WHERE NOT NULL)                       |
@@ -213,6 +216,8 @@ Added in migration 006. Tracks Razorpay transactions, receipts, and refunds.
 | `metadata`            | `JSONB`       | DEFAULT `'{}'`                                               |
 | `created_at`          | `TIMESTAMPTZ` | DEFAULT `now()`                                              |
 | `updated_at`          | `TIMESTAMPTZ` | DEFAULT `now()`                                              |
+
+**Check constraint:** `num_nonnulls(course_id, asset_id) = 1` (exactly one product per payment row).
 
 ### 10. `bundle_courses`
 
@@ -278,17 +283,20 @@ Discount codes for course purchases.
 
 ### 14. `coupon_uses`
 
-Atomic redemption records linking coupons to users. The UNIQUE constraint on `(user_id, coupon_id)` prevents double-use.
+Atomic redemption records linking coupons to users. Extended in migration 040 to support digital asset coupons.
 
 | Column         | Type          | Constraints / Default                              |
 |----------------|---------------|-----------------------------------------------------|
 | `id`           | `UUID`        | **PK**, DEFAULT `gen_random_uuid()`                 |
 | `coupon_id`    | `UUID`        | FK -> `coupons(id)` ON DELETE CASCADE               |
 | `user_id`      | `UUID`        | FK -> `users(id)` ON DELETE CASCADE                 |
-| `course_id`    | `UUID`        | FK -> `courses(id)` ON DELETE SET NULL              |
+| `course_id`    | `UUID`        | FK -> `courses(id)` ON DELETE SET NULL (nullable — XOR with `asset_id`) |
+| `asset_id`     | `UUID`        | FK -> `digital_assets(id)` ON DELETE SET NULL (nullable — XOR with `course_id`) |
 | `discount_pct` | `INTEGER`     | NOT NULL (captured at redemption time)              |
 | `used_at`      | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
-| UNIQUE         |               | `(user_id, coupon_id)`                              |
+| UNIQUE         |               | `(user_id, coupon_id)` (course path); `(coupon_id, user_id, asset_id)` (asset path) |
+
+**Check constraint:** XOR — exactly one of `course_id` or `asset_id` must be non-null.
 
 ---
 
@@ -320,6 +328,59 @@ Admin action log for compliance and debugging. Records every create/update/delet
 | `old_value`   | `JSONB`       | Snapshot of record before change                   |
 | `new_value`   | `JSONB`       | Snapshot of record after change                    |
 | `created_at`  | `TIMESTAMPTZ` | DEFAULT `now()`                                     |
+
+### 17. `digital_assets`
+
+Downloadable product catalog. Added in migration 039.
+
+| Column           | Type              | Constraints / Default                                     |
+|------------------|-------------------|-----------------------------------------------------------|
+| `id`             | `UUID`            | **PK**, DEFAULT `gen_random_uuid()`                       |
+| `slug`           | `TEXT`            | UNIQUE, NOT NULL                                          |
+| `title`          | `TEXT`            | NOT NULL                                                  |
+| `description`    | `TEXT`            | NOT NULL, DEFAULT `''`                                    |
+| `price`          | `INTEGER`         | NOT NULL, CHECK `>= 0` (stored in paise; 0 = free)       |
+| `compare_price`  | `INTEGER`         | CHECK `NULL OR >= 0` (original price for strike-through)  |
+| `file_type`      | `asset_file_type` | NOT NULL                                                  |
+| `license`        | `asset_license`   | NOT NULL, DEFAULT `'PERSONAL'`                            |
+| `storage_path`   | `TEXT`            | NOT NULL — private path within `digital-assets` bucket; **never selected by storefront queries** |
+| `file_size`      | `BIGINT`          | File size in bytes                                        |
+| `file_ext`       | `TEXT`            | Extension without dot (e.g., `zip`, `pdf`)                |
+| `thumbnail`      | `TEXT`            | NOT NULL, DEFAULT `''` — Bunny CDN public URL             |
+| `preview_url`    | `TEXT`            | Optional public preview / sample URL                      |
+| `version`        | `TEXT`            | Optional version string (e.g., `v1.0`)                    |
+| `status`         | `course_status`   | DEFAULT `'DRAFT'` (reuses existing ENUM)                  |
+| `download_count` | `INTEGER`         | DEFAULT `0` (cumulative across all purchases)             |
+| `deleted_at`     | `TIMESTAMPTZ`     | DEFAULT `NULL` (soft delete)                              |
+| `created_at`     | `TIMESTAMPTZ`     | DEFAULT `now()`                                           |
+| `updated_at`     | `TIMESTAMPTZ`     | DEFAULT `now()`                                           |
+
+**RLS:** Published + non-deleted assets are publicly readable; `storage_path` is excluded from all public SELECT policies. Writes are admin-only. No public read on the `digital-assets` Storage bucket — only the `asset-download-url` Edge Function (service-role) can issue signed download URLs.
+
+---
+
+### 18. `asset_purchases`
+
+Digital asset entitlement records. Added in migration 039. No client INSERT or UPDATE is allowed — only the service-role checkout Edge Functions write to this table.
+
+| Column              | Type                | Constraints / Default                               |
+|---------------------|---------------------|------------------------------------------------------|
+| `id`                | `UUID`              | **PK**, DEFAULT `gen_random_uuid()`                  |
+| `user_id`           | `UUID`              | NOT NULL, FK -> `users(id)` ON DELETE CASCADE        |
+| `asset_id`          | `UUID`              | NOT NULL, FK -> `digital_assets(id)` ON DELETE CASCADE |
+| `status`            | `enrollment_status` | DEFAULT `'ACTIVE'` (reuses existing ENUM)            |
+| `payment_id`        | `TEXT`              | FK -> `payments(id)` ON DELETE SET NULL (null for free claims) |
+| `order_id`          | `TEXT`              | Razorpay order ID (null for free claims)             |
+| `amount`            | `INTEGER`           | DEFAULT `0`, CHECK `>= 0` (paise; 0 for free claims) |
+| `download_count`    | `INTEGER`           | DEFAULT `0` (per-user download tracking)             |
+| `last_downloaded_at`| `TIMESTAMPTZ`       |                                                      |
+| `purchased_at`      | `TIMESTAMPTZ`       | DEFAULT `now()`                                      |
+| `created_at`        | `TIMESTAMPTZ`       | DEFAULT `now()`                                      |
+| `updated_at`        | `TIMESTAMPTZ`       | DEFAULT `now()`                                      |
+
+**Unique constraint:** `(user_id, asset_id)` — one entitlement per user per asset.
+
+**RLS:** Users can SELECT their own rows only. No client INSERT or UPDATE policy — entitlements are created exclusively by `checkout-verify` and `asset-claim-free` Edge Functions via the service-role client.
 
 ---
 
@@ -552,7 +613,7 @@ All 12 active tables have Row-Level Security enabled. Policies are enforced on e
 
 ## Database Functions
 
-14 functions across the schema.
+15 functions across the schema.
 
 ### Helper Functions
 
@@ -592,6 +653,7 @@ All 12 active tables have Row-Level Security enabled. Policies are enforced on e
 | #  | Function                                                                          | Returns | Security  | Description                                              |
 |----|-----------------------------------------------------------------------------------|---------|-----------|----------------------------------------------------------|
 | 14 | `increment_view_count(p_user_id UUID, p_course_id TEXT, p_module_id TEXT, p_timestamp NUMERIC DEFAULT 0)` | `void` | DEFINER | Atomically increments `progress.view_count` by 1 and updates the playback timestamp. |
+| 15 | `apply_asset_coupon(p_code TEXT, p_user_id UUID, p_asset_id UUID)` | `JSONB` | DEFINER | Atomic coupon validation + redemption for digital assets. Mirrors `apply_coupon` pattern. Uses row-level locking, increments `use_count`, inserts `coupon_uses` row with `asset_id` set. REVOKE EXECUTE FROM PUBLIC; GRANT TO authenticated, service_role. Added in migration 040. |
 
 ---
 
@@ -679,15 +741,22 @@ All indexes defined across the schema for query performance.
 
 ## Storage Buckets
 
-| Bucket ID      | Public | File Size Limit | Allowed MIME Types  | Access Pattern                                   |
-|----------------|--------|-----------------|---------------------|--------------------------------------------------|
-| `certificates` | No     | 5 MB            | `application/pdf`   | Upload: service_role (Edge Functions). Download: authenticated user, own folder only (`uid/filename.pdf`). |
+| Bucket ID        | Public | File Size Limit | Allowed MIME Types | Access Pattern                                                                                                           |
+|------------------|--------|-----------------|--------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `certificates`   | No     | 5 MB            | `application/pdf`  | Upload: service_role (Edge Functions). Download: authenticated user, own folder only (`uid/filename.pdf`).               |
+| `digital-assets` | **No** | 500 MB          | Any                | Upload: admin via `admin-asset-upload` Edge Function (signed upload URL). Download: entitlement-gated via `asset-download-url` Edge Function (service-role signed URL, ~5 min TTL). No public read — only signed URLs. |
 
-### Storage Policies
+### Storage Policies — `certificates`
 
 - **cert_download** (SELECT): User can download files where the first folder in the path matches their `auth.uid()`.
 - **cert_upload** (INSERT): Service role can upload any file to the bucket (Edge Functions bypass RLS with service_role key).
 - **cert_delete** (DELETE): Service role can delete any file in the bucket.
+
+### Storage Policies — `digital-assets`
+
+No public access policy. All access is via service-role from Edge Functions:
+- `admin-asset-upload` uses `createSignedUploadUrl` (service-role) to return a signed PUT URL to the admin browser.
+- `asset-download-url` uses `createSignedUrl` (service-role) after verifying `asset_purchases` entitlement.
 
 ---
 

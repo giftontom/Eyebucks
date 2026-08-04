@@ -1,12 +1,14 @@
-import { PlayCircle, UserCircle, Layers, ArrowRight, TrendingUp, BookOpen, CheckCircle, Heart } from 'lucide-react';
+import { PlayCircle, UserCircle, Layers, ArrowRight, TrendingUp, BookOpen, CheckCircle, Heart, Package } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
 import { Avatar, Badge, EmptyState, Thumbnail } from '../components';
 import { DashboardSkeleton } from '../components/CourseCardSkeleton';
+import { OwnedAssetsTab } from '../components/OwnedAssetsTab';
 import { WishlistButton } from '../components/WishlistButton';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useWishlist } from '../hooks/useWishlist';
 import { enrollmentsApi, coursesApi } from '../services/api';
 import { wishlistApi } from '../services/api/wishlist.api';
@@ -29,7 +31,8 @@ function relativeTime(date: Date | null | undefined): string {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'MY_COURSES' | 'SAVED'>('MY_COURSES');
+  const { language } = useLanguage();
+  const [activeTab, setActiveTab] = useState<'MY_COURSES' | 'SAVED' | 'LIBRARY'>('MY_COURSES');
   const [savedCourses, setSavedCourses] = useState<{ id: string; title: string; thumbnail: string; type: string; description: string }[]>([]);
   const { wishlistIds } = useWishlist();
   const [enrolledCourses, setEnrolledCourses] = useState<Array<{
@@ -86,9 +89,9 @@ export const Dashboard: React.FC = () => {
         });
       setEnrolledCourses(courses);
 
-      // Always load recommendations (non-blocking)
+      // Always load recommendations (non-blocking) — match the user's language.
       try {
-        const res = await coursesApi.getCourses();
+        const res = await coursesApi.getCourses({ language });
         const enrolledIds = new Set(courses.map(c => c.id));
         setRecommendedCourses(res.courses.filter(c => !enrolledIds.has(c.id)).slice(0, 3));
       } catch {
@@ -109,10 +112,10 @@ export const Dashboard: React.FC = () => {
     let cancelled = false;
     if (!user) { setSavedCourses([]); return; }
     wishlistApi.list().then(async (entries) => {
-      if (cancelled) return;
+      if (cancelled) {return;}
       if (entries.length === 0) { setSavedCourses([]); return; }
       const courses = await coursesApi.getCoursesByIds(entries.map(e => e.courseId));
-      if (!cancelled) setSavedCourses(courses);
+      if (!cancelled) {setSavedCourses(courses);}
     }).catch((err) => logger.warn('[Dashboard] Failed to load wishlist courses:', err));
     return () => { cancelled = true; };
   }, [user]);
@@ -186,7 +189,16 @@ export const Dashboard: React.FC = () => {
           <Heart size={16} /> Saved
           {savedCourses.length > 0 && <span className="bg-brand-600/20 text-brand-400 text-xs px-2 py-0.5 rounded-full font-bold">{savedCourses.length}</span>}
         </button>
+        <button
+          onClick={() => setActiveTab('LIBRARY')}
+          className={`flex items-center gap-2 px-5 py-3 font-bold text-sm transition border-b-2 ${activeTab === 'LIBRARY' ? 'border-brand-600 text-brand-500' : 'border-transparent t-text-2 hover:t-text'}`}
+        >
+          <Package size={16} /> Library
+        </button>
       </div>
+
+      {/* Library tab — owned digital assets */}
+      {activeTab === 'LIBRARY' && <OwnedAssetsTab />}
 
       {/* Saved tab */}
       {activeTab === 'SAVED' && (

@@ -7,6 +7,7 @@ import {
   HeroSection,
   SocialProofTicker,
   FeaturedCoursesSection,
+  AssetsShowcaseSection,
   HowItWorksSection,
   ValuePropsSection,
   InstructorsSection,
@@ -107,6 +108,9 @@ export const Storefront: React.FC = () => {
 
         {/* 3. Product — promoted from position 7 */}
         <FeaturedCoursesSection />
+
+        {/* 3b. Digital assets shop strip (self-hides when the shop has no stock) */}
+        <AssetsShowcaseSection />
 
         {/* 4. How it works */}
         <HowItWorksSection />

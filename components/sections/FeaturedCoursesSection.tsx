@@ -2,25 +2,38 @@ import { ArrowRight } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useLanguage } from '../../context/LanguageContext';
+import { coursesApi, siteContentApi } from '../../services/api';
+import { logger } from '../../utils/logger';
 import { CourseCard } from '../CourseCard';
 import { CourseCardSkeleton } from '../CourseCardSkeleton';
 import { FadeIn } from '../FadeIn';
 import { HorizontalGallery } from '../HorizontalGallery';
-import { coursesApi } from '../../services/api';
-import { logger } from '../../utils/logger';
 
 import type { Course } from '../../types';
 
 const FEATURED_COUNT = 4;
 
+// Header/CTA copy — defaults are the verbatim hardcoded literals; CMS
+// (section 'featured_copy', singleton row) can override per-field. Course
+// cards remain sourced from the courses table and are untouched by this.
+const DEFAULT_COPY = {
+  pill: 'Top Courses',
+  title: 'Start Your Journey.',
+  body: 'Our most popular courses, handpicked by thousands of creators.',
+  ctaLabel: 'View All Courses',
+};
+
 export const FeaturedCoursesSection: React.FC = () => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [copy, setCopy] = useState(DEFAULT_COPY);
 
   useEffect(() => {
-    coursesApi.getCourses({ page: 1, pageSize: FEATURED_COUNT, withCount: false })
+    coursesApi.getCourses({ page: 1, pageSize: FEATURED_COUNT, withCount: false, language })
       .then(res => {
         setCourses(res.courses);
         setHasError(false);
@@ -30,6 +43,24 @@ export const FeaturedCoursesSection: React.FC = () => {
         setHasError(true);
       })
       .finally(() => setIsLoading(false));
+  }, [language]);
+
+  // CMS override for header/CTA copy only — singleton row [0], per-field
+  // fallback to DEFAULT_COPY. Non-critical: failures keep the defaults.
+  useEffect(() => {
+    siteContentApi.getBySection('featured_copy')
+      .then(items => {
+        const item = items[0];
+        if (!item) {return;}
+        const meta = (item.metadata || {}) as Record<string, unknown>;
+        setCopy({
+          pill: typeof meta.pill === 'string' && meta.pill ? meta.pill : DEFAULT_COPY.pill,
+          title: item.title || DEFAULT_COPY.title,
+          body: item.body || DEFAULT_COPY.body,
+          ctaLabel: typeof meta.ctaLabel === 'string' && meta.ctaLabel ? meta.ctaLabel : DEFAULT_COPY.ctaLabel,
+        });
+      })
+      .catch(err => logger.warn('[FeaturedCoursesSection] CMS load failed:', err));
   }, []);
 
   // Don't render anything if no courses and not loading
@@ -52,10 +83,10 @@ export const FeaturedCoursesSection: React.FC = () => {
           <>
             <div className="mb-12">
               <span className="inline-block px-4 py-1.5 bg-brand-600/10 border border-brand-600/20 scene-adaptive-brand rounded-full font-bold tracking-wider uppercase text-xs mb-4">
-                Top Courses
+                {copy.pill}
               </span>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold scene-adaptive-text" style={{ fontFamily: 'var(--font-display)' }}>
-                Start Your Journey.
+                {copy.title}
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -73,13 +104,13 @@ export const FeaturedCoursesSection: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-end justify-between mb-12 gap-4">
                   <div>
                     <span className="inline-block px-4 py-1.5 bg-brand-600/10 border border-brand-600/20 scene-adaptive-brand rounded-full font-bold tracking-wider uppercase text-xs mb-4">
-                      Top Courses
+                      {copy.pill}
                     </span>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold scene-adaptive-text" style={{ fontFamily: 'var(--font-display)' }}>
-                      Start Your Journey.
+                      {copy.title}
                     </h2>
                     <p className="scene-adaptive-text-2 text-lg mt-2 max-w-xl">
-                      Our most popular courses, handpicked by thousands of creators.
+                      {copy.body}
                     </p>
                   </div>
                   <button
@@ -87,7 +118,7 @@ export const FeaturedCoursesSection: React.FC = () => {
                     data-live
                     className="group flex items-center gap-2 scene-adaptive-brand hover:text-brand-300 font-bold text-sm transition-colors shrink-0"
                   >
-                    View All Courses <ArrowRight size={16} className="group-live:translate-x-1 transition-transform" />
+                    {copy.ctaLabel} <ArrowRight size={16} className="group-live:translate-x-1 transition-transform" />
                   </button>
                 </div>
               </FadeIn>

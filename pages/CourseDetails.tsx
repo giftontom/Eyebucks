@@ -50,10 +50,10 @@ export const CourseDetails: React.FC = () => {
 
   useEffect(() => { fetchCourse(); }, [id]);
 
-  // Fetch related courses when the main course loads
+  // Fetch related courses when the main course loads — same language as the course being viewed.
   useEffect(() => {
     if (!course) return;
-    coursesApi.getCourses({ page: 1, pageSize: 4 })
+    coursesApi.getCourses({ page: 1, pageSize: 4, language: course.language })
       .then(res => {
         setRelatedCourses(res.courses.filter(c => c.id !== course.id).slice(0, 3));
       })
