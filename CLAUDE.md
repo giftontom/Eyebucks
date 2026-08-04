@@ -194,7 +194,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 042** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 043** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -543,7 +543,7 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **41 sequential SQL migrations (001-041)**; next = 042
+- `supabase/migrations/` — **SQL migrations 001-042** (file gaps at 030/031, applied from another branch); next = 043. 042 = security hardening (RPC lockdowns + coupon enumeration policy drop)
 - `supabase/functions/` — **15 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)

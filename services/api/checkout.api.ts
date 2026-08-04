@@ -67,6 +67,7 @@ export const checkoutApi = {
    * enrollment still succeeds.
    *
    * @param params - Object with `orderId`, `paymentId`, `signature` (Razorpay HMAC), and `courseId`.
+   *   Pass the same `couponUseId` used at order creation so the server can re-derive the discounted amount.
    * @returns Object with `verified: true`, `enrollmentId`, and optionally `bundleWarning`
    *   and `failedCourseIds` if bundle sub-enrollments partially failed.
    * @throws {Error} If signature verification fails, amount mismatches, or enrollment creation fails.
@@ -82,6 +83,7 @@ export const checkoutApi = {
     paymentId: string;
     signature?: string;
     courseId: string;
+    couponUseId?: string;
   }): Promise<{
     success: boolean;
     verified: boolean;

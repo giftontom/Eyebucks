@@ -99,6 +99,48 @@ describe('checkoutApi', () => {
       ).rejects.toThrow('Invalid payment signature');
     });
 
+    it('should pass couponUseId through to the invoke body when provided', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: true, verified: true, enrollmentId: 'enroll-1' },
+        error: null,
+      });
+
+      await checkoutApi.verifyPayment({
+        orderId: 'order_1',
+        paymentId: 'pay_1',
+        signature: 'sig_1',
+        courseId: 'course-1',
+        couponUseId: 'coupon-use-1',
+      });
+
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('checkout-verify', {
+        body: {
+          orderId: 'order_1',
+          paymentId: 'pay_1',
+          signature: 'sig_1',
+          courseId: 'course-1',
+          couponUseId: 'coupon-use-1',
+        },
+      });
+    });
+
+    it('should omit couponUseId from the invoke body when absent', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: true, verified: true, enrollmentId: 'enroll-1' },
+        error: null,
+      });
+
+      await checkoutApi.verifyPayment({
+        orderId: 'order_1',
+        paymentId: 'pay_1',
+        signature: 'sig_1',
+        courseId: 'course-1',
+      });
+
+      const body = mockSupabase.functions.invoke.mock.calls[0][1].body;
+      expect('couponUseId' in body).toBe(false);
+    });
+
     it('should include bundle warning when present', async () => {
       mockSupabase.functions.invoke.mockResolvedValue({
         data: {

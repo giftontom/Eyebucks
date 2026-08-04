@@ -1,10 +1,24 @@
 # Known Issues
 
-Last updated: 2026-06-22
+Last updated: 2026-08-04
 
 ---
 
 ## Bugs
+
+### 0. ~~Coupon-discounted course purchases fail payment verification~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | High (live — customer charged, then verification fails, no enrollment) |
+| **Status** | **Resolved — August 2026** |
+| **Files** | `services/api/checkout.api.ts`, `pages/Checkout.tsx` |
+
+**Root cause:** The course checkout sent `couponUseId` to `createOrder` (so Razorpay charged the discounted amount) but **not** to `verifyPayment`. `checkout-verify` re-derives the expected amount from `couponUseId`; with it missing on the course path, verify compared the discounted paid amount against the full price and rejected the payment. The asset path (`verifyAssetPayment`/`AssetCheckout.tsx`) already threaded it correctly and was unaffected.
+
+**Resolution:** Added optional `couponUseId` to `verifyPayment` and threaded the held state into the verify call in `Checkout.tsx`. Also cleared `couponUseId` on coupon-input edit so a stale discounted order can no longer be created after the UI reverts to full price. Regression tests added to `checkoutApi.test.ts`. A later workstream replaces this mechanism with Razorpay order-notes re-derivation.
+
+---
 
 ### 1. ~~Privacy/Terms pages show dynamic "Last Updated" date~~ — RESOLVED
 
@@ -77,6 +91,23 @@ Last updated: 2026-06-22
 | **File** | `services/api/admin.api.ts` |
 
 **Resolution:** Added `escapeOrFilter()` helper function to `admin.api.ts`. All `.or()` string interpolations now pass user input through this sanitizer before building the filter string, stripping PostgREST special characters.
+
+---
+
+### 6c. ~~Unprotected SECURITY DEFINER RPCs — coupon abuse + bundle/order tampering~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | High |
+| **Status** | **Resolved — August 2026 (migration 042)** |
+| **Files** | `supabase/migrations/042_security_hardening.sql` |
+
+**Root cause (verified against the live DB 2026-08-04 via `has_function_privilege`):**
+- `apply_coupon` (018) and `apply_asset_coupon` (040) were `EXECUTE`-able by `anon` **and** `authenticated` directly (040's `REVOKE FROM PUBLIC` did not remove a surviving direct grant). Both are `SECURITY DEFINER` and take a caller-supplied `p_user_id`, so any user could redeem/burn coupon uses on any account, bypassing the `coupon-apply` Edge Function.
+- `set_bundle_courses` and `reorder_modules` (014) + `reorder_lessons` (034) were `SECURITY DEFINER` with **no `is_admin()` gate in the body** — any authenticated user could rewrite bundle contents or reorder any course's modules/lessons.
+- The `"Users read active coupons"` policy (017) let any authenticated user `SELECT *` from `coupons` — full coupon-code enumeration.
+
+**Resolution (migration 042):** Locked `apply_coupon`/`apply_asset_coupon` to `service_role` only + pinned `search_path`; dropped the coupon-enumeration policy (the admin `is_admin()` policy is retained); added an explicit `IF NOT is_admin() THEN RAISE EXCEPTION 'FORBIDDEN'` gate to `set_bundle_courses`, `reorder_modules`, and `reorder_lessons` (DROP-before-replace, `search_path` pinned, PUBLIC/anon revoked, `authenticated`+`service_role` granted). Red-team reviewed SAFE TO APPLY; verified no legitimate caller (admin frontend, coupon Edge Function) breaks.
 
 ---
 

@@ -331,6 +331,7 @@ export const Checkout: React.FC = () => {
         paymentId: response.razorpay_payment_id,
         signature: response.razorpay_signature,
         courseId: course.id,
+        couponUseId,
       });
 
       if (verifyResponse.verified) {
@@ -375,6 +376,7 @@ export const Checkout: React.FC = () => {
             setCouponInput(v);
             setCouponApplied(false);
             setCouponDiscount(0);
+            setCouponUseId(undefined);
             setCouponError('');
           }}
           couponApplied={couponApplied}
