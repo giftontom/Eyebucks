@@ -49,6 +49,30 @@ describe('couponsApi', () => {
     });
   });
 
+  describe('applyAssetCoupon', () => {
+    it('invokes coupon-apply with productType asset', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: true, couponUseId: 'cu-a', discountPct: 25 },
+        error: null,
+      });
+
+      const result = await couponsApi.applyAssetCoupon('SAVE25', 'asset-1');
+      expect(result.couponUseId).toBe('cu-a');
+      expect(result.discountPct).toBe(25);
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('coupon-apply', {
+        body: { code: 'SAVE25', assetId: 'asset-1', productType: 'asset' },
+      });
+    });
+
+    it('throws when the asset coupon is invalid', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: false, error: 'Coupon not found' },
+        error: null,
+      });
+      await expect(couponsApi.applyAssetCoupon('NOPE', 'asset-1')).rejects.toThrow('Coupon not found');
+    });
+  });
+
   describe('adminListCoupons', () => {
     it('should return list of coupons', async () => {
       const mockCoupons = [

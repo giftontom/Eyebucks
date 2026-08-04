@@ -151,4 +151,63 @@ export const checkoutApi = {
 
     return { success: true, status: 'pending' };
   },
+
+  // ──────────────────────────────────────────────────────────────────────
+  // DIGITAL ASSETS (product-aware checkout — same Edge Functions, asset branch)
+  // ──────────────────────────────────────────────────────────────────────
+
+  /** Create a Razorpay order for a digital-asset purchase. Pass `couponUseId` from
+   *  a prior `applyAssetCoupon` call to apply the discount. */
+  async createAssetOrder(assetId: string, couponUseId?: string): Promise<{
+    success: boolean;
+    orderId: string;
+    amount: number;
+    currency: string;
+    key: string;
+    title: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('checkout-create-order', {
+      body: { productType: 'asset', assetId, couponUseId },
+    });
+    if (error) { throw new Error(await extractEdgeFnError(error, 'Failed to create order')); }
+    if (!data?.success) { throw new Error(data?.error || 'Failed to create order'); }
+    return data;
+  },
+
+  /** Verify a Razorpay payment for a digital-asset purchase. Pass the same
+   *  `couponUseId` so the server can re-derive the discounted amount. */
+  async verifyAssetPayment(params: {
+    orderId: string;
+    paymentId: string;
+    signature?: string;
+    assetId: string;
+    couponUseId?: string;
+  }): Promise<{ success: boolean; verified: boolean; purchaseId: string }> {
+    const { data, error } = await supabase.functions.invoke('checkout-verify', {
+      body: { productType: 'asset', ...params },
+    });
+    if (error) { throw new Error(await extractEdgeFnError(error, 'Payment verification failed')); }
+    if (!data?.success) { throw new Error(data?.error || 'Payment verification failed'); }
+    return data;
+  },
+
+  /** Claim a free (price 0) asset without payment. Idempotent. */
+  async claimFreeAsset(assetId: string): Promise<{ success: boolean; claimed: boolean }> {
+    const { data, error } = await supabase.functions.invoke('asset-claim-free', {
+      body: { assetId },
+    });
+    if (error) { throw new Error(await extractEdgeFnError(error, 'Could not claim asset')); }
+    if (!data?.success) { throw new Error(data?.error || 'Could not claim asset'); }
+    return data;
+  },
+
+  /** Poll asset_purchases for an order (webhook fallback when the browser closed). */
+  async checkAssetOrderStatus(orderId: string): Promise<{ success: boolean; status: 'pending' | 'completed' }> {
+    const { data } = await supabase
+      .from('asset_purchases')
+      .select('id')
+      .eq('order_id', orderId)
+      .maybeSingle();
+    return { success: true, status: data ? 'completed' : 'pending' };
+  },
 };

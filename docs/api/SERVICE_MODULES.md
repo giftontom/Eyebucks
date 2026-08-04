@@ -5,7 +5,8 @@ All API modules live in `services/api/` and communicate with Supabase via PostgR
 ```ts
 import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi,
          notificationsApi, paymentsApi, certificatesApi, reviewsApi,
-         siteContentApi, usersApi, couponsApi, wishlistApi } from 'services/api';
+         siteContentApi, siteImagesApi, usersApi, couponsApi, wishlistApi,
+         digitalAssetsApi } from 'services/api';
 ```
 
 ---
@@ -22,10 +23,12 @@ import { coursesApi, enrollmentsApi, progressApi, checkoutApi, adminApi,
 8. [certificates.api.ts](#8-certificatesapits)
 9. [reviews.api.ts](#9-reviewsapits)
 10. [siteContent.api.ts](#10-sitecontentapits)
-11. [users.api.ts](#11-usersapits)
-12. [coupons.api.ts](#12-couponsapits)
-13. [wishlist.api.ts](#13-wishlistapits)
-14. [Error Handling Patterns](#error-handling-patterns)
+11. [siteImages.api.ts](#11-siteimagesapits)
+12. [users.api.ts](#12-usersapits)
+13. [coupons.api.ts](#13-couponsapits)
+14. [wishlist.api.ts](#14-wishlistapits)
+15. [digitalAssets.api.ts](#15-digitalassetsapits)
+16. [Error Handling Patterns](#error-handling-patterns)
 
 ---
 
@@ -297,8 +300,8 @@ Deletes all progress records for the current user in the given course. Intended 
 ## 4. checkout.api.ts
 
 **Export:** `checkoutApi`
-**Tables:** `enrollments`, `courses`
-**Edge Functions:** `checkout-create-order`, `checkout-verify`
+**Tables:** `enrollments`, `courses`, `asset_purchases`, `digital_assets`
+**Edge Functions:** `checkout-create-order`, `checkout-verify`, `asset-claim-free`
 **Auth required:** Yes (Edge Functions require JWT)
 
 ### Functions
@@ -370,6 +373,62 @@ async checkOrderStatus(orderId: string): Promise<{
 Queries the `enrollments` table directly (not an Edge Function) to check if an enrollment has been created for the given Razorpay order ID. Used for webhook-based enrollment flow where the frontend polls after payment.
 
 Returns `status: 'completed'` with enrollment details if found, `status: 'pending'` otherwise.
+
+#### `createAssetOrder(assetId, couponUseId?)`
+
+```ts
+async createAssetOrder(assetId: string, couponUseId?: string): Promise<{
+  success: boolean;
+  orderId: string;
+  amount: number;
+  currency: string;
+  key: string;
+  assetTitle: string;
+}>
+```
+
+Invokes `checkout-create-order` with `assetId` discriminator. Returns the Razorpay order details for the digital asset checkout modal.
+
+#### `verifyAssetPayment(params)`
+
+```ts
+async verifyAssetPayment(params: {
+  orderId: string;
+  paymentId: string;
+  signature?: string;
+  assetId: string;
+  couponUseId?: string;
+}): Promise<{
+  success: boolean;
+  verified: boolean;
+  purchaseId: string;
+}>
+```
+
+Invokes `checkout-verify` with `assetId` discriminator. Creates the `asset_purchases` entitlement row and sends the asset delivery email.
+
+#### `claimFreeAsset(assetId)`
+
+```ts
+async claimFreeAsset(assetId: string): Promise<{
+  success: boolean;
+  purchaseId: string;
+}>
+```
+
+Invokes the `asset-claim-free` Edge Function for price-0 assets. No Razorpay payment involved.
+
+#### `checkAssetOrderStatus(orderId)`
+
+```ts
+async checkAssetOrderStatus(orderId: string): Promise<{
+  success: boolean;
+  status: 'pending' | 'completed';
+  purchase?: { id: string; assetId: string; purchasedAt: Date };
+}>
+```
+
+Queries `asset_purchases` directly to check whether the webhook has created the entitlement row for the given Razorpay order ID.
 
 ---
 
@@ -1155,7 +1214,43 @@ Reorders content items by setting `order_index` based on array position (1-index
 
 ---
 
-## 11. users.api.ts
+## 11. siteImages.api.ts
+
+**Export:** `siteImagesApi`
+**Edge Function:** `admin-image-upload`
+**Auth required:** Yes (admin only; enforced by the Edge Function)
+
+Proxy API for uploading and deleting CMS images stored in Bunny Storage. All URLs returned are Bunny Pull-Zone CDN URLs.
+
+### Functions
+
+#### `uploadImage(file)`
+
+```ts
+siteImagesApi.uploadImage(file: File): Promise<{ url: string; path: string }>
+```
+
+Invokes the `admin-image-upload` Edge Function with the image file as `multipart/form-data`. Returns the public CDN `url` and the internal `path` within the storage zone.
+
+#### `deleteImage(path)`
+
+```ts
+siteImagesApi.deleteImage(path: string): Promise<void>
+```
+
+Deletes an image from Bunny Storage by its storage `path`. No-op on 404.
+
+#### `pathFromUrl(url)`
+
+```ts
+siteImagesApi.pathFromUrl(url: string): string
+```
+
+Extracts the storage-zone relative path from a full Bunny CDN URL. Useful for computing the `path` argument to `deleteImage()` when only the URL is known.
+
+---
+
+## 12. users.api.ts
 
 **Export:** `usersApi`, `mapUserProfile`
 **Tables:** `users`
@@ -1221,10 +1316,11 @@ Updates user profile fields. Currently supports `name` only. Throws `'Failed to 
 
 ---
 
-## 12. coupons.api.ts
+## 13. coupons.api.ts
 
 **Export:** `couponsApi`
 **Tables:** `coupons`
+**Edge Functions:** `coupon-apply` (asset path)
 **Auth required:** Yes (user must be authenticated to validate a coupon)
 
 ### Functions
@@ -1237,9 +1333,21 @@ couponsApi.validateCoupon(code: string): Promise<{ discount_pct: number }>
 
 Validates a coupon code against the `coupons` table and returns the discount percentage if valid. Throws if the code is not found, expired, or inactive.
 
+#### `applyAssetCoupon(code, assetId)`
+
+```ts
+couponsApi.applyAssetCoupon(code: string, assetId: string): Promise<{
+  couponUseId: string;
+  discountPct: number;
+  finalAmount: number;
+}>
+```
+
+Invokes `coupon-apply` with `assetId` discriminator. Atomically validates and redeems a coupon against a digital asset via the `apply_asset_coupon` RPC. Returns the `coupon_uses` record ID (passed to `createAssetOrder`/`verifyAssetPayment` for amount re-derivation), the discount percentage, and the final price in paise.
+
 ---
 
-## 13. wishlist.api.ts
+## 14. wishlist.api.ts
 
 **Export:** `wishlistApi`
 **Tables:** `wishlists`
@@ -1283,6 +1391,94 @@ wishlistApi.isSaved(courseId: string): Promise<boolean>
 
 Returns `true` if the course is in the current user's wishlist. Useful for initializing the
 `WishlistButton` state for a single course without loading the full list.
+
+---
+
+## 15. digitalAssets.api.ts
+
+**Export:** `digitalAssetsApi`
+**Tables:** `digital_assets`, `asset_purchases`
+**Edge Functions:** `asset-download-url`
+**Auth required:** Read operations are public (published assets); ownership and download require authentication; write operations require ADMIN role.
+
+> **Security note:** `storage_path` is never selected by storefront queries — it is fetched only inside the `asset-download-url` Edge Function using the service-role client.
+
+### Storefront Functions
+
+#### `getAssets(params?)`
+
+```ts
+async getAssets(params?: {
+  page?: number;
+  pageSize?: number;
+  fileType?: AssetFileType;
+  search?: string;
+  maxPrice?: number;
+  sort?: 'newest' | 'price-asc' | 'price-desc' | 'popular';
+}): Promise<{ assets: DigitalAsset[]; total: number }>
+```
+
+Returns paginated published, non-deleted digital assets. Applies optional filters server-side.
+
+#### `getAsset(slug)`
+
+```ts
+async getAsset(slug: string): Promise<DigitalAsset>
+```
+
+Returns a single published asset by its slug.
+
+#### `getAssetById(id)`
+
+```ts
+async getAssetById(id: string): Promise<DigitalAsset>
+```
+
+Returns a single published asset by UUID.
+
+#### `getAssetCount()`
+
+```ts
+async getAssetCount(): Promise<number>
+```
+
+Returns the total count of published, non-deleted assets. Used by the homepage showcase section.
+
+#### `checkOwnership(assetId)`
+
+```ts
+async checkOwnership(assetId: string): Promise<boolean>
+```
+
+Returns `true` if the authenticated user has an `ACTIVE` `asset_purchases` row for this asset (or is an admin). Returns `false` if not authenticated.
+
+#### `getOwnedAssets()`
+
+```ts
+async getOwnedAssets(): Promise<AssetPurchaseWithAsset[]>
+```
+
+Returns all asset purchases for the current user with joined `digital_assets` data. Used by `OwnedAssetsTab` on the Dashboard.
+
+#### `getDownloadUrl(assetId)`
+
+```ts
+async getDownloadUrl(assetId: string): Promise<{ downloadUrl: string; expiresAt: number }>
+```
+
+Invokes the `asset-download-url` Edge Function. Returns a short-lived (~5 min) Supabase Storage signed URL. Throws if the user is not entitled.
+
+### Admin Functions
+
+| Function | Signature summary | Notes |
+|----------|------------------|-------|
+| `getAdminAssets(params?)` | paginated, includes `storage_path`, `file_size`, `file_ext` | Returns all assets incl. DRAFT + soft-deleted |
+| `getAdminAsset(id)` | single asset by ID | Full admin view |
+| `createAsset(data)` | `data: AdminDigitalAsset` partial | Creates in DRAFT status |
+| `updateAsset(id, data)` | selective update | Maps camelCase → snake_case |
+| `publishAsset(id, status)` | `status: 'PUBLISHED' \| 'DRAFT'` | Sets `published_at` when publishing |
+| `deleteAsset(id)` | soft delete | Sets `deleted_at` to now |
+| `restoreAsset(id)` | restore | Sets `deleted_at` to null |
 
 ---
 
@@ -1417,6 +1613,10 @@ export { paymentsApi } from './payments.api';
 export { certificatesApi } from './certificates.api';
 export { reviewsApi } from './reviews.api';
 export { usersApi, mapUserProfile } from './users.api';
+export { couponsApi } from './coupons.api';
+export { wishlistApi } from './wishlist.api';
+export { siteImagesApi } from './siteImages.api';
+export { digitalAssetsApi } from './digitalAssets.api';
 
 // Re-exported types
 export type { Notification } from './notifications.api';

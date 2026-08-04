@@ -21,19 +21,27 @@ serve(async (req) => {
     if ('errorResponse' in auth) { return auth.errorResponse; }
     const { user } = auth;
 
-    const { code, courseId } = await req.json();
-    if (!code || !courseId) {
-      return errorResponse('code and courseId are required', corsHeaders, 400);
+    const { code, courseId, assetId, productType } = await req.json();
+    const isAsset = productType === 'asset' || (!courseId && !!assetId);
+
+    if (!code || (!courseId && !assetId)) {
+      return errorResponse('code and a courseId or assetId are required', corsHeaders, 400);
     }
 
     const supabaseAdmin = createAdminClient();
 
-    // Call atomic apply_coupon function
-    const { data, error } = await supabaseAdmin.rpc('apply_coupon', {
-      p_code: code,
-      p_user_id: user.id,
-      p_course_id: courseId,
-    });
+    // Call the matching atomic apply function (asset vs course).
+    const { data, error } = isAsset
+      ? await supabaseAdmin.rpc('apply_asset_coupon', {
+          p_code: code,
+          p_user_id: user.id,
+          p_asset_id: assetId,
+        })
+      : await supabaseAdmin.rpc('apply_coupon', {
+          p_code: code,
+          p_user_id: user.id,
+          p_course_id: courseId,
+        });
 
     if (error) {
       const msg = error.message || '';
@@ -50,7 +58,13 @@ serve(async (req) => {
         return errorResponse('Coupon usage limit reached', corsHeaders, 400);
       }
       if (msg.includes('COUPON_ALREADY_USED')) {
-        return errorResponse('You have already used this coupon for this course', corsHeaders, 409);
+        return errorResponse(
+          isAsset
+            ? 'You have already used this coupon for this asset'
+            : 'You have already used this coupon for this course',
+          corsHeaders,
+          409,
+        );
       }
       console.error('[CouponApply] RPC error:', error);
       return errorResponse('Failed to apply coupon', corsHeaders, 500);

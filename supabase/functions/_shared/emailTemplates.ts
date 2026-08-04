@@ -128,6 +128,35 @@ export function paymentReceiptEmail(opts: {
   return layout(content, opts.appUrl);
 }
 
+/** Digital asset delivery + receipt email sent after an asset purchase. */
+export function assetDeliveryEmail(opts: {
+  name: string;
+  assetTitle: string;
+  orderId: string;
+  paymentId: string;
+  amount: string;
+  downloadUrl: string;
+  appUrl: string;
+}): string {
+  const content = `
+    ${heading(`Your download is ready`)}
+    ${para(`Hi ${opts.name}, thanks for your purchase! <strong style="color:${TEXT_PRIMARY};">${opts.assetTitle}</strong> is now in your library.`)}
+    <div style="text-align:center;margin:28px 0;">
+      ${ctaButton('Download Now', opts.downloadUrl)}
+    </div>
+    ${divider()}
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${infoRow('Item', opts.assetTitle)}
+      ${infoRow('Amount Paid', opts.amount)}
+      ${infoRow('Order ID', opts.orderId)}
+      ${infoRow('Payment ID', opts.paymentId)}
+    </table>
+    ${divider()}
+    ${para(`You have lifetime access — re-download anytime from your library. Keep this email for your records.`)}
+  `;
+  return layout(content, opts.appUrl);
+}
+
 /** Certificate issuance email sent on course completion. */
 export function certificateEmail(opts: {
   name: string;

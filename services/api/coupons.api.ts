@@ -28,6 +28,17 @@ export const couponsApi = {
     return { couponUseId: data.couponUseId, discountPct: data.discountPct };
   },
 
+  /** Apply a coupon to a digital-asset purchase (atomic, same Edge Function). */
+  async applyAssetCoupon(code: string, assetId: string): Promise<{ couponUseId: string; discountPct: number }> {
+    const { data, error } = await supabase.functions.invoke('coupon-apply', {
+      body: { code, assetId, productType: 'asset' },
+    });
+
+    if (error) { throw new Error(await extractEdgeFnError(error, 'Failed to apply coupon')); }
+    if (!data?.success) { throw new Error(data?.error || 'Invalid or expired coupon code'); }
+    return { couponUseId: data.couponUseId, discountPct: data.discountPct };
+  },
+
   async adminListCoupons(): Promise<Coupon[]> {
     const { data, error } = await supabase
       .from('coupons')

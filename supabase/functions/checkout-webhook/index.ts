@@ -76,9 +76,63 @@ serve(async (req) => {
 
     if (eventType === 'payment.captured') {
       const payment = event.payload.payment.entity;
-      const { courseId, userId } = payment.notes || {};
+      const { courseId, userId, productType, assetId } = payment.notes || {};
 
-      if (courseId && userId && UUID_RE.test(courseId) && UUID_RE.test(userId)) {
+      if (productType === 'asset' && assetId && userId && UUID_RE.test(assetId) && UUID_RE.test(userId)) {
+        // ── Digital asset purchase (idempotent) ──
+        const { data: newPurchase } = await supabaseAdmin
+          .from('asset_purchases')
+          .upsert(
+            {
+              user_id: userId,
+              asset_id: assetId,
+              status: 'ACTIVE',
+              payment_id: payment.id,
+              order_id: payment.order_id,
+              amount: payment.amount,
+              purchased_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,asset_id', ignoreDuplicates: true }
+          )
+          .select('id')
+          .maybeSingle();
+
+        if (newPurchase) {
+          const receiptNumber = `EYB-${Date.now().toString(36).toUpperCase()}`;
+          await supabaseAdmin.from('payments').insert({
+            user_id: userId,
+            asset_id: assetId,
+            razorpay_order_id: payment.order_id,
+            razorpay_payment_id: payment.id,
+            amount: payment.amount,
+            currency: payment.currency?.toUpperCase() || 'INR',
+            status: 'captured',
+            method: payment.method || null,
+            receipt_number: receiptNumber,
+          }).then(({ error: payError }) => {
+            if (payError) {console.error('[Webhook] Asset payment record error:', payError);}
+          });
+
+          const { data: asset } = await supabaseAdmin
+            .from('digital_assets')
+            .select('title, slug')
+            .eq('id', assetId)
+            .single();
+
+          if (asset) {
+            await supabaseAdmin.from('notifications').insert({
+              user_id: userId,
+              type: 'announcement',
+              title: 'Purchase confirmed',
+              message: `${asset.title} is ready to download`,
+              link: `/asset/${asset.slug}`,
+            });
+          }
+          console.log('[Webhook] Asset purchase created for payment:', payment.id);
+        } else {
+          console.log('[Webhook] Duplicate webhook — asset purchase already exists for payment:', payment.id);
+        }
+      } else if (courseId && userId && UUID_RE.test(courseId) && UUID_RE.test(userId)) {
         // Idempotent upsert — safe to call multiple times for the same payment
         const { data: newEnrollment } = await supabaseAdmin
           .from('enrollments')
@@ -139,22 +193,29 @@ serve(async (req) => {
       }
     } else if (eventType === 'payment.failed') {
       const payment = event.payload.payment.entity;
-      const { userId, courseId } = payment.notes || {};
+      const { userId, courseId, productType, assetId } = payment.notes || {};
 
       if (userId && UUID_RE.test(userId)) {
-        // Insert failed payment record
-        await supabaseAdmin.from('payments').insert({
-          user_id: userId,
-          course_id: courseId || null,
-          razorpay_order_id: payment.order_id,
-          razorpay_payment_id: payment.id,
-          amount: payment.amount,
-          currency: payment.currency?.toUpperCase() || 'INR',
-          status: 'failed',
-          method: payment.method || null,
-        }).then(({ error: payError }) => {
-          if (payError) {console.error('[Webhook] Failed payment record error:', payError);}
-        });
+        // A payment row must target exactly one product (course XOR asset).
+        const isAssetFail = productType === 'asset' && assetId && UUID_RE.test(assetId);
+        const target = isAssetFail
+          ? { asset_id: assetId as string }
+          : (courseId && UUID_RE.test(courseId) ? { course_id: courseId as string } : null);
+
+        if (target) {
+          await supabaseAdmin.from('payments').insert({
+            user_id: userId,
+            ...target,
+            razorpay_order_id: payment.order_id,
+            razorpay_payment_id: payment.id,
+            amount: payment.amount,
+            currency: payment.currency?.toUpperCase() || 'INR',
+            status: 'failed',
+            method: payment.method || null,
+          }).then(({ error: payError }) => {
+            if (payError) {console.error('[Webhook] Failed payment record error:', payError);}
+          });
+        }
 
         // Send failure notification
         await supabaseAdmin.from('notifications').insert({
@@ -162,7 +223,7 @@ serve(async (req) => {
           type: 'announcement',
           title: 'Payment Failed',
           message: 'Your payment could not be processed. Please try again.',
-          link: '/courses',
+          link: isAssetFail ? '/assets' : '/courses',
         });
       }
 

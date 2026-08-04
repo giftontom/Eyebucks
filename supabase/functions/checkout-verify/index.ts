@@ -1,12 +1,14 @@
-// Eyebuckz LMS: Checkout - Verify Payment & Create Enrollment
-// Replaces: POST /api/checkout/verify
+// Eyebuckz LMS: Checkout - Verify Payment & Grant Access (product-aware)
+// Course path = deployed v46 hardening (status='paid' + order-notes binding +
+// coupon re-derivation), verbatim. Asset path = self-contained branch that grants
+// an asset_purchase. Replaces: POST /api/checkout/verify
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
 import { verifyAuth } from '../_shared/auth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/email.ts';
-import { enrollmentWelcomeEmail, paymentReceiptEmail } from '../_shared/emailTemplates.ts';
+import { enrollmentWelcomeEmail, paymentReceiptEmail, assetDeliveryEmail } from '../_shared/emailTemplates.ts';
 import { hmacSha256, timingSafeEqual } from '../_shared/hmac.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
@@ -54,11 +56,11 @@ serve(async (req) => {
 
     const supabaseAdmin = createAdminClient();
 
-    const { orderId, paymentId, signature, courseId } = await req.json();
+    const { orderId, paymentId, signature, courseId, assetId, productType, couponUseId } = await req.json();
 
-    if (!orderId || !paymentId || !signature || !courseId) {
+    if (!orderId || !paymentId || !signature || (!courseId && !assetId)) {
       return errorResponse(
-        'Missing required fields (orderId, paymentId, signature, courseId)',
+        'Missing required fields (orderId, paymentId, signature, and courseId or assetId)',
         corsHeaders,
         400
       );
@@ -77,6 +79,133 @@ serve(async (req) => {
       return errorResponse('Invalid payment signature', corsHeaders, 400);
     }
 
+    // ──────────────────────────────────────────────────────────────────────
+    // DIGITAL ASSET purchase — self-contained branch. Mirrors the course-path
+    // hardening below (status='paid' + order-notes binding + amount re-derivation)
+    // but grants an asset_purchase instead of an enrollment. The course path
+    // below is left exactly as deployed (v46) and runs when this is not an asset.
+    // ──────────────────────────────────────────────────────────────────────
+    const isAsset = productType === 'asset' || (!courseId && !!assetId);
+    if (isAsset) {
+      const razorpayKeyIdA = Deno.env.get('RAZORPAY_KEY_ID');
+      if (!razorpayKeyIdA) {
+        console.error('[Checkout] RAZORPAY_KEY_ID not configured');
+        return errorResponse('Payment verification not configured', corsHeaders, 500);
+      }
+
+      const { data: asset } = await supabaseAdmin
+        .from('digital_assets')
+        .select('id, slug, title, price')
+        .eq('id', assetId)
+        .single();
+      if (!asset) {
+        return errorResponse('Asset not found', corsHeaders, 404);
+      }
+
+      // Re-derive the expected amount, applying a coupon if one was redeemed.
+      let expectedAssetAmount = asset.price;
+      if (couponUseId) {
+        const { data: couponUse } = await supabaseAdmin
+          .from('coupon_uses')
+          .select('user_id, asset_id, discount_pct')
+          .eq('id', couponUseId)
+          .maybeSingle();
+        if (!couponUse || couponUse.user_id !== user.id || couponUse.asset_id !== asset.id) {
+          return errorResponse('Invalid coupon reference', corsHeaders, 400);
+        }
+        expectedAssetAmount = Math.round(asset.price * (1 - couponUse.discount_pct / 100));
+      }
+
+      const rzpResA = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+        headers: { 'Authorization': 'Basic ' + btoa(`${razorpayKeyIdA}:${razorpaySecret}`) },
+      });
+      if (!rzpResA.ok) {
+        console.error('[Checkout] Failed to fetch Razorpay order (asset):', rzpResA.status, await rzpResA.text());
+        return errorResponse('Payment gateway error — please contact support', corsHeaders, 503);
+      }
+      const rzpOrderA = await rzpResA.json();
+      if (rzpOrderA.status !== 'paid') {
+        return errorResponse('Payment not completed', corsHeaders, 400);
+      }
+      // Bind the order to THIS asset + user (prevents product/order substitution).
+      if (rzpOrderA.notes?.assetId !== asset.id || rzpOrderA.notes?.userId !== user.id) {
+        console.error(`[Checkout] Asset order binding mismatch: notes=${JSON.stringify(rzpOrderA.notes)}`);
+        return errorResponse('Order does not match this asset or user', corsHeaders, 400);
+      }
+      if (rzpOrderA.amount !== expectedAssetAmount) {
+        console.error(`[Checkout] Asset amount mismatch: order=${rzpOrderA.amount}, expected=${expectedAssetAmount}`);
+        return errorResponse('Payment amount mismatch', corsHeaders, 400);
+      }
+
+      const { data: purchase, error: purchaseError } = await supabaseAdmin
+        .from('asset_purchases')
+        .insert({
+          user_id: user.id,
+          asset_id: asset.id,
+          status: 'ACTIVE',
+          payment_id: paymentId,
+          order_id: orderId,
+          amount: expectedAssetAmount,
+          purchased_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (purchaseError) {
+        if (purchaseError.code === '23505') {
+          return errorResponse('You already own this asset', corsHeaders, 409);
+        }
+        console.error('[Checkout] Asset purchase error:', purchaseError);
+        return errorResponse('Failed to record purchase', corsHeaders, 500);
+      }
+
+      const receiptA = `EYB-${Date.now().toString(36).toUpperCase()}`;
+      const { error: payErrorA } = await supabaseAdmin.from('payments').insert({
+        user_id: user.id,
+        asset_id: asset.id,
+        razorpay_order_id: orderId,
+        razorpay_payment_id: paymentId,
+        amount: expectedAssetAmount,
+        currency: 'INR',
+        status: 'captured',
+        receipt_number: receiptA,
+      });
+      if (payErrorA) {
+        console.error('[Checkout] Asset payment record insert failed:', payErrorA);
+        return errorResponse('Purchase succeeded but payment record could not be saved. Please contact support.', corsHeaders, 500);
+      }
+
+      const { data: userProfileA } = await supabaseAdmin
+        .from('users').select('name, email').eq('id', user.id).single();
+
+      await supabaseAdmin.from('notifications').insert({
+        user_id: user.id,
+        type: 'announcement',
+        title: 'Purchase confirmed',
+        message: `${asset.title} is ready to download`,
+        link: `/asset/${asset.slug}`,
+      });
+
+      if (userProfileA?.email) {
+        const appUrlA = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
+        const formattedA = (expectedAssetAmount / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+        sendEmail(
+          userProfileA.email,
+          `Your download — ${asset.title}`,
+          assetDeliveryEmail({
+            name: userProfileA.name,
+            assetTitle: asset.title,
+            orderId,
+            paymentId,
+            amount: formattedA,
+            downloadUrl: `${appUrlA}/asset/${asset.slug}`,
+            appUrl: appUrlA,
+          }),
+        );
+      }
+
+      return jsonResponse({ success: true, verified: true, purchaseId: purchase.id }, corsHeaders);
+    }
+
     // Fetch course for amount and type
     const { data: course } = await supabaseAdmin
       .from('courses')
@@ -86,6 +215,23 @@ serve(async (req) => {
 
     if (!course) {
       return errorResponse('Course not found', corsHeaders, 404);
+    }
+
+    // Re-derive the expected amount server-side (mirrors checkout-create-order).
+    // If a coupon was applied, the order was created for the discounted price,
+    // so comparing against the full course.price would wrongly reject it.
+    let expectedAmount = course.price;
+    if (couponUseId) {
+      const { data: couponUse } = await supabaseAdmin
+        .from('coupon_uses')
+        .select('user_id, course_id, discount_pct')
+        .eq('id', couponUseId)
+        .maybeSingle();
+
+      if (!couponUse || couponUse.user_id !== user.id || couponUse.course_id !== courseId) {
+        return errorResponse('Invalid coupon reference', corsHeaders, 400);
+      }
+      expectedAmount = Math.round(course.price * (1 - couponUse.discount_pct / 100));
     }
 
     // Defense-in-depth: verify amount paid matches course price via Razorpay API (mandatory)
@@ -104,8 +250,23 @@ serve(async (req) => {
       return errorResponse('Payment gateway error — please contact support', corsHeaders, 503);
     }
     const rzpOrder = await rzpResponse.json();
-    if (rzpOrder.amount !== course.price) {
-      console.error(`[Checkout] Amount mismatch: Razorpay order=${rzpOrder.amount}, course=${course.price}`);
+
+    // The order must be fully paid.
+    if (rzpOrder.status !== 'paid') {
+      console.error(`[Checkout] Order not paid: status=${rzpOrder.status}`);
+      return errorResponse('Payment not completed', corsHeaders, 400);
+    }
+
+    // Bind the order to THIS course and user. create-order stamps these into
+    // notes; without this check a user could pay for course A and verify with a
+    // same-priced course B (course substitution).
+    if (rzpOrder.notes?.courseId !== courseId || rzpOrder.notes?.userId !== user.id) {
+      console.error(`[Checkout] Order binding mismatch: notes=${JSON.stringify(rzpOrder.notes)}, courseId=${courseId}, userId=${user.id}`);
+      return errorResponse('Order does not match this course or user', corsHeaders, 400);
+    }
+
+    if (rzpOrder.amount !== expectedAmount) {
+      console.error(`[Checkout] Amount mismatch: Razorpay order=${rzpOrder.amount}, expected=${expectedAmount}`);
       return errorResponse('Payment amount mismatch', corsHeaders, 400);
     }
 
@@ -118,7 +279,7 @@ serve(async (req) => {
         status: 'ACTIVE',
         payment_id: paymentId,
         order_id: orderId,
-        amount: course.price,
+        amount: expectedAmount,
         enrolled_at: new Date().toISOString(),
       })
       .select()
@@ -180,7 +341,7 @@ serve(async (req) => {
       enrollment_id: enrollment.id,
       razorpay_order_id: orderId,
       razorpay_payment_id: paymentId,
-      amount: course.price,
+      amount: expectedAmount,
       currency: 'INR',
       status: 'captured',
       receipt_number: receiptNumber,
@@ -211,7 +372,7 @@ serve(async (req) => {
       const appUrl = Deno.env.get('APP_URL') || 'https://eyebuckz.com';
 
       const learnUrl = `${appUrl}/learn/${courseId}`;
-      const formattedAmount = (course.price / 100).toLocaleString('en-IN', {
+      const formattedAmount = (expectedAmount / 100).toLocaleString('en-IN', {
         style: 'currency', currency: 'INR',
       });
 
