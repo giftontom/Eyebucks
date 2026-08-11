@@ -283,6 +283,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `VideoPlayer` | `videoId`, `moduleId`, `fallbackUrl`; exposes ref handle (play/pause/seek/quality/PiP); HLS.js + Bunny CDN; retry on error (3 attempts) |
 | `VideoUploader` | Drag-drop chunked/resumable TUS upload to Bunny; max 2GB; calls `admin-video-upload` Edge Function for credentials; exposes `VideoUploaderHandle` (`cancelUpload`) + `onUploadingChange` |
 | `ImageUpload` | Drag-drop CMS image uploader; calls `admin-image-upload` Edge Function; returns Bunny Storage Pull-Zone CDN URL |
+| `VideoField` | Drag-drop CMS video picker (short muted loops ≤15MB, mp4/webm) OR paste a Bunny CDN URL; uploads via `admin-image-upload`; used for hero-slide videos |
 | `StarRating` | Controlled/uncontrolled star input |
 | `ReviewForm` | Create/edit review (rating + comment) |
 | `ReviewList` | Paginated review display with helpfulness votes |
@@ -354,7 +355,7 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | Function | Auth | Purpose |
 |----------|------|---------|
 | `admin-asset-upload` | JWT + admin | Returns a Supabase Storage signed upload URL for direct large-file upload to the private `digital-assets` bucket |
-| `admin-image-upload` | JWT + admin | Upload CMS images to Bunny Storage; returns Pull-Zone CDN URL |
+| `admin-image-upload` | JWT + admin | Upload CMS images (≤5MB) or short marketing videos (≤15MB, mp4/webm) to Bunny Storage; returns Pull-Zone CDN URL |
 | `admin-video-upload` | JWT + admin | Generate Bunny TUS upload credentials |
 | `asset-claim-free` | JWT | Grants a price-0 digital asset to the authenticated user without payment |
 | `asset-download-url` | JWT | Entitlement-gated short-lived (~5 min) Supabase Storage signed download URL for a purchased asset |

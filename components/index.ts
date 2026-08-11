@@ -40,6 +40,8 @@ export { TrustBadges } from './TrustBadges';
 export { HeroCarousel } from './HeroCarousel';
 export { ImageUpload } from './ImageUpload';
 export type { ImageUploadProps } from './ImageUpload';
+export { VideoField } from './VideoField';
+export type { VideoFieldProps } from './VideoField';
 export { MobileBottomNav } from './MobileBottomNav';
 export { MetaPixel } from './MetaPixel';
 export { SegmentGate } from './SegmentGate';

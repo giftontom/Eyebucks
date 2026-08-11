@@ -1,8 +1,9 @@
-// Eyebuckz LMS: Admin Image Upload — Bunny Storage proxy
-// Admin-gated. Proxies a CMS image (<= 5MB) to a Bunny Storage Zone using the
-// server-side storage key, and returns the public Pull-Zone CDN URL. Images are
-// small, so (unlike the video TUS path) a server-side proxy is simplest and
-// keeps the Bunny storage key off the client.
+// Eyebuckz LMS: Admin Image/Media Upload — Bunny Storage proxy
+// Admin-gated. Proxies a CMS image (<= 5MB) or a short marketing video loop
+// (<= 15MB, mp4/webm — hero/banner slides) to a Bunny Storage Zone using the
+// server-side storage key, and returns the public Pull-Zone CDN URL. These are
+// small, so (unlike the large-video TUS path) a server-side proxy is simplest
+// and keeps the Bunny storage key off the client.
 //
 // POST multipart/form-data { file, folder }     -> { success, url, path }
 // POST application/json     { action:'delete', path } -> { success, deleted }
@@ -20,8 +21,12 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { jsonResponse, errorResponse } from '../_shared/response.ts';
 import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+// Short, muted marketing loops (hero/banner). Kept small — the whole file is
+// buffered in the Edge Function, so this stays well under the request-body cap.
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;   // 5 MB
+const MAX_VIDEO_SIZE = 15 * 1024 * 1024;  // 15 MB
 
 /** Strip leading slashes and reject path traversal; only allow our folder/uuid.ext shape. */
 function sanitizePath(raw: string): string | null {
@@ -79,6 +84,12 @@ serve(async (req) => {
     }
 
     // ---- UPLOAD ----
+    // Reject an oversized body before buffering it into memory.
+    const contentLength = Number(req.headers.get('content-length') || 0);
+    if (contentLength > MAX_VIDEO_SIZE + 1024 * 1024) { // largest cap + multipart margin
+      return errorResponse('File too large.', corsHeaders, 413);
+    }
+
     const form = await req.formData();
     const file = form.get('file');
     const folderRaw = String(form.get('folder') || 'misc');
@@ -86,16 +97,27 @@ serve(async (req) => {
     if (!(file instanceof File)) {
       return errorResponse('No file provided', corsHeaders, 400);
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return errorResponse('Invalid image type. Use JPEG, PNG, WebP, or AVIF.', corsHeaders, 415);
+    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    if (!isVideo && !isImage) {
+      return errorResponse('Invalid file type. Images: JPEG, PNG, WebP, AVIF. Video: MP4, WebM.', corsHeaders, 415);
     }
-    if (file.size > MAX_FILE_SIZE) {
+    if (isVideo && file.size > MAX_VIDEO_SIZE) {
+      return errorResponse('Video exceeds the 15MB limit.', corsHeaders, 413);
+    }
+    if (isImage && file.size > MAX_IMAGE_SIZE) {
       return errorResponse('Image exceeds the 5MB limit.', corsHeaders, 413);
     }
 
     const folder = folderRaw.replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'misc';
-    const ext = (file.name.split('.').pop() || file.type.split('/')[1] || 'jpg')
-      .toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Extension is derived from the VALIDATED MIME type, never the original
+    // filename — otherwise an admin could store e.g. uuid.html (served as active
+    // content by the CDN). file.type is already whitelisted above.
+    const MIME_EXT: Record<string, string> = {
+      'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif',
+      'video/mp4': 'mp4', 'video/webm': 'webm',
+    };
+    const ext = MIME_EXT[file.type] ?? 'bin';
     // UUID filename — never trust the original name (collisions / traversal).
     const path = `${folder}/${crypto.randomUUID()}.${ext}`;
 

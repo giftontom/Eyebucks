@@ -11,6 +11,8 @@ import { logger } from '../../utils/logger';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
+const MAX_VIDEO_SIZE = 15 * 1024 * 1024; // 15 MB (short muted hero/banner loops)
 
 /**
  * supabase-js wraps non-2xx function responses in a FunctionsHttpError whose
@@ -67,6 +69,34 @@ export const siteImagesApi = {
     }
     if (!data?.success || !data?.url) {
       throw new Error(data?.error || 'Image upload failed');
+    }
+    return { url: data.url as string, path: data.path as string };
+  },
+
+  /**
+   * Upload a short marketing video loop (mp4/webm, <= 15MB) to Bunny Storage via
+   * the same admin-gated Edge Function. Returns the public CDN URL — served
+   * anonymously (no signing), so it plays for logged-out storefront visitors.
+   */
+  async uploadVideo(file: File, folder: ImageFolder = 'hero'): Promise<UploadedImage> {
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      throw new Error('Invalid video type. Use MP4 or WebM.');
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      throw new Error('Video exceeds the 15MB limit.');
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('folder', folder);
+
+    const { data, error } = await supabase.functions.invoke('admin-image-upload', { body: form });
+    if (error) {
+      logger.error('[siteImages] video upload failed:', error);
+      throw new Error(await extractFnError(error));
+    }
+    if (!data?.success || !data?.url) {
+      throw new Error(data?.error || 'Video upload failed');
     }
     return { url: data.url as string, path: data.path as string };
   },

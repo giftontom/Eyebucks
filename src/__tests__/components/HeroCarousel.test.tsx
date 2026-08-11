@@ -48,4 +48,19 @@ describe('HeroCarousel', () => {
     expect(screen.getByLabelText('Go to slide 2 of 3')).toBeInTheDocument();
     expect(screen.getByLabelText('Go to slide 3 of 3')).toBeInTheDocument();
   });
+
+  it('renders a <video> overlay for a slide that has a video, keeping the image poster', () => {
+    const videoSlides = [
+      { image: '/poster1.png', title: 'Video Slide', video: 'https://cdn.b-cdn.net/hero/loop.mp4' },
+      { image: '/slide2.png', title: 'Image Slide' },
+    ];
+    const { container } = render(<HeroCarousel slides={videoSlides} />);
+    const video = container.querySelector('video');
+    expect(video).not.toBeNull();
+    expect(video?.getAttribute('src')).toBe('https://cdn.b-cdn.net/hero/loop.mp4');
+    expect(video?.getAttribute('poster')).toBe('/poster1.png');
+    // The image-only slide contributes no video; both posters/images still render.
+    expect(container.querySelectorAll('video')).toHaveLength(1);
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
 });

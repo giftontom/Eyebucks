@@ -1,9 +1,13 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+
 interface Slide {
   image: string;
   title: string;
+  /** Optional short muted loop played over the image (image is poster/fallback). */
+  video?: string;
 }
 
 interface HeroCarouselProps {
@@ -23,9 +27,13 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
   const [paused, setPaused] = useState(false);
   // Scroll trigger: autoplay only runs while the carousel is on screen
   // (touch parity for desktop's pause-on-hover, plus a perf win everywhere).
-  const [offscreen, setOffscreen] = useState(false);
+  // Starts true so a below-the-fold hero doesn't autoplay/download video before
+  // the IntersectionObserver confirms it's actually visible.
+  const [offscreen, setOffscreen] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
+  const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+  const reducedMotion = usePrefersReducedMotion();
 
   const next = useCallback(() => {
     if (slides.length === 0) return;
@@ -45,7 +53,12 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') { return; }
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      // No IO support: fall back to the pre-visibility-gating behavior (treat as
+      // on-screen) so the carousel still auto-advances.
+      setOffscreen(false);
+      return;
+    }
     const io = new IntersectionObserver(
       ([entry]) => setOffscreen(!entry.isIntersecting),
       { threshold: 0.2 },
@@ -53,6 +66,30 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  // Play only the current slide's video (when on-screen, not paused, motion
+  // allowed, and not on a data-saver / very-slow connection — India-first
+  // audience). Others pause. Autoplay can reject — ignore.
+  useEffect(() => {
+    const conn = (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+    const lowData = !!conn && (conn.saveData === true || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g');
+
+    videoRefs.current.forEach((v, i) => {
+      if (!v) { return; }
+      try {
+        if (i === current && !offscreen && !paused && !reducedMotion && !lowData) {
+          const p = v.play();
+          // play() returns a Promise in browsers (may reject on autoplay policy);
+          // in jsdom it returns undefined — guard both.
+          if (p && typeof p.catch === 'function') { p.catch(() => {}); }
+        } else {
+          v.pause();
+        }
+      } catch { /* jsdom: play/pause not implemented */ }
+    });
+  }, [current, offscreen, paused, reducedMotion, slides]);
 
   // Guard against empty slides array — prevents NaN from division by zero.
   // Must come after all hooks (rules-of-hooks); the hooks above are safe with empty slides.
@@ -101,6 +138,21 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
               fetchPriority={i === 0 ? 'high' : 'auto'}
               decoding="async"
             />
+            {/* Video overlay: covers the poster image; if it fails to load the
+                image shows through. Suppressed under reduced-motion. */}
+            {slide.video && !reducedMotion && (
+              <video
+                ref={(el) => { videoRefs.current[i] = el; }}
+                src={slide.video}
+                className="absolute inset-0 w-full h-full object-cover"
+                poster={slide.image}
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-hidden="true"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
             <div className="absolute bottom-6 left-6">
               <span className="text-white/80 text-sm font-medium bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full">{slide.title}</span>

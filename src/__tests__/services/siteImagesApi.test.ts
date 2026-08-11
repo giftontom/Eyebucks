@@ -243,4 +243,45 @@ describe('siteImagesApi', () => {
       );
     });
   });
+
+  // ── uploadVideo ───────────────────────────────────────────────────────────────
+
+  describe('uploadVideo', () => {
+    it('invokes admin-image-upload and returns {url, path} for a valid mp4', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: true, url: 'https://cdn.b-cdn.net/hero/loop.mp4', path: 'hero/loop.mp4' },
+        error: null,
+      });
+
+      const file = makeFile('loop.mp4', 'video/mp4', 2 * 1024 * 1024);
+      const result = await siteImagesApi.uploadVideo(file, 'hero');
+
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
+        'admin-image-upload',
+        expect.objectContaining({ body: expect.any(FormData) }),
+      );
+      expect(result).toEqual({ url: 'https://cdn.b-cdn.net/hero/loop.mp4', path: 'hero/loop.mp4' });
+    });
+
+    it('accepts webm', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: true, url: 'https://cdn.b-cdn.net/hero/loop.webm', path: 'hero/loop.webm' },
+        error: null,
+      });
+      const file = makeFile('loop.webm', 'video/webm', 1024);
+      await expect(siteImagesApi.uploadVideo(file)).resolves.toMatchObject({ url: expect.any(String) });
+    });
+
+    it('throws and does NOT invoke for a non-video MIME type', async () => {
+      const file = makeFile('clip.mov', 'video/quicktime', 1024);
+      await expect(siteImagesApi.uploadVideo(file)).rejects.toThrow(/invalid video type/i);
+      expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    });
+
+    it('throws and does NOT invoke when the video exceeds 15 MB', async () => {
+      const file = makeFile('big.mp4', 'video/mp4', 15 * 1024 * 1024 + 1);
+      await expect(siteImagesApi.uploadVideo(file)).rejects.toThrow(/15mb/i);
+      expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    });
+  });
 });

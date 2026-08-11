@@ -30,7 +30,7 @@ export const HeroSection: React.FC = () => {
   const [courseCount, setCourseCount] = useState(15);
   const [copy, setCopy] = useState(DEFAULT_COPY);
   // CMS-managed carousel slides; undefined → HeroCarousel uses its built-in defaults.
-  const [slides, setSlides] = useState<{ image: string; title: string }[] | undefined>(undefined);
+  const [slides, setSlides] = useState<{ image: string; title: string; video?: string }[] | undefined>(undefined);
 
   const sectionRef = useRef<HTMLElement>(null);
   const parallaxOffset = useScrollParallax(sectionRef, { maxOffset: 40, factor: 0.18 });
@@ -65,16 +65,21 @@ export const HeroSection: React.FC = () => {
       .catch(err => logger.warn('[HeroSection] CMS load failed:', err));
   }, []);
 
-  // Hero carousel slides (one CMS row per slide; metadata.image = uploaded image).
+  // Hero carousel slides (one CMS row per slide; metadata.image = poster,
+  // optional metadata.video = short muted loop played over it).
   useEffect(() => {
     siteContentApi.getBySection('hero_slides')
       .then(items => {
         const mapped = items
-          .map(i => {
-            const img = (i.metadata as Record<string, unknown> | null)?.image;
-            return typeof img === 'string' && img.trim() !== '' ? { image: img, title: i.title } : null;
+          .map((i): { image: string; title: string; video?: string } | null => {
+            const meta = (i.metadata as Record<string, unknown> | null) ?? {};
+            const img = meta.image;
+            if (typeof img !== 'string' || img.trim() === '') { return null; }
+            const vid = meta.video;
+            const video = typeof vid === 'string' && vid.trim() !== '' ? vid : undefined;
+            return { image: img, title: i.title, video };
           })
-          .filter((s): s is { image: string; title: string } => s !== null);
+          .filter((s): s is { image: string; title: string; video?: string } => s !== null);
         if (mapped.length > 0) { setSlides(mapped); }
       })
       .catch(err => logger.warn('[HeroSection] slides CMS load failed:', err));

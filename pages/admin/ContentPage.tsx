@@ -1,7 +1,7 @@
 import { Plus, Layers, Code2, FormInput } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
-import { ImageUpload } from '../../components';
+import { ImageUpload, VideoField } from '../../components';
 import { adminApi } from '../../services/api/admin.api';
 import { logger } from '../../utils/logger';
 
@@ -35,6 +35,15 @@ const FieldInput: React.FC<{
           value={typeof value === 'string' ? value : ''}
           folder={field.folder ?? 'misc'}
           aspect={field.aspect ?? 'aspect-video'}
+          onChange={(url) => onChange(url)}
+        />
+      );
+    case 'video':
+      return (
+        <VideoField
+          label={field.label}
+          value={typeof value === 'string' ? value : ''}
+          folder={field.folder ?? 'hero'}
           onChange={(url) => onChange(url)}
         />
       );

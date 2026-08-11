@@ -25,6 +25,7 @@ export type FieldType =
   | 'select'
   | 'string-array'
   | 'image'
+  | 'video'
   | 'color';
 
 export interface FieldOption {
@@ -42,7 +43,7 @@ export interface FieldDef {
   placeholder?: string;
   options?: FieldOption[]; // for type 'select'
   default?: unknown;
-  folder?: ImageFolder; // for type 'image'
+  folder?: ImageFolder; // for type 'image' | 'video'
   aspect?: string; // preview aspect for type 'image'
 }
 
@@ -215,7 +216,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     titlePlaceholder: 'Masterclass Series',
     bodyLabel: 'Body',
     fields: [
-      { key: 'image', label: 'Slide image', type: 'image', folder: 'hero', aspect: 'aspect-video' },
+      { key: 'image', label: 'Slide image', type: 'image', folder: 'hero', aspect: 'aspect-video', help: 'Shown as the slide, and as the poster/fallback if a video is set.' },
+      { key: 'video', label: 'Slide video (optional)', type: 'video', folder: 'hero', help: 'Short muted loop (mp4/webm). Plays over the image; the image is the poster.' },
     ],
   },
   social_proof: {
