@@ -8,7 +8,7 @@ import { ReviewList } from '../components/ReviewList';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
 import { useVideoUrl } from '../hooks/useVideoUrl';
-import { coursesApi } from '../services/api';
+import { coursesApi, checkoutApi } from '../services/api';
 import { CourseType } from '../types';
 import { analytics } from '../utils/analytics';
 import { formatPrice } from '../utils/format';
@@ -62,9 +62,31 @@ export const CourseDetails: React.FC = () => {
   // logged-out storefront visitors (not just enrolled users/admins).
   const { hlsUrl: heroVideoSrc } = useVideoUrl(course?.heroVideoId, null, '', 'trailer');
   const [isMuted, setIsMuted] = useState(true);
+  // Entitlement-based upgrade quote (module owner → bundle): "you've already paid X".
+  const [upgradeQuote, setUpgradeQuote] = useState<{ creditPaise: number; finalPrice: number } | null>(null);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'COURSES' | 'REVIEWS'>('OVERVIEW');
   const [showSticky, setShowSticky] = useState(false);
+
+  // Fetch the upgrade quote for a bundle the (logged-in) user doesn't yet own.
+  useEffect(() => {
+    if (!user || !course || hasAccess || course.type !== CourseType.BUNDLE) {
+      setUpgradeQuote(null);
+      return;
+    }
+    let cancelled = false;
+    checkoutApi.getUpgradeQuote(course.id)
+      .then(q => {
+        if (cancelled) { return; }
+        if (q.reason === 'UPGRADE' && q.finalPrice !== null) {
+          setUpgradeQuote({ creditPaise: q.creditPaise, finalPrice: q.finalPrice });
+        } else {
+          setUpgradeQuote(null);
+        }
+      })
+      .catch(() => { /* non-critical */ });
+    return () => { cancelled = true; };
+  }, [user, course, hasAccess]);
 
   // Ref for the main Call-to-Action button to track visibility
   const mainCtaRef = useRef<HTMLButtonElement>(null);
@@ -433,6 +455,7 @@ export const CourseDetails: React.FC = () => {
             hasAccess={hasAccess}
             ctaConfig={ctaConfig}
             onCta={handleCTA}
+            upgradeQuote={upgradeQuote}
           />
         </div>
       </div>

@@ -94,6 +94,20 @@ Last updated: 2026-08-04
 
 ---
 
+### 6f. ~~Coupon "burn before pay" lockout~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | Medium |
+| **Status** | **Resolved — August 2026 (migration 045)** |
+| **Files** | `supabase/migrations/045_coupon_reissue.sql` |
+
+**Root cause:** `apply_coupon` inserted a `coupon_uses` row + incremented `use_count` at apply time, but nothing released it if checkout was abandoned — so a customer who closed the Razorpay modal was permanently locked out with `COUPON_ALREADY_USED`.
+
+**Resolution:** Added `coupon_uses.consumed_at`; `apply_coupon`/`apply_asset_coupon` now **re-issue** an un-consumed prior use (return it, no re-count) instead of raising, and only a `consumed_at`-marked use blocks re-use. checkout-verify/webhook mark the use consumed once payment lands. Part of the entitlement-based upgrade-pricing workstream, which replaces shareable coupon codes for module→bundle upgrades entirely.
+
+---
+
 ### 6e. ~~Course trailers never played for storefront visitors~~ — RESOLVED
 
 | | |

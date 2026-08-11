@@ -67,6 +67,9 @@ verify_jwt = false  # Webhooks come from Razorpay, not authenticated users
 [functions.video-signed-url]
 verify_jwt = false  # Anonymous storefront trailer path; the function verifies JWT in-code for the authed lesson path
 
+[functions.course-claim-free]
+verify_jwt = true
+
 [functions.admin-video-upload]
 verify_jwt = true
 

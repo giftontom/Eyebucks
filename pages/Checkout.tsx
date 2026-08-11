@@ -254,6 +254,23 @@ export const Checkout: React.FC = () => {
 
       logger.debug('[Checkout] Order created:', orderResponse);
 
+      // Free claim: the total was ≤ ₹0 (upgrade credit or 100% coupon fully
+      // covers it). Razorpay can't process a ₹0 order — grant via claim instead.
+      if (orderResponse.freeClaim) {
+        setStatus('VERIFYING');
+        const claim = await checkoutApi.claimFreeCourse(course.id, couponUseId);
+        if (!claim.claimed) {
+          throw new Error('Could not claim your upgrade. Please contact support.');
+        }
+        analytics.track('payment_completed', {
+          course_id: course.id, course_title: course.title, order_id: 'free_claim',
+          amount: 0, coupon_applied: couponApplied, coupon_discount_pct: couponDiscount,
+        });
+        setStatus('SUCCESS');
+        setTimeout(() => navigate(`/success?courseId=${course.id}`), 1500);
+        return;
+      }
+
       // Show warning if using mock data due to database issues
       if (orderResponse.warning) {
         setWarningMessage(orderResponse.warning);

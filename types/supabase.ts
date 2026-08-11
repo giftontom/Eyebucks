@@ -1099,6 +1099,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_upgrade_credit: {
+        Args: { p_user_id: string; p_course_id: string; p_paid_amount: number; p_order_id: string }
+        Returns: Json
+      }
+      get_upgrade_quote: {
+        Args: { p_course_id: string; p_user_id?: string }
+        Returns: Json
+      }
       set_bundle_assets: {
         Args: { p_bundle_id: string; p_asset_ids: string[] }
         Returns: undefined

@@ -28,7 +28,7 @@ serve(async (req) => {
       return errorResponse('Admin access required', corsHeaders, 403);
     }
 
-    const { paymentId, reason } = await req.json();
+    const { paymentId, reason, force } = await req.json();
 
     if (!paymentId || !reason) {
       return errorResponse('paymentId and reason are required', corsHeaders, 400);
@@ -58,6 +58,22 @@ serve(async (req) => {
 
     if (payment.status !== 'captured') {
       return errorResponse('Only captured payments can be refunded', corsHeaders, 400);
+    }
+
+    // Guard: this payment may have FUNDED an upgrade credit toward another course.
+    // Refunding it while the discounted upgrade stands would let the customer keep
+    // a discount they no longer paid for. Block unless the admin forces it.
+    const { data: creditRows } = await supabaseAdmin
+      .from('upgrade_credits_applied')
+      .select('id, target_course_id, credit_paise')
+      .eq('source_payment_id', payment.id);
+    if (creditRows && creditRows.length > 0 && force !== true) {
+      const total = creditRows.reduce((s, r) => s + r.credit_paise, 0);
+      return errorResponse(
+        `Blocked: this payment funded ₹${(total / 100).toFixed(0)} of upgrade credit toward course ` +
+        `${creditRows[0].target_course_id}. Refund the upgrade purchase first, or retry with force=true ` +
+        `to refund anyway (the credit ledger is kept for audit).`,
+        corsHeaders, 409);
     }
 
     if (!payment.razorpay_payment_id) {
@@ -123,6 +139,18 @@ serve(async (req) => {
         corsHeaders,
         500
       );
+    }
+
+    // Audit a forced refund that overrode the upgrade-credit guard.
+    if (force === true && creditRows && creditRows.length > 0) {
+      await supabaseAdmin.from('audit_logs').insert({
+        admin_id: user.id,
+        action: 'refund_force_over_upgrade_credit',
+        entity_type: 'payment',
+        entity_id: paymentId,
+        old_value: { creditRows },
+        new_value: { reason, refund_id: rzpRefund.id },
+      }).then(({ error }) => { if (error) { console.error('[Refund] Audit log insert failed (non-fatal):', error); } });
     }
 
     // Revoke enrollment
@@ -198,6 +226,16 @@ serve(async (req) => {
           console.error('[Refund] Member certificate revocation error (non-fatal):', memberCertError);
         }
       }
+
+      // Clawback: if this refunded payment WAS an upgrade purchase, delete the
+      // ledger rows it consumed so those source payments free up for a future
+      // upgrade quote (the correct economic outcome when the discounted bundle
+      // is unwound). Keyed on the order that consumed them.
+      const { error: clawErr } = await supabaseAdmin
+        .from('upgrade_credits_applied')
+        .delete()
+        .eq('target_order_id', payment.razorpay_order_id);
+      if (clawErr) { console.error('[Refund] Upgrade credit clawback failed (non-fatal):', clawErr); }
     }
 
     // Notify user

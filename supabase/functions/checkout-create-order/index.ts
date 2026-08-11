@@ -140,23 +140,7 @@ serve(async (req) => {
       return errorResponse('This course is free — no payment required', corsHeaders, 400);
     }
 
-    // Verify couponUseId belongs to the authed user for this course (if provided)
-    let effectivePrice = course.price;
-    if (couponUseId) {
-      const { data: couponUse } = await supabaseAdmin
-        .from('coupon_uses')
-        .select('user_id, course_id, discount_pct')
-        .eq('id', couponUseId)
-        .maybeSingle();
-
-      if (!couponUse || couponUse.user_id !== user.id || couponUse.course_id !== courseId) {
-        return errorResponse('Invalid coupon reference', corsHeaders, 400);
-      }
-
-      effectivePrice = Math.round(course.price * (1 - couponUse.discount_pct / 100));
-    }
-
-    // Check existing enrollment
+    // Check existing enrollment BEFORE pricing — never quote for an owner.
     const { data: existing } = await supabaseAdmin
       .from('enrollments')
       .select('id')
@@ -169,7 +153,68 @@ serve(async (req) => {
       return errorResponse('Already enrolled in this course', corsHeaders, 409);
     }
 
-    // Create Razorpay order
+    // ── Pricing: pick the best of list / coupon / upgrade-credit ──
+    // Upgrade credit and coupon are MUTUALLY EXCLUSIVE (owner decision): the
+    // server applies whichever yields the lower price. The losing coupon is NOT
+    // wasted — the A9 re-issue semantics re-apply it on a later purchase.
+    let pricingMode: 'list' | 'coupon' | 'upgrade' = 'list';
+    let effectivePrice = course.price;
+
+    // Upgrade quote (bundles only; pure read — no ledger write here).
+    let upgradeQuote: { final_price: number; credit_paise: number } | null = null;
+    if (course.type === 'BUNDLE') {
+      const { data: q, error: qErr } = await supabaseAdmin.rpc('get_upgrade_quote', {
+        p_course_id: courseId, p_user_id: user.id,
+      });
+      if (qErr) { console.error('[Checkout] get_upgrade_quote failed:', qErr); }
+      else if (q?.reason === 'UPGRADE') { upgradeQuote = q; }
+    }
+
+    // Coupon price (validated ownership).
+    let couponPrice: number | null = null;
+    if (couponUseId) {
+      const { data: couponUse } = await supabaseAdmin
+        .from('coupon_uses')
+        .select('user_id, course_id, discount_pct')
+        .eq('id', couponUseId)
+        .maybeSingle();
+      if (!couponUse || couponUse.user_id !== user.id || couponUse.course_id !== courseId) {
+        return errorResponse('Invalid coupon reference', corsHeaders, 400);
+      }
+      couponPrice = Math.round(course.price * (1 - couponUse.discount_pct / 100));
+    }
+
+    if (upgradeQuote && (couponPrice === null || upgradeQuote.final_price <= couponPrice)) {
+      pricingMode = 'upgrade'; effectivePrice = upgradeQuote.final_price;
+    } else if (couponPrice !== null) {
+      pricingMode = 'coupon'; effectivePrice = couponPrice;
+    }
+
+    // Razorpay rejects orders < 100 paise.
+    if (effectivePrice < 100) {
+      if (pricingMode === 'upgrade') {
+        // Upgrade credit fully covers the bundle → free-claim (ledger-backed).
+        return jsonResponse({
+          success: true,
+          freeClaim: true,
+          amount: 0,
+          pricing: {
+            mode: pricingMode,
+            basePrice: course.price,
+            creditPaise: upgradeQuote?.credit_paise ?? 0,
+            finalPrice: 0,
+          },
+        }, corsHeaders);
+      }
+      // A coupon that computes to < ₹1 is NOT free-claimed — coupons are not
+      // course-scoped, so free-claiming here would let an unscoped 100% coupon
+      // grant any expensive course. Clamp to Razorpay's ₹1 minimum instead.
+      effectivePrice = 100;
+    }
+
+    // Create Razorpay order. The pricing decision is stamped into notes (a
+    // server→server channel verify already trusts for binding), so verify
+    // re-derives from notes and does not depend on the frontend echoing anything.
     const razorpayResponse = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
@@ -185,6 +230,8 @@ serve(async (req) => {
           courseId,
           userId: user.id,
           courseTitle: course.title,
+          pricingMode,
+          couponUseId: pricingMode === 'coupon' ? couponUseId : '',
         },
       }),
     });
@@ -204,6 +251,12 @@ serve(async (req) => {
       currency: order.currency,
       key: razorpayKeyId,
       courseTitle: course.title,
+      pricing: {
+        mode: pricingMode,
+        basePrice: course.price,
+        creditPaise: upgradeQuote?.credit_paise ?? 0,
+        finalPrice: effectivePrice,
+      },
     }, corsHeaders);
   } catch (error) {
     console.error('[Checkout] Error:', error);

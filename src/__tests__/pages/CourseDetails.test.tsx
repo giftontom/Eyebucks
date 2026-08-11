@@ -4,12 +4,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
-const { mockCoursesApi } = vi.hoisted(() => ({
+const { mockCoursesApi, mockCheckoutApi } = vi.hoisted(() => ({
   mockCoursesApi: { getCourse: vi.fn(), getCourses: vi.fn() },
+  mockCheckoutApi: { getUpgradeQuote: vi.fn() },
 }));
 
 vi.mock('../../../services/api', () => ({
   coursesApi: mockCoursesApi,
+  checkoutApi: mockCheckoutApi,
 }));
 
 vi.mock('../../../context/AuthContext', () => ({
@@ -104,6 +106,7 @@ beforeEach(() => {
   mockUseAccessControl.mockReturnValue({ hasAccess: false, isLoading: false, isEnrolled: false, isAdmin: false });
   mockCoursesApi.getCourse.mockResolvedValue({ success: true, course: mockCourse });
   mockCoursesApi.getCourses.mockResolvedValue({ success: true, courses: [], total: 0, hasMore: false });
+  mockCheckoutApi.getUpgradeQuote.mockResolvedValue({ basePrice: null, creditPaise: 0, finalPrice: null, reason: 'NOT_ELIGIBLE', sourcePaymentIds: [] });
 
   // Stub useParams to always return id = 'course-1'
   vi.mock('react-router-dom', async (importOriginal) => {

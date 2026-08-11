@@ -121,7 +121,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 ## Database Schema
 
-### 19 Tables
+### 21 Tables
 
 | Table | Purpose |
 |-------|---------|
@@ -137,6 +137,8 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `site_content` | CMS blocks; `section` CHECK: 18 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, social_proof, featured_copy, how_it_works, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing |
 | `bundle_courses` | Junction: BUNDLE-type courses → individual courses; `order_index` |
 | `bundle_assets` | Junction: BUNDLE-type courses → digital assets; `order_index` (migration 043) |
+| `upgrade_pricing_config` | Single-row runtime knobs for module→bundle upgrade pricing: `enabled`, `credit_pct`, `window_days`, `cross_sell_pct` (migration 044) |
+| `upgrade_credits_applied` | Ledger of consumed upgrade credits; `UNIQUE(user_id, source_payment_id)`; service-role writes only (migration 044) |
 | `coupon_uses` | Atomic coupon redemption records; `discount_pct` captured at use time; `course_id` nullable (XOR with `asset_id`) |
 | `coupons` | Discount codes; `discount_pct`, `max_uses`, `use_count`, `expires_at`, `is_active` |
 | `wishlists` | User favorites; UNIQUE constraint on `(user_id, course_id)` |
@@ -156,7 +158,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 - `asset_file_type`: `LUT` | `PRESET` | `SFX` | `MUSIC` | `OVERLAY` | `PROJECT` | `PDF` | `TEMPLATE` | `OTHER`
 - `asset_license`: `PERSONAL` | `COMMERCIAL` | `EXTENDED`
 
-### 17 RPC Functions
+### 19 RPC Functions
 | RPC | Purpose |
 |-----|---------|
 | `apply_coupon(code, course_id, user_id)` | Atomic coupon validation + redemption → coupon_use_id, discount_pct |
@@ -165,6 +167,8 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `expire_enrollments()` | Auto-expire past-due enrollments (run by pg_cron) → INTEGER count |
 | `generate_receipt_number()` | Unique receipt string for payments |
 | `get_admin_stats()` | KPI dashboard data → JSONB |
+| `get_upgrade_quote(p_course_id, p_user_id?)` | Pure-read module→bundle upgrade quote (credit already paid, discounted price) → JSONB; authenticated self-scoped + service_role (migration 044) |
+| `apply_upgrade_credit(p_user_id, p_course_id, p_paid_amount, p_order_id)` | Consuming: locks + writes the credit ledger, validates final==paid, atomic; service_role only (migration 044) |
 | `get_course_analytics(course_id)` | Per-course stats → JSONB |
 | `get_progress_stats(user_id, course_id)` | User's progress for a course → JSONB |
 | `get_recent_activity(limit)` | Recent admin activity feed → JSONB |
@@ -195,7 +199,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 044** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 046** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -351,7 +355,7 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 
 ---
 
-## Edge Functions (15 total in `supabase/functions/`)
+## Edge Functions (16 total in `supabase/functions/`)
 
 | Function | Auth | Purpose |
 |----------|------|---------|
@@ -363,7 +367,8 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `certificate-generate` | JWT | Generate PDF certificate + email |
 | `checkout-create-order` | JWT | Create Razorpay order — product-aware: accepts `courseId` or `assetId` discriminator |
 | `checkout-verify` | JWT | Verify Razorpay payment signature + create enrollment or asset purchase — product-aware |
-| `checkout-webhook` | **No JWT** (HMAC) | Razorpay webhook async fallback — product-aware |
+| `checkout-webhook` | **No JWT** (HMAC) | Razorpay webhook async fallback — product-aware; consumes upgrade credit before granting |
+| `course-claim-free` | JWT | Grants a ₹0 course with no payment — genuinely free, or upgrade credit fully covers the bundle (migration 044) |
 | `coupon-apply` | JWT | Atomic coupon validation — product-aware: calls `apply_coupon` RPC (courses) or `apply_asset_coupon` RPC (assets) |
 | `progress-complete` | JWT | Mark module complete via `complete_module` RPC; trigger certificate |
 | `refund-process` | JWT + admin | Initiate Razorpay refund + update records |
@@ -546,8 +551,8 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-043** (file gaps at 030/031, applied from another branch); next = 044. 042 = security hardening (RPC lockdowns + coupon enumeration policy drop); 043 = bundle_assets (digital assets in bundles)
-- `supabase/functions/` — **15 Edge Functions** (see Edge Functions section above)
+- `supabase/migrations/` — **SQL migrations 001-045** (file gaps at 030/031, applied from another branch); next = 046. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+- `supabase/functions/` — **16 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)
 - `types/index.ts` — Business types (25+ interfaces/enums)

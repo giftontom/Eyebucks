@@ -18,11 +18,26 @@ interface Props {
   hasAccess: boolean;
   ctaConfig: CtaConfig;
   onCta: () => void;
+  /** Entitlement-based upgrade quote (module owner → bundle). */
+  upgradeQuote?: { creditPaise: number; finalPrice: number } | null;
 }
 
-export const CourseDetailsSidebar: React.FC<Props> = ({ course, hasAccess, ctaConfig, onCta }) => (
+export const CourseDetailsSidebar: React.FC<Props> = ({ course, hasAccess, ctaConfig, onCta, upgradeQuote }) => (
   <div className="sticky top-24 t-card border t-border rounded-2xl p-6 shadow-lg shadow-black/5 dark:shadow-none">
-    {!hasAccess && (
+    {!hasAccess && upgradeQuote ? (
+      <div className="mb-8">
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-lg t-text-3 line-through">{formatPrice(course.price)}</span>
+          <h3 className="text-4xl font-bold t-text">{formatPrice(upgradeQuote.finalPrice)}</h3>
+        </div>
+        <div className="t-status-success border rounded-lg px-3 py-2 mt-3">
+          <p className="text-sm font-medium flex items-center gap-1.5">
+            <Zap size={14} />
+            You've already paid {formatPrice(upgradeQuote.creditPaise)} — it's credited to your upgrade.
+          </p>
+        </div>
+      </div>
+    ) : !hasAccess && (
       <>
         <h3 className="text-4xl font-bold t-text mb-2">{formatPrice(course.price)}</h3>
         <p className="t-text-2 text-sm mb-8">One-time payment. Lifetime access.</p>

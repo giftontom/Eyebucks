@@ -174,6 +174,13 @@ serve(async (req) => {
         return errorResponse('Purchase succeeded but payment record could not be saved. Please contact support.', corsHeaders, 500);
       }
 
+      // Mark the asset coupon consumed (A9 linkage).
+      if (couponUseId) {
+        await supabaseAdmin.from('coupon_uses')
+          .update({ consumed_at: new Date().toISOString(), order_id: orderId })
+          .eq('id', couponUseId).eq('user_id', user.id).is('consumed_at', null);
+      }
+
       const { data: userProfileA } = await supabaseAdmin
         .from('users').select('name, email').eq('id', user.id).single();
 
@@ -217,22 +224,11 @@ serve(async (req) => {
       return errorResponse('Course not found', corsHeaders, 404);
     }
 
-    // Re-derive the expected amount server-side (mirrors checkout-create-order).
-    // If a coupon was applied, the order was created for the discounted price,
-    // so comparing against the full course.price would wrongly reject it.
+    // Expected amount is re-derived AFTER the Razorpay order fetch below, from
+    // the pricingMode stamped into the order notes at create time (authoritative;
+    // not trusted from the client body).
     let expectedAmount = course.price;
-    if (couponUseId) {
-      const { data: couponUse } = await supabaseAdmin
-        .from('coupon_uses')
-        .select('user_id, course_id, discount_pct')
-        .eq('id', couponUseId)
-        .maybeSingle();
-
-      if (!couponUse || couponUse.user_id !== user.id || couponUse.course_id !== courseId) {
-        return errorResponse('Invalid coupon reference', corsHeaders, 400);
-      }
-      expectedAmount = Math.round(course.price * (1 - couponUse.discount_pct / 100));
-    }
+    let upgradeApplied = false;
 
     // Defense-in-depth: verify amount paid matches course price via Razorpay API (mandatory)
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID');
@@ -263,6 +259,39 @@ serve(async (req) => {
     if (rzpOrder.notes?.courseId !== courseId || rzpOrder.notes?.userId !== user.id) {
       console.error(`[Checkout] Order binding mismatch: notes=${JSON.stringify(rzpOrder.notes)}, courseId=${courseId}, userId=${user.id}`);
       return errorResponse('Order does not match this course or user', corsHeaders, 400);
+    }
+
+    // Re-derive the expected amount from the order notes (set at create time).
+    // pricingMode is authoritative; a body couponUseId is only a legacy fallback.
+    const notesMode = rzpOrder.notes?.pricingMode as string | undefined;
+    const effCouponUseId: string | null = rzpOrder.notes?.couponUseId || couponUseId || null;
+    if (notesMode === 'upgrade') {
+      // Consume the ledger + validate final==paid atomically inside the RPC.
+      const { error: cErr } = await supabaseAdmin.rpc('apply_upgrade_credit', {
+        p_user_id: user.id,
+        p_course_id: courseId,
+        p_paid_amount: rzpOrder.amount,
+        p_order_id: orderId,
+      });
+      if (cErr) {
+        console.error('[Checkout] apply_upgrade_credit failed:', cErr);
+        const msg = (cErr.message || '').includes('UPGRADE_AMOUNT_MISMATCH')
+          ? 'Payment amount mismatch'
+          : 'Upgrade pricing could not be applied — please contact support';
+        return errorResponse(msg, corsHeaders, 400);
+      }
+      expectedAmount = rzpOrder.amount; // RPC validated final==paid (or already_applied)
+      upgradeApplied = true;
+    } else if (effCouponUseId) {
+      const { data: couponUse } = await supabaseAdmin
+        .from('coupon_uses')
+        .select('user_id, course_id, discount_pct')
+        .eq('id', effCouponUseId)
+        .maybeSingle();
+      if (!couponUse || couponUse.user_id !== user.id || couponUse.course_id !== courseId) {
+        return errorResponse('Invalid coupon reference', corsHeaders, 400);
+      }
+      expectedAmount = Math.round(course.price * (1 - couponUse.discount_pct / 100));
     }
 
     if (rzpOrder.amount !== expectedAmount) {
@@ -394,6 +423,15 @@ serve(async (req) => {
     if (payError) {
       console.error('[Checkout] Payment record insert failed:', payError);
       return errorResponse('Enrollment succeeded but payment record could not be saved. Please contact support.', corsHeaders, 500);
+    }
+
+    // Mark the coupon consumed (A9 linkage) so an abandoned re-apply can't reuse
+    // it, but a genuinely abandoned checkout leaves it un-consumed for re-issue.
+    // Upgrade mode never has a coupon (mutually exclusive).
+    if (!upgradeApplied && effCouponUseId) {
+      await supabaseAdmin.from('coupon_uses')
+        .update({ consumed_at: new Date().toISOString(), order_id: orderId })
+        .eq('id', effCouponUseId).eq('user_id', user.id).is('consumed_at', null);
     }
 
     // Get user profile for email

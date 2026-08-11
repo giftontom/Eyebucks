@@ -133,6 +133,27 @@ serve(async (req) => {
           console.log('[Webhook] Duplicate webhook — asset purchase already exists for payment:', payment.id);
         }
       } else if (courseId && userId && UUID_RE.test(courseId) && UUID_RE.test(userId)) {
+        const wNotes = payment.notes || {};
+
+        // For an upgrade order, consume the credit FIRST — the grant is
+        // CONDITIONAL on it succeeding. Otherwise a source payment shared across
+        // bundles could fund the upgrade discount on more than one bundle (a
+        // source is excluded from future quotes only once it's in the ledger).
+        let upgradeConsumeOk = true;
+        if (wNotes.pricingMode === 'upgrade') {
+          const { error: upErr } = await supabaseAdmin.rpc('apply_upgrade_credit', {
+            p_user_id: userId,
+            p_course_id: courseId,
+            p_paid_amount: payment.amount,
+            p_order_id: payment.order_id,
+          });
+          if (upErr) {
+            console.error('[Webhook] apply_upgrade_credit failed — NOT granting upgrade (manual reconciliation):', upErr);
+            upgradeConsumeOk = false;
+          }
+        }
+
+        if (upgradeConsumeOk) {
         // Idempotent upsert — safe to call multiple times for the same payment
         const { data: newEnrollment } = await supabaseAdmin
           .from('enrollments')
@@ -237,6 +258,14 @@ serve(async (req) => {
           );
           if (e) { console.error(`[Webhook] Bundle asset grant failed for ${ga.id}:`, e); }
         }
+
+        // Mark coupon consumed (upgrade credit was consumed above, before the grant).
+        if (wNotes.pricingMode !== 'upgrade' && wNotes.couponUseId) {
+          await supabaseAdmin.from('coupon_uses')
+            .update({ consumed_at: new Date().toISOString(), order_id: payment.order_id })
+            .eq('id', wNotes.couponUseId).eq('user_id', userId).is('consumed_at', null);
+        }
+        } // end if (upgradeConsumeOk)
       }
     } else if (eventType === 'payment.failed') {
       const payment = event.payload.payment.entity;

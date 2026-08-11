@@ -36,14 +36,18 @@ export const checkoutApi = {
    */
   async createOrder(courseId: string, couponUseId?: string): Promise<{
     success: boolean;
-    orderId: string;
+    orderId?: string;
     amount: number;
-    currency: string;
-    key: string;
-    courseTitle: string;
+    currency?: string;
+    key?: string;
+    courseTitle?: string;
     mock?: boolean;
     message?: string;
     warning?: string;
+    /** When true, the total was ≤ ₹0 (upgrade credit / 100% coupon) — no Razorpay
+     *  order was created; call claimFreeCourse instead. */
+    freeClaim?: boolean;
+    pricing?: { mode: 'list' | 'coupon' | 'upgrade'; basePrice: number; creditPaise: number; finalPrice: number };
   }> {
     const { data, error } = await supabase.functions.invoke('checkout-create-order', {
       body: { courseId, couponUseId },
@@ -51,6 +55,51 @@ export const checkoutApi = {
 
     if (error) {throw new Error(await extractEdgeFnError(error, 'Failed to create order'));}
     if (!data?.success) {throw new Error(data?.error || 'Failed to create order');}
+    return data;
+  },
+
+  /**
+   * Read-only upgrade quote for a bundle (calls the pure-read `get_upgrade_quote`
+   * RPC, self-scoped). Returns the credit already paid and the discounted price.
+   */
+  async getUpgradeQuote(courseId: string): Promise<{
+    basePrice: number | null;
+    creditPaise: number;
+    finalPrice: number | null;
+    reason: string;
+    sourcePaymentIds: string[];
+  }> {
+    const { data, error } = await supabase.rpc('get_upgrade_quote', { p_course_id: courseId });
+    if (error) { throw error; }
+    const q = (data ?? {}) as {
+      base_price?: number | null; credit_paise?: number; final_price?: number | null;
+      reason?: string; source_payment_ids?: string[];
+    };
+    return {
+      basePrice: q.base_price ?? null,
+      creditPaise: q.credit_paise ?? 0,
+      finalPrice: q.final_price ?? null,
+      reason: q.reason ?? 'NOT_ELIGIBLE',
+      sourcePaymentIds: q.source_payment_ids ?? [],
+    };
+  },
+
+  /**
+   * Claim a course with no payment: genuinely free, upgrade credit covers the
+   * full price, or a 100% coupon. Mirrors `claimFreeAsset`.
+   */
+  async claimFreeCourse(courseId: string, couponUseId?: string): Promise<{
+    success: boolean;
+    claimed: boolean;
+    enrollmentId?: string;
+    alreadyEnrolled?: boolean;
+    bundleWarning?: string;
+  }> {
+    const { data, error } = await supabase.functions.invoke('course-claim-free', {
+      body: { courseId, couponUseId },
+    });
+    if (error) { throw new Error(await extractEdgeFnError(error, 'Failed to claim course')); }
+    if (!data?.success) { throw new Error(data?.error || 'Failed to claim course'); }
     return data;
   },
 
