@@ -659,6 +659,31 @@ export const adminApi = {
     return { success: true, message: 'Bundle courses updated' };
   },
 
+  async getBundleAssets(bundleId: string): Promise<{ success: boolean; assetIds: string[] }> {
+    const { data, error } = await supabase
+      .from('bundle_assets')
+      .select('asset_id')
+      .eq('bundle_id', bundleId)
+      .order('order_index', { ascending: true });
+
+    if (error) {throw new Error(error.message);}
+    return { success: true, assetIds: (data || []).map(r => r.asset_id) };
+  },
+
+  async setBundleAssets(bundleId: string, assetIds: string[]): Promise<{ success: boolean; message: string }> {
+    // Atomic RPC (mirrors setBundleCourses) — admin-gated in the DB (migration 043).
+    const { error: rpcError } = await customRpc('set_bundle_assets', {
+      p_bundle_id: bundleId,
+      p_asset_ids: assetIds,
+    });
+
+    if (rpcError) {
+      throw new Error(rpcError.message || 'Failed to update bundle assets');
+    }
+
+    return { success: true, message: 'Bundle assets updated' };
+  },
+
   // ============================================
   // CERTIFICATE MANAGEMENT
   // ============================================

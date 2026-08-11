@@ -387,6 +387,32 @@ export const CourseDetails: React.FC = () => {
                             </div>
                         ) : null;
                     })()}
+
+                    {course.bundledAssets && course.bundledAssets.length > 0 && (
+                        <div className="pt-2">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold t-text">Included Digital Assets</h3>
+                                <span className="t-text-2 text-sm">{course.bundledAssets.length} {course.bundledAssets.length === 1 ? 'Asset' : 'Assets'}</span>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                {course.bundledAssets.map((asset) => (
+                                    <div key={asset.id} className="flex gap-3 p-3 border t-border rounded-xl t-bg items-center">
+                                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
+                                            <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold uppercase tracking-wide t-status-info px-1.5 py-0.5 rounded">{asset.fileType}</span>
+                                                <span className="text-[10px] uppercase t-text-3">{asset.license}</span>
+                                            </div>
+                                            <h4 className="font-semibold t-text truncate">{asset.title}</h4>
+                                            {asset.price > 0 && <span className="text-xs t-text-2 line-through">{formatPrice(asset.price)}</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -4,19 +4,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
-const { mockAdminApi, mockShowToast, mockNavigate } = vi.hoisted(() => ({
+const { mockAdminApi, mockDigitalAssetsApi, mockShowToast, mockNavigate } = vi.hoisted(() => ({
   mockAdminApi: {
     getCourses: vi.fn(),
     createCourse: vi.fn(),
     updateCourse: vi.fn(),
     getBundleCourses: vi.fn(),
     setBundleCourses: vi.fn(),
+    getBundleAssets: vi.fn(),
+    setBundleAssets: vi.fn(),
+  },
+  mockDigitalAssetsApi: {
+    getAdminAssets: vi.fn(),
   },
   mockShowToast: vi.fn(),
   mockNavigate: vi.fn(),
 }));
 
 vi.mock('../../../../services/api/admin.api', () => ({ adminApi: mockAdminApi }));
+vi.mock('../../../../services/api/digitalAssets.api', () => ({ digitalAssetsApi: mockDigitalAssetsApi }));
 
 vi.mock('../../../../pages/admin/AdminContext', () => ({
   useAdmin: () => ({
@@ -100,6 +106,9 @@ beforeEach(() => {
   mockAdminApi.updateCourse.mockResolvedValue({ success: true });
   mockAdminApi.getBundleCourses.mockResolvedValue({ courseIds: [] });
   mockAdminApi.setBundleCourses.mockResolvedValue({ success: true });
+  mockAdminApi.getBundleAssets.mockResolvedValue({ assetIds: [] });
+  mockAdminApi.setBundleAssets.mockResolvedValue({ success: true });
+  mockDigitalAssetsApi.getAdminAssets.mockResolvedValue([]);
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

@@ -3,14 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { adminApi } from '../../services/api/admin.api';
+import { digitalAssetsApi } from '../../services/api/digitalAssets.api';
 import { translateAdminError } from '../../utils/adminErrors';
 
 import { useAdmin } from './AdminContext';
+import { BundleAssetPicker } from './components/BundleAssetPicker';
 import { BundleCoursePicker } from './components/BundleCoursePicker';
 import { CourseForm } from './components/CourseForm';
 import { ModuleManager } from './components/ModuleManager';
 
-import type { CourseType, CourseLanguage } from '../../types';
+import type { CourseType, CourseLanguage, AdminDigitalAsset } from '../../types';
 
 export const CourseEditorPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -35,6 +37,13 @@ export const CourseEditorPage: React.FC = () => {
   });
 
   const [bundledCourseIds, setBundledCourseIds] = useState<string[]>([]);
+  const [bundledAssetIds, setBundledAssetIds] = useState<string[]>([]);
+  const [assets, setAssets] = useState<AdminDigitalAsset[]>([]);
+
+  // Load the digital-asset catalog once (for the bundle asset picker).
+  useEffect(() => {
+    digitalAssetsApi.getAdminAssets().then(setAssets).catch(() => setAssets([]));
+  }, []);
 
   // Load existing course data
   useEffect(() => {
@@ -68,10 +77,15 @@ export const CourseEditorPage: React.FC = () => {
 
         if (course.type === 'BUNDLE') {
           try {
-            const res = await adminApi.getBundleCourses(course.id);
-            setBundledCourseIds(res.courseIds);
+            const [courseRes, assetRes] = await Promise.all([
+              adminApi.getBundleCourses(course.id),
+              adminApi.getBundleAssets(course.id),
+            ]);
+            setBundledCourseIds(courseRes.courseIds);
+            setBundledAssetIds(assetRes.assetIds);
           } catch {
             setBundledCourseIds([]);
+            setBundledAssetIds([]);
           }
         }
       } catch (err: any) {
@@ -136,12 +150,14 @@ export const CourseEditorPage: React.FC = () => {
         await adminApi.updateCourse(courseId, courseData);
         if (formData.type === 'BUNDLE') {
           await adminApi.setBundleCourses(courseId, bundledCourseIds);
+          await adminApi.setBundleAssets(courseId, bundledAssetIds);
         }
         showToast('Course updated!', 'success');
       } else {
         const res = await adminApi.createCourse(courseData);
         if (formData.type === 'BUNDLE' && res.course?.id) {
           await adminApi.setBundleCourses(res.course.id, bundledCourseIds);
+          await adminApi.setBundleAssets(res.course.id, bundledAssetIds);
         }
         showToast('Course created!', 'success');
         // Navigate to edit page for the new course (to manage modules)
@@ -186,6 +202,9 @@ export const CourseEditorPage: React.FC = () => {
           bundledCourseIds={bundledCourseIds}
           onBundledCourseIdsChange={setBundledCourseIds}
           courses={courses}
+          bundledAssetIds={bundledAssetIds}
+          onBundledAssetIdsChange={setBundledAssetIds}
+          assets={assets}
         />
 
         <div className="flex gap-3 mt-8 pt-6 border-t t-border">
@@ -215,25 +234,38 @@ export const CourseEditorPage: React.FC = () => {
       {/* Inline Bundle Course Manager (for BUNDLE type courses being edited) */}
       {isEditing && courseId && courseType === 'BUNDLE' && (
         <div className="t-card t-border border rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-bold t-text mb-4">Bundle Courses</h3>
-          <BundleCoursePicker
-            courses={courses}
-            selectedIds={bundledCourseIds}
-            onChange={setBundledCourseIds}
-          />
+          <h3 className="text-lg font-bold t-text mb-4">Bundle Contents</h3>
+          <div className="space-y-4">
+            <BundleCoursePicker
+              courses={courses}
+              selectedIds={bundledCourseIds}
+              onChange={setBundledCourseIds}
+            />
+            <BundleAssetPicker
+              assets={assets}
+              selectedIds={bundledAssetIds}
+              onChange={setBundledAssetIds}
+            />
+          </div>
           <button
             onClick={async () => {
+              // Same guard as handleSave — a BUNDLE must keep ≥1 member course.
+              if (bundledCourseIds.length === 0) {
+                showToast('Please select at least one course for this bundle', 'error');
+                return;
+              }
               try {
                 await adminApi.setBundleCourses(courseId, bundledCourseIds);
-                showToast('Bundle courses saved!', 'success');
+                await adminApi.setBundleAssets(courseId, bundledAssetIds);
+                showToast('Bundle contents saved!', 'success');
                 refreshCourses();
               } catch (err: any) {
-                showToast(err.message || 'Failed to save bundle courses', 'error');
+                showToast(err.message || 'Failed to save bundle contents', 'error');
               }
             }}
             className="mt-4 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg font-medium text-sm"
           >
-            Save Bundle Courses
+            Save Bundle Contents
           </button>
         </div>
       )}

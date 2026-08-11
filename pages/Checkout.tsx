@@ -350,8 +350,12 @@ export const Checkout: React.FC = () => {
         // Redirect to success page after brief delay
         setTimeout(() => {
           const params = new URLSearchParams({ courseId: course.id, orderId });
-          if (verifyResponse.bundleWarning && verifyResponse.failedCourseIds?.length) {
-            params.set('bundleWarning', `${verifyResponse.bundleWarning}. Failed course IDs: ${verifyResponse.failedCourseIds.join(', ')}`);
+          if (verifyResponse.bundleWarning && (verifyResponse.failedCourseIds?.length || verifyResponse.failedAssetIds?.length)) {
+            const failedIds = [
+              ...(verifyResponse.failedCourseIds ?? []),
+              ...(verifyResponse.failedAssetIds ?? []),
+            ];
+            params.set('bundleWarning', `${verifyResponse.bundleWarning}. Failed IDs: ${failedIds.join(', ')}`);
           }
           navigate(`/success?${params.toString()}`);
         }, 1500);

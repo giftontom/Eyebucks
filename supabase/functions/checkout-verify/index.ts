@@ -294,9 +294,11 @@ serve(async (req) => {
       return errorResponse('Failed to create enrollment', corsHeaders, 500);
     }
 
-    // If this is a BUNDLE, also enroll in all bundled courses
+    // If this is a BUNDLE, also enroll in all bundled courses AND grant any
+    // bundled digital assets.
     let bundleWarning: string | undefined;
     const failedCourseIds: string[] = [];
+    const failedAssetIds: string[] = [];
     if (course.type === 'BUNDLE') {
       const { data: bundledCourses } = await supabaseAdmin
         .from('bundle_courses')
@@ -326,10 +328,53 @@ serve(async (req) => {
             failedCourseIds.push(bc.course_id);
           }
         }
+      }
 
-        if (failedCourseIds.length > 0) {
-          bundleWarning = `${failedCourseIds.length} bundle course(s) could not be enrolled`;
+      // Grant bundled digital assets (amount 0 — revenue is on the parent
+      // payment row; idempotent upsert on user_id+asset_id). Only grant assets
+      // that are still PUBLISHED and not soft-deleted, so entitlement matches
+      // what the storefront advertises (courses.api getCourse hydration).
+      const { data: bundledAssets } = await supabaseAdmin
+        .from('bundle_assets')
+        .select('asset_id')
+        .eq('bundle_id', courseId);
+
+      if (bundledAssets && bundledAssets.length > 0) {
+        const { data: grantableAssets } = await supabaseAdmin
+          .from('digital_assets')
+          .select('id')
+          .in('id', bundledAssets.map(r => r.asset_id))
+          .eq('status', 'PUBLISHED')
+          .is('deleted_at', null);
+
+        for (const ga of grantableAssets || []) {
+          const { error: assetGrantError } = await supabaseAdmin
+            .from('asset_purchases')
+            .upsert(
+              {
+                user_id: user.id,
+                asset_id: ga.id,
+                status: 'ACTIVE',
+                payment_id: paymentId,
+                order_id: orderId,
+                amount: 0,
+                purchased_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id,asset_id', ignoreDuplicates: true }
+            );
+
+          if (assetGrantError) {
+            console.error(`[Checkout] Bundle asset grant failed for ${ga.id}:`, assetGrantError);
+            failedAssetIds.push(ga.id);
+          }
         }
+      }
+
+      if (failedCourseIds.length > 0 || failedAssetIds.length > 0) {
+        const parts: string[] = [];
+        if (failedCourseIds.length > 0) { parts.push(`${failedCourseIds.length} bundle course(s) could not be enrolled`); }
+        if (failedAssetIds.length > 0) { parts.push(`${failedAssetIds.length} bundle asset(s) could not be granted`); }
+        bundleWarning = parts.join('; ');
       }
     }
 
@@ -408,7 +453,7 @@ serve(async (req) => {
       success: true,
       verified: true,
       enrollmentId: enrollment.id,
-      ...(bundleWarning && { bundleWarning, failedCourseIds }),
+      ...(bundleWarning && { bundleWarning, failedCourseIds, failedAssetIds }),
     }, corsHeaders);
   } catch (error) {
     console.error('[Checkout Verify] Error:', error);

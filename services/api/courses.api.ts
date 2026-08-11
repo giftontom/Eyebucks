@@ -395,6 +395,45 @@ export const coursesApi = {
             });
         }
       }
+
+      // Also hydrate any bundled digital assets (published only; RLS hides drafts).
+      const { data: assetLinks, error: assetLinksError } = await supabase
+        .from('bundle_assets')
+        .select('asset_id')
+        .eq('bundle_id', data.id)
+        .order('order_index', { ascending: true });
+
+      if (assetLinksError) {
+        logger.error('[getCourse] bundle_assets query failed:', assetLinksError);
+      } else if (assetLinks && assetLinks.length > 0) {
+        const assetIds = assetLinks.map(r => r.asset_id);
+        const { data: assetData, error: assetError } = await supabase
+          .from('digital_assets')
+          .select('id, slug, title, thumbnail, file_type, license, price, status, deleted_at')
+          .in('id', assetIds)
+          .eq('status', 'PUBLISHED')
+          .is('deleted_at', null);
+
+        if (assetError) {
+          logger.error('[getCourse] bundled asset details query failed:', assetError);
+        } else if (assetData) {
+          const assetMap = new Map(assetData.map(a => [a.id, a]));
+          course.bundledAssets = assetIds
+            .filter(id => assetMap.has(id))
+            .map(id => {
+              const a = assetMap.get(id)!;
+              return {
+                id: a.id,
+                slug: a.slug,
+                title: a.title,
+                thumbnail: a.thumbnail || '',
+                fileType: a.file_type,
+                license: a.license,
+                price: a.price || 0,
+              };
+            });
+        }
+      }
     }
 
     return { success: true, course };

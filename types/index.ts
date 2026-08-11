@@ -101,6 +101,16 @@ export interface Course {
     /** Total number of lessons across all chapters in the bundled course. */
     lessonCount: number;
   }>;
+  /** Downloadable digital assets included in this BUNDLE (published only). */
+  bundledAssets?: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    thumbnail: string;
+    fileType: AssetFileType;
+    license: AssetLicense;
+    price: number;
+  }>;
 }
 
 export interface CourseWithModules extends Course {

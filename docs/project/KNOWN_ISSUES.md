@@ -94,6 +94,20 @@ Last updated: 2026-08-04
 
 ---
 
+### 6d. ~~checkout-webhook never fanned out bundle purchases~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | High (paid-not-delivered) |
+| **Status** | **Resolved — August 2026 (workstream D)** |
+| **Files** | `supabase/functions/checkout-webhook/index.ts` |
+
+**Root cause:** `checkout-verify` fans out a BUNDLE purchase into per-member enrollments, but the async `checkout-webhook` safety net created only the single parent enrollment. A bundle buyer whose browser closed before `checkout-verify` fired received the bundle record but **none of the member courses** (and, once assets-in-bundles shipped, none of the member assets).
+
+**Resolution:** The webhook now performs the same bundle fan-out as `checkout-verify` — member courses into `enrollments` and PUBLISHED member assets into `asset_purchases`, idempotently (`ignoreDuplicates`), running regardless of whether the parent enrollment was newly created so a retry recovers any members a prior partial run missed.
+
+---
+
 ### 6c. ~~Unprotected SECURITY DEFINER RPCs — coupon abuse + bundle/order tampering~~ — RESOLVED
 
 | | |

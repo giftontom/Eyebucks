@@ -3,9 +3,9 @@
 ## Naming
 `{NNN}_{snake_case_description}.sql` where NNN is zero-padded 3 digits.
 
-**Next migration number: 043**
+**Next migration number: 044**
 
-Migrations 001–042 exist as files (numbering has gaps: 030/031 were applied to the remote DB from another branch and are not present as files here). 042 is the security-hardening hotfix (RPC lockdowns + coupon policy drop). Review the most recent ones before adding to understand current patterns.
+Migrations 001–043 exist as files (numbering has gaps: 030/031 were applied to the remote DB from another branch and are not present as files here). 042 = security-hardening hotfix (RPC lockdowns + coupon policy drop); 043 = bundle_assets (digital assets in bundles). Review the most recent ones before adding to understand current patterns.
 
 ## Rules
 - Migrations are **permanent** — never edit an existing migration file

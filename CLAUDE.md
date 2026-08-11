@@ -121,7 +121,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 ## Database Schema
 
-### 18 Tables
+### 19 Tables
 
 | Table | Purpose |
 |-------|---------|
@@ -136,6 +136,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `notifications` | User notification inbox; `type` ENUM, `link`, `read` boolean |
 | `site_content` | CMS blocks; `section` CHECK: 18 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, social_proof, featured_copy, how_it_works, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing |
 | `bundle_courses` | Junction: BUNDLE-type courses → individual courses; `order_index` |
+| `bundle_assets` | Junction: BUNDLE-type courses → digital assets; `order_index` (migration 043) |
 | `coupon_uses` | Atomic coupon redemption records; `discount_pct` captured at use time; `course_id` nullable (XOR with `asset_id`) |
 | `coupons` | Discount codes; `discount_pct`, `max_uses`, `use_count`, `expires_at`, `is_active` |
 | `wishlists` | User favorites; UNIQUE constraint on `(user_id, course_id)` |
@@ -155,7 +156,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 - `asset_file_type`: `LUT` | `PRESET` | `SFX` | `MUSIC` | `OVERLAY` | `PROJECT` | `PDF` | `TEMPLATE` | `OTHER`
 - `asset_license`: `PERSONAL` | `COMMERCIAL` | `EXTENDED`
 
-### 16 RPC Functions
+### 17 RPC Functions
 | RPC | Purpose |
 |-----|---------|
 | `apply_coupon(code, course_id, user_id)` | Atomic coupon validation + redemption → coupon_use_id, discount_pct |
@@ -194,7 +195,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 043** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 044** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -543,7 +544,7 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-042** (file gaps at 030/031, applied from another branch); next = 043. 042 = security hardening (RPC lockdowns + coupon enumeration policy drop)
+- `supabase/migrations/` — **SQL migrations 001-043** (file gaps at 030/031, applied from another branch); next = 044. 042 = security hardening (RPC lockdowns + coupon enumeration policy drop); 043 = bundle_assets (digital assets in bundles)
 - `supabase/functions/` — **15 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)

@@ -92,6 +92,7 @@ export const checkoutApi = {
     message?: string;
     bundleWarning?: string;
     failedCourseIds?: string[];
+    failedAssetIds?: string[];
   }> {
     const { data, error } = await supabase.functions.invoke('checkout-verify', {
       body: params,

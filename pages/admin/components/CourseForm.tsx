@@ -3,9 +3,10 @@ import React, { useRef } from 'react';
 import { Input } from '../../../components';
 import { Thumbnail } from '../../../components/Thumbnail';
 
+import { BundleAssetPicker } from './BundleAssetPicker';
 import { BundleCoursePicker } from './BundleCoursePicker';
 
-import type { AdminCourse, CourseFormData, CourseType, CourseLanguage } from '../../../types';
+import type { AdminCourse, AdminDigitalAsset, CourseFormData, CourseType, CourseLanguage } from '../../../types';
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -33,6 +34,9 @@ interface CourseFormProps {
   bundledCourseIds: string[];
   onBundledCourseIdsChange: (ids: string[]) => void;
   courses: AdminCourse[]; // For bundle picker
+  bundledAssetIds: string[];
+  onBundledAssetIdsChange: (ids: string[]) => void;
+  assets: AdminDigitalAsset[]; // For bundle asset picker
 }
 
 export const CourseForm: React.FC<CourseFormProps> = ({
@@ -41,6 +45,9 @@ export const CourseForm: React.FC<CourseFormProps> = ({
   bundledCourseIds,
   onBundledCourseIdsChange,
   courses,
+  bundledAssetIds,
+  onBundledAssetIdsChange,
+  assets,
 }) => {
   const update = (partial: Partial<CourseFormData>) => onChange({ ...formData, ...partial });
   const autoSlugRef = useRef<string>('');
@@ -131,7 +138,10 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           onChange={(e) => {
             const newType = e.target.value as CourseType;
             update({ type: newType });
-            if (newType !== 'BUNDLE') {onBundledCourseIdsChange([]);}
+            if (newType !== 'BUNDLE') {
+              onBundledCourseIdsChange([]);
+              onBundledAssetIdsChange([]);
+            }
           }}
           className="w-full t-input-bg t-border border rounded-lg px-3.5 py-2.5 text-sm t-text outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition duration-150"
         >
@@ -155,11 +165,18 @@ export const CourseForm: React.FC<CourseFormProps> = ({
       </div>
 
       {formData.type === 'BUNDLE' && (
-        <BundleCoursePicker
-          courses={courses}
-          selectedIds={bundledCourseIds}
-          onChange={onBundledCourseIdsChange}
-        />
+        <>
+          <BundleCoursePicker
+            courses={courses}
+            selectedIds={bundledCourseIds}
+            onChange={onBundledCourseIdsChange}
+          />
+          <BundleAssetPicker
+            assets={assets}
+            selectedIds={bundledAssetIds}
+            onChange={onBundledAssetIdsChange}
+          />
+        </>
       )}
 
       <div>

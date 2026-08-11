@@ -118,6 +118,42 @@ export type Database = {
           },
         ]
       }
+      bundle_assets: {
+        Row: {
+          asset_id: string
+          bundle_id: string
+          created_at: string
+          order_index: number
+        }
+        Insert: {
+          asset_id: string
+          bundle_id: string
+          created_at?: string
+          order_index?: number
+        }
+        Update: {
+          asset_id?: string
+          bundle_id?: string
+          created_at?: string
+          order_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_assets_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "digital_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundle_courses: {
         Row: {
           bundle_id: string
@@ -1061,6 +1097,10 @@ export type Database = {
           p_timestamp?: number
           p_user_id: string
         }
+        Returns: undefined
+      }
+      set_bundle_assets: {
+        Args: { p_bundle_id: string; p_asset_ids: string[] }
         Returns: undefined
       }
       set_bundle_courses: {

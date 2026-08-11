@@ -149,6 +149,57 @@ serve(async (req) => {
       console.error('[Refund] Certificate revocation error (non-fatal):', certError);
     }
 
+    // Revoke ALL access granted under this payment's Razorpay order. This covers
+    // bundle member enrollments and bundled/direct asset purchases, which the
+    // enrollment_id-only revoke above (a single row) misses. Members were granted
+    // with order_id = this order, so revoke by order_id + user.
+    if (payment.razorpay_order_id) {
+      const { data: revokedEnrollments, error: enrRevokeError } = await supabaseAdmin
+        .from('enrollments')
+        .update({ status: 'REVOKED' })
+        .eq('order_id', payment.razorpay_order_id)
+        .eq('user_id', payment.user_id)
+        .select('course_id');
+      if (enrRevokeError) {
+        console.error('[Refund] Order enrollment revocation error (non-fatal):', enrRevokeError);
+      }
+
+      // KNOWN LIMITATION: asset_purchases is UNIQUE(user_id, asset_id) — a single
+      // row per asset carrying the FIRST purchase's order_id. If a user owns an
+      // asset both directly (order A) AND via a later bundle (order B, ignored on
+      // upsert), refunding order A revokes the only row even though the bundle
+      // entitlement B survives. Narrow (same asset bought twice) + pre-launch;
+      // proper fix is a per-order grant ledger. Admin can re-grant manually.
+      const { error: assetRevokeError } = await supabaseAdmin
+        .from('asset_purchases')
+        .update({ status: 'REVOKED' })
+        .eq('order_id', payment.razorpay_order_id)
+        .eq('user_id', payment.user_id);
+      if (assetRevokeError) {
+        console.error('[Refund] Order asset revocation error (non-fatal):', assetRevokeError);
+      }
+
+      // Revoke active certificates for any bundle member course just revoked.
+      const memberCourseIds = (revokedEnrollments || [])
+        .map(e => e.course_id)
+        .filter((id): id is string => !!id && id !== payment.course_id);
+      if (memberCourseIds.length > 0) {
+        const { error: memberCertError } = await supabaseAdmin
+          .from('certificates')
+          .update({
+            status: 'REVOKED',
+            revoked_at: new Date().toISOString(),
+            revoked_reason: `Refund processed: ${reason}`,
+          })
+          .eq('user_id', payment.user_id)
+          .in('course_id', memberCourseIds)
+          .eq('status', 'ACTIVE');
+        if (memberCertError) {
+          console.error('[Refund] Member certificate revocation error (non-fatal):', memberCertError);
+        }
+      }
+    }
+
     // Notify user
     await supabaseAdmin.from('notifications').insert({
       user_id: payment.user_id,

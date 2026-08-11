@@ -190,6 +190,53 @@ serve(async (req) => {
         } else {
           console.log('[Webhook] Duplicate webhook — enrollment already exists for payment:', payment.id);
         }
+
+        // Bundle fan-out (courses + digital assets). checkout-verify does this on
+        // the browser path; the webhook is the async safety net, so it must too —
+        // otherwise a bundle buyer whose browser closed pre-verify gets NO member
+        // products. Runs regardless of newEnrollment so a retry recovers any
+        // members a prior partial run missed; idempotent; no-ops for non-bundles.
+        const { data: memberCourses } = await supabaseAdmin
+          .from('bundle_courses').select('course_id').eq('bundle_id', courseId);
+        for (const bc of memberCourses || []) {
+          const { error: e } = await supabaseAdmin.from('enrollments').upsert(
+            {
+              user_id: userId,
+              course_id: bc.course_id,
+              status: 'ACTIVE',
+              payment_id: payment.id,
+              order_id: payment.order_id,
+              amount: 0,
+              enrolled_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,course_id', ignoreDuplicates: true }
+          );
+          if (e) { console.error(`[Webhook] Bundle enrollment failed for course ${bc.course_id}:`, e); }
+        }
+
+        // Only grant PUBLISHED, non-deleted assets (matches checkout-verify + storefront).
+        const { data: memberAssets } = await supabaseAdmin
+          .from('bundle_assets').select('asset_id').eq('bundle_id', courseId);
+        const memberAssetIds = (memberAssets || []).map(r => r.asset_id);
+        const { data: grantableAssets } = memberAssetIds.length > 0
+          ? await supabaseAdmin.from('digital_assets').select('id')
+              .in('id', memberAssetIds).eq('status', 'PUBLISHED').is('deleted_at', null)
+          : { data: [] };
+        for (const ga of grantableAssets || []) {
+          const { error: e } = await supabaseAdmin.from('asset_purchases').upsert(
+            {
+              user_id: userId,
+              asset_id: ga.id,
+              status: 'ACTIVE',
+              payment_id: payment.id,
+              order_id: payment.order_id,
+              amount: 0,
+              purchased_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,asset_id', ignoreDuplicates: true }
+          );
+          if (e) { console.error(`[Webhook] Bundle asset grant failed for ${ga.id}:`, e); }
+        }
       }
     } else if (eventType === 'payment.failed') {
       const payment = event.payload.payment.entity;
