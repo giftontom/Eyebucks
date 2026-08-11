@@ -8,6 +8,7 @@ export { useRealtimeNotifications } from './useRealtimeNotifications';
 export { useScript } from './useScript';
 export { useVideoPlayer } from './useVideoPlayer';
 export { useVideoUrl } from './useVideoUrl';
+export { useHlsAttach } from './useHlsAttach';
 export { useWishlist } from './useWishlist';
 export { useScrollParallax } from './useScrollParallax';
 export { useSceneGrade } from './useSceneGrade';

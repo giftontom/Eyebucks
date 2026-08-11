@@ -18,8 +18,6 @@ import { CourseDetailsSidebar } from './course-details/CourseDetailsSidebar';
 
 import type { Course } from '../types';
 
-const FALLBACK_VIDEO = 'https://joy1.videvo.net/videvo_files/video/free/2019-11/large_watermarked/190301_1_25_11_preview.mp4';
-
 export const CourseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -60,7 +58,9 @@ export const CourseDetails: React.FC = () => {
       .catch(() => { /* silent — related courses are non-critical */ });
   }, [course]);
 
-  const { videoUrl: heroVideoSrc } = useVideoUrl(course?.heroVideoId, null, FALLBACK_VIDEO);
+  // Request the anonymous public-trailer signing path so the hero plays for
+  // logged-out storefront visitors (not just enrolled users/admins).
+  const { hlsUrl: heroVideoSrc } = useVideoUrl(course?.heroVideoId, null, '', 'trailer');
   const [isMuted, setIsMuted] = useState(true);
   const [openChapter, setOpenChapter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CURRICULUM' | 'COURSES' | 'REVIEWS'>('OVERVIEW');
@@ -190,7 +190,6 @@ export const CourseDetails: React.FC = () => {
       <CourseDetailsHero
         course={course}
         heroVideoSrc={heroVideoSrc}
-        fallbackVideo={FALLBACK_VIDEO}
         isMuted={isMuted}
         onToggleMute={() => setIsMuted(!isMuted)}
       />

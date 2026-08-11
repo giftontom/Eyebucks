@@ -47,7 +47,10 @@ interface UseVideoUrlResult {
 export const useVideoUrl = (
   videoId: string | null | undefined,
   lessonId: string | null | undefined,
-  fallbackUrl: string
+  fallbackUrl: string,
+  /** 'trailer' requests the anonymous public-trailer signing path (published
+   *  course hero videos), so it works for logged-out storefront visitors. */
+  purpose?: 'trailer'
 ): UseVideoUrlResult => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [hlsUrl, setHlsUrl] = useState<string | null>(null);
@@ -82,12 +85,21 @@ export const useVideoUrl = (
     try {
       const body: Record<string, string> = { videoId };
       if (lessonId) {body.lessonId = lessonId;}
+      if (purpose) {body.purpose = purpose;}
 
       let { data, error: fnError } = await supabase.functions.invoke('video-signed-url', {
         body,
       });
 
       if (!mountedRef.current) {return;}
+
+      // Trailer path is best-effort for anonymous visitors: any failure (not a
+      // published trailer, no session, etc.) silently falls back to the poster —
+      // no session-refresh dance and no user-facing "session expired" error.
+      if ((fnError || !data?.success) && purpose === 'trailer') {
+        if (mountedRef.current) { setIsLoading(false); }
+        return;
+      }
 
       if (fnError) {
         if (isEdgeFnAuthError(fnError)) {
@@ -177,6 +189,8 @@ export const useVideoUrl = (
       if (!mountedRef.current) {return;}
       logger.error('[Video] Failed to fetch signed URL, using direct URL:', err.message);
       setIsLoading(false);
+      // Trailer path: don't retry — just show the poster.
+      if (purpose === 'trailer') { return; }
       if (isRefresh && refreshRetryRef.current < 2) {
         refreshRetryRef.current++;
         if (refreshTimerRef.current) {clearTimeout(refreshTimerRef.current);}
@@ -185,7 +199,7 @@ export const useVideoUrl = (
         }, 30_000);
       }
     }
-  }, [videoId, lessonId, fallbackUrl]);
+  }, [videoId, lessonId, fallbackUrl, purpose]);
 
   const refreshUrl = useCallback(async () => {
     await fetchSignedUrl(false);

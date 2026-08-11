@@ -143,7 +143,9 @@ export const CourseEditorPage: React.FC = () => {
         type: formData.type,
         language: formData.language,
         features: formData.features.filter(f => f.trim()),
-        heroVideoId: formData.heroVideoId || undefined,
+        // null (not undefined) so clearing the trailer actually persists —
+        // updateCourse only writes fields that are !== undefined.
+        heroVideoId: formData.heroVideoId || null,
       };
 
       if (isEditing && courseId) {

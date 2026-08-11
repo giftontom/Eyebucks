@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 
 import { Input } from '../../../components';
 import { Thumbnail } from '../../../components/Thumbnail';
+import { VideoUploader } from '../../../components/VideoUploader';
 
 import { BundleAssetPicker } from './BundleAssetPicker';
 import { BundleCoursePicker } from './BundleCoursePicker';
@@ -122,14 +123,20 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           </div>
         )}
       </div>
-      <Input
-        label="Hero Video ID"
-        type="text"
-        value={formData.heroVideoId || ''}
-        onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
-        placeholder="Bunny Stream video GUID (optional)"
-        hint="Used as the hero/preview video on the course page"
-      />
+      <div className="space-y-2">
+        <Input
+          label="Hero / Trailer Video"
+          type="text"
+          value={formData.heroVideoId || ''}
+          onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
+          placeholder="Bunny Stream video GUID (optional)"
+          hint="Plays as the trailer on the course page. Paste a GUID, or upload below. Clear the field to remove."
+        />
+        <VideoUploader
+          onUploadComplete={(v) => update({ heroVideoId: v.publicId })}
+          onRemove={() => update({ heroVideoId: undefined })}
+        />
+      </div>
       <div>
         <label htmlFor="course-type" className="block text-xs font-semibold t-text-2 mb-1.5">Type *</label>
         <select

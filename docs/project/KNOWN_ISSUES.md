@@ -94,6 +94,20 @@ Last updated: 2026-08-04
 
 ---
 
+### 6e. ~~Course trailers never played for storefront visitors~~ — RESOLVED
+
+| | |
+|---|---|
+| **Severity** | Medium (feature never worked) |
+| **Status** | **Resolved — August 2026 (workstream E)** |
+| **Files** | `supabase/functions/video-signed-url/index.ts`, `hooks/useVideoUrl.ts`, `hooks/useHlsAttach.ts`, `pages/course-details/CourseDetailsHero.tsx` |
+
+**Root cause:** The course-page hero trailer never played for regular visitors: `video-signed-url` verified a JWT in-code, so anonymous users got 401 and logged-in non-admins got 400 (`lessonId` required); and `CourseDetailsHero` used a plain `<video src>`, so even a signed `.m3u8` only played in Safari. The external videvo fallback was additionally blocked by the storefront CSP.
+
+**Resolution:** Added an anonymous `purpose:'trailer'` branch to `video-signed-url` that signs **only** a PUBLISHED course's `hero_video_id`, with a defense-in-depth guard that **refuses any GUID that is also a non-free-preview lesson video** (so a mis-set hero can't leak paid content) and strict UUID validation. `useVideoUrl` gained a `purpose` param (best-effort → poster on failure); `useHlsAttach` lazily attaches hls.js so the trailer plays cross-browser without bloating the storefront bundle; `CourseDetailsHero` shows the poster when there's no trailer. Adversarially security-reviewed (3 lenses — no entitlement bypass, no lesson-path regression). Deploy `video-signed-url` with `--no-verify-jwt`.
+
+---
+
 ### 6d. ~~checkout-webhook never fanned out bundle purchases~~ — RESOLVED
 
 | | |

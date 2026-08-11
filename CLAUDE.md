@@ -323,7 +323,8 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `useRealtimeNotifications()` | `{notifications, unreadCount, isLoading, markAsRead, markAllAsRead, refresh}` | Supabase Realtime INSERT subscription on notifications table |
 | `useScript(src)` | `{loaded, error}` | Dynamic script tag injection (Razorpay checkout SDK); deduplication guard |
 | `useVideoPlayer(videoRef)` | `{isPlaying, currentTime, duration, volume, playbackRate, togglePlay, seek, ...}` | Video UI state abstraction over VideoPlayer ref |
-| `useVideoUrl(videoId, fallbackUrl)` | `{videoUrl, hlsUrl, isLoading, error, refreshUrl}` | Immediately serves CDN URL; upgrades to signed URL in background; auto-refresh 5min before expiry |
+| `useVideoUrl(videoId, lessonId, fallbackUrl, purpose?)` | `{videoUrl, hlsUrl, isLoading, error, refreshUrl}` | Fetches a signed URL from `video-signed-url`; auto-refresh 5min before expiry. `purpose:'trailer'` uses the anonymous public-trailer path (best-effort → poster on failure) |
+| `useHlsAttach(videoRef, hlsUrl)` | `void` | Attaches an HLS source to a plain `<video>` (Safari native; else lazy-imports hls.js); used for the CourseDetails trailer hero |
 | `useWishlist(courseId?)` | `{isSaved, toggle, wishlistIds, isLoading}` | Wishlist state; optimistic toggle; loads full list on mount |
 
 ---
@@ -368,7 +369,7 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `refund-process` | JWT + admin | Initiate Razorpay refund + update records |
 | `session-enforce` | JWT | Enforce session validity on login (3s timeout, lenient) |
 | `video-cleanup` | JWT + admin | Delete video from Bunny after course module removal |
-| `video-signed-url` | JWT | Generate SHA256 Bunny CDN signed URL (1hr expiry) |
+| `video-signed-url` | JWT (+ anon `purpose:'trailer'`) | Generate SHA256 Bunny CDN signed URL (1hr expiry); lesson path is JWT+entitlement-gated; anonymous `purpose:'trailer'` signs only a PUBLISHED course's `hero_video_id` (refuses any GUID that is also a paid lesson video) — deploy `--no-verify-jwt` |
 
 Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `certificates.ts`, `email.ts`, `emailTemplates.ts` (incl. `assetDeliveryEmail`), `hmac.ts`, `supabaseAdmin.ts`
 

@@ -1,23 +1,33 @@
 import { Star, Volume2, VolumeX } from 'lucide-react';
-import React from 'react';
+import React, { useRef } from 'react';
 
 import { Badge, WishlistButton } from '../../components';
+import { useHlsAttach } from '../../hooks/useHlsAttach';
 
 import type { Course } from '../../types';
 
 interface Props {
   course: Course;
+  /** Signed HLS trailer URL (published course hero video), or null when there
+   *  is no trailer — the poster image is shown instead. */
   heroVideoSrc: string | null;
-  fallbackVideo: string;
   isMuted: boolean;
   onToggleMute: () => void;
 }
 
-export const CourseDetailsHero: React.FC<Props> = ({ course, heroVideoSrc, fallbackVideo, isMuted, onToggleMute }) => (
+const HERO_POSTER_FALLBACK = 'https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920';
+
+export const CourseDetailsHero: React.FC<Props> = ({ course, heroVideoSrc, isMuted, onToggleMute }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // Lazily attach hls.js for the signed .m3u8 trailer (Chrome/Firefox);
+  // Safari plays it natively. No src → the poster shows.
+  useHlsAttach(videoRef, heroVideoSrc);
+
+  return (
   <div className="relative h-[40vh] md:h-[60vh] bg-black group">
     <video
-      src={heroVideoSrc || fallbackVideo}
-      poster={course.thumbnail || 'https://images.unsplash.com/photo-1478720568477-152d9b164e63?auto=format&fit=crop&q=80&w=1920'}
+      ref={videoRef}
+      poster={course.thumbnail || HERO_POSTER_FALLBACK}
       autoPlay
       loop
       muted={isMuted}
@@ -46,4 +56,5 @@ export const CourseDetailsHero: React.FC<Props> = ({ course, heroVideoSrc, fallb
       </div>
     </div>
   </div>
-);
+  );
+};

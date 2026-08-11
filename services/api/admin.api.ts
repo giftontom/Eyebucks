@@ -279,7 +279,7 @@ export const adminApi = {
     thumbnail?: string;
     type: string;
     features?: string[];
-    heroVideoId?: string;
+    heroVideoId?: string | null;
     language?: CourseLanguage;
     courseGroupId?: string | null;
   }): Promise<{ success: boolean; message: string; course: CourseRow }> {
@@ -308,7 +308,7 @@ export const adminApi = {
   async updateCourse(courseId: string, courseData: {
     title?: string; slug?: string; description?: string; price?: number;
     thumbnail?: string; type?: string; features?: string[];
-    heroVideoId?: string; status?: string;
+    heroVideoId?: string | null; status?: string;
     language?: CourseLanguage; courseGroupId?: string | null;
   }): Promise<{
     success: boolean;

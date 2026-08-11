@@ -57,6 +57,23 @@ async function generateSignedUrlAsync(
   return { signedUrl, hlsUrl: signedUrl, expiresAt: expires };
 }
 
+/** Resolve Bunny env config and return a signed-URL JSON response (or a 500). */
+async function signAndRespond(
+  videoId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const cdnHostname = Deno.env.get('BUNNY_STREAM_CDN_HOSTNAME');
+  const tokenKey = Deno.env.get('BUNNY_STREAM_TOKEN_KEY');
+  if (!cdnHostname) {
+    return errorResponse('Video streaming not configured', corsHeaders, 500);
+  }
+  if (!tokenKey) {
+    return errorResponse('Video streaming token not configured', corsHeaders, 500);
+  }
+  const result = await generateSignedUrlAsync(videoId, cdnHostname, tokenKey);
+  return jsonResponse({ success: true, ...result }, corsHeaders);
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -65,16 +82,71 @@ serve(async (req) => {
   }
 
   try {
+    const { videoId, lessonId, purpose } = await req.json();
+    // Strict UUID validation: Bunny Stream GUIDs are UUIDs. This rejects
+    // null/empty/array/object videoIds AND makes it injection-safe to
+    // interpolate videoId into the PostgREST .or() filter below.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof videoId !== 'string' || !UUID_RE.test(videoId)) {
+      return errorResponse('A valid videoId is required', corsHeaders, 400);
+    }
+
+    const supabaseAdmin = createAdminClient();
+
+    // ──────────────────────────────────────────────────────────────────────
+    // PUBLIC COURSE TRAILER path (anonymous-allowed).
+    // Signs ONLY a videoId that is the hero_video_id of a PUBLISHED, non-deleted
+    // course. Paid lesson videos live in lessons.video_id and are NEVER stored
+    // as a course's hero_video_id, so this path cannot be used to obtain a paid
+    // lesson's video — it can only ever sign a marketing trailer that is already
+    // meant to be public.
+    // ──────────────────────────────────────────────────────────────────────
+    if (purpose === 'trailer') {
+      const { data: publishedRows } = await supabaseAdmin
+        .from('courses')
+        .select('id')
+        .eq('hero_video_id', videoId)
+        .eq('status', 'PUBLISHED')
+        .is('deleted_at', null)
+        .limit(1);
+
+      if (publishedRows && publishedRows.length > 0) {
+        // Defense-in-depth: NEVER anonymously sign a GUID that is also a PAID
+        // (non-free-preview) lesson's video — even if an admin set it as a
+        // course hero ("used lesson 1 as the trailer" / copy-paste). This
+        // enforces the otherwise-unenforced invariant that a trailer is never
+        // paid content. videoId is a validated UUID, so the .or() is safe.
+        const { data: paidLesson } = await supabaseAdmin
+          .from('lessons')
+          .select('id')
+          .or(`video_id.eq.${videoId},video_url.ilike.%${videoId}%`)
+          .eq('is_free_preview', false)
+          .limit(1);
+
+        if (!paidLesson || paidLesson.length === 0) {
+          return await signAndRespond(videoId, corsHeaders);
+        }
+        // Collision with a paid lesson — fall through to the authed/admin path
+        // (enrolled users still reach it via the normal lesson path).
+      }
+
+      // Not an anonymously-signable trailer — allow an ADMIN to preview (e.g. a
+      // DRAFT course's trailer, or the paid-collision case above); reject others.
+      const trailerAuth = await verifyAuth(req, corsHeaders);
+      if ('errorResponse' in trailerAuth) { return trailerAuth.errorResponse; }
+      if (!(await verifyAdmin(trailerAuth.user.id, supabaseAdmin))) {
+        return errorResponse('Trailer not available', corsHeaders, 403);
+      }
+      return await signAndRespond(videoId, corsHeaders);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // AUTHENTICATED LESSON path (unchanged entitlement logic).
+    // ──────────────────────────────────────────────────────────────────────
     const auth = await verifyAuth(req, corsHeaders);
     if ('errorResponse' in auth) {return auth.errorResponse;}
     const { user } = auth;
 
-    const { videoId, lessonId } = await req.json();
-    if (!videoId) {
-      return errorResponse('videoId is required', corsHeaders, 400);
-    }
-
-    const supabaseAdmin = createAdminClient();
     const isAdmin = await verifyAdmin(user.id, supabaseAdmin);
 
     // Non-admin users must provide lessonId for enrollment verification
@@ -130,18 +202,7 @@ serve(async (req) => {
       }
     }
 
-    const cdnHostname = Deno.env.get('BUNNY_STREAM_CDN_HOSTNAME');
-    const tokenKey = Deno.env.get('BUNNY_STREAM_TOKEN_KEY');
-
-    if (!cdnHostname) {
-      return errorResponse('Video streaming not configured', corsHeaders, 500);
-    }
-    if (!tokenKey) {
-      return errorResponse('Video streaming token not configured', corsHeaders, 500);
-    }
-
-    const result = await generateSignedUrlAsync(videoId, cdnHostname, tokenKey);
-    return jsonResponse({ success: true, ...result }, corsHeaders);
+    return await signAndRespond(videoId, corsHeaders);
   } catch (error) {
     console.error('[Video] Error:', error);
     return errorResponse('Internal server error', getCorsHeaders(req), 500);
