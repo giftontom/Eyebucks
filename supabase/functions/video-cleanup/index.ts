@@ -12,10 +12,16 @@ import { createAdminClient } from '../_shared/supabaseAdmin.ts';
 
 const BUNNY_API_BASE = 'https://video.bunnycdn.com';
 
+// Never sweep a video younger than this: an admin may have just uploaded it and
+// not yet saved the lesson (or it may still be mid-upload / transcoding), so it
+// is legitimately unreferenced for a short window.
+const MIN_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000; // 24h
+
 interface BunnyVideo {
   guid: string;
   title: string;
   dateUploaded: string;
+  status: number;
 }
 
 serve(async (req) => {
@@ -104,6 +110,7 @@ serve(async (req) => {
           guid: item.guid,
           title: item.title || 'Untitled',
           dateUploaded: item.dateUploaded || '',
+          status: item.status ?? -1,
         });
       }
 
@@ -141,8 +148,14 @@ serve(async (req) => {
       if (row.hero_video_id) {referencedIds.add(row.hero_video_id);}
     }
 
-    // Diff: orphans = Bunny videos not in DB
-    const orphanedVideos = allBunnyVideos.filter(v => !referencedIds.has(v.guid));
+    // Diff: orphans = Bunny videos not referenced in DB AND older than the
+    // safety window (protects just-uploaded / in-flight / unsaved videos).
+    const now = Date.now();
+    const orphanedVideos = allBunnyVideos.filter(v => {
+      if (referencedIds.has(v.guid)) { return false; }
+      if (!v.dateUploaded) { return false; } // no timestamp → don't risk deleting
+      return (now - new Date(v.dateUploaded).getTime()) > MIN_ORPHAN_AGE_MS;
+    });
 
     let deletedCount = 0;
     let failedCount = 0;
@@ -182,6 +195,7 @@ serve(async (req) => {
         guid: v.guid,
         title: v.title,
         dateUploaded: v.dateUploaded,
+        status: v.status,
       })),
       ...(dryRun ? {} : { deletedCount, failedCount }),
     }, corsHeaders);

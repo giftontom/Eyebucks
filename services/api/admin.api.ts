@@ -1008,7 +1008,7 @@ export const adminApi = {
     totalBunnyVideos: number;
     referencedInDb: number;
     orphanedCount: number;
-    orphanedVideos: Array<{ guid: string; title: string; dateUploaded: string }>;
+    orphanedVideos: Array<{ guid: string; title: string; dateUploaded: string; status?: number }>;
     deletedCount?: number;
     failedCount?: number;
   }> {

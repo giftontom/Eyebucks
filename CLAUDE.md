@@ -280,7 +280,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | Component | Notes |
 |-----------|-------|
 | `VideoPlayer` | `videoId`, `moduleId`, `fallbackUrl`; exposes ref handle (play/pause/seek/quality/PiP); HLS.js + Bunny CDN; retry on error (3 attempts) |
-| `VideoUploader` | Drag-drop TUS upload to Bunny; max 500MB; calls `admin-video-upload` Edge Function for credentials |
+| `VideoUploader` | Drag-drop chunked/resumable TUS upload to Bunny; max 2GB; calls `admin-video-upload` Edge Function for credentials; exposes `VideoUploaderHandle` (`cancelUpload`) + `onUploadingChange` |
 | `ImageUpload` | Drag-drop CMS image uploader; calls `admin-image-upload` Edge Function; returns Bunny Storage Pull-Zone CDN URL |
 | `StarRating` | Controlled/uncontrolled star input |
 | `ReviewForm` | Create/edit review (rating + comment) |

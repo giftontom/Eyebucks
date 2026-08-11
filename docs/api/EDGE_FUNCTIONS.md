@@ -791,7 +791,7 @@ This function implements phase 1 of a two-phase upload to avoid Supabase Edge Fu
 | `video.libraryId` | `string` | Bunny stream library ID |
 | `video.tusEndpoint` | `string` | Always `"https://video.bunnycdn.com/tusupload"` |
 | `video.authSignature` | `string` | SHA256 TUS auth signature (hex) |
-| `video.authExpire` | `number` | Signature expiry (Unix seconds, 2 hours) |
+| `video.authExpire` | `number` | Signature expiry (Unix seconds, 6 hours) |
 | `video.hlsUrl` | `string` | HLS playback URL (available after transcoding) |
 | `video.thumbnailUrl` | `string` | Thumbnail URL (available after transcoding) |
 

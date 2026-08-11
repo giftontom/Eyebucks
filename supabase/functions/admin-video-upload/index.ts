@@ -88,7 +88,7 @@ serve(async (req) => {
 
     // Generate TUS upload signature
     // Formula: SHA256(libraryId + apiKey + expirationTime + videoGuid) → lowercase hex
-    const authExpire = Math.floor(Date.now() / 1000) + 7200; // 2 hours
+    const authExpire = Math.floor(Date.now() / 1000) + 21600; // 6 hours — headroom for slow multi-GB uploads + resume-after-interruption
     const signaturePayload = `${libraryId}${apiKey}${authExpire}${videoGuid}`;
 
     const encoder = new TextEncoder();

@@ -1,16 +1,26 @@
 import { Upload, X, Film, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import React, { useState, useRef, useEffect, DragEvent } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, DragEvent } from 'react';
 import * as tus from 'tus-js-client';
 
 import { supabase } from '../services/supabase';
 import { isEdgeFnAuthError, extractEdgeFnError } from '../utils/edgeFunctionError';
 import { logger } from '../utils/logger';
 
+export interface VideoUploaderHandle {
+  /** Deliberately cancel an in-flight upload: terminates the TUS upload
+   *  server-side and deletes the orphaned Bunny video. */
+  cancelUpload: () => Promise<void>;
+}
+
 interface VideoUploaderProps {
   onUploadComplete: (videoData: {publicId: string; secureUrl: string; duration: number; thumbnail: string}) => void;
   onRemove?: () => void;
   initialVideoUrl?: string;
   disabled?: boolean;
+  /** Notified whenever an upload starts (true) or ends/succeeds/fails/cancels (false). */
+  onUploadingChange?: (uploading: boolean) => void;
+  /** React 19 ref-as-prop — exposes {@link VideoUploaderHandle}. */
+  ref?: React.Ref<VideoUploaderHandle>;
 }
 
 interface TusCredentials {
@@ -23,26 +33,64 @@ interface TusCredentials {
   thumbnailUrl: string;
 }
 
-export const VideoUploader: React.FC<VideoUploaderProps> = ({
+const MAX_FILE_SIZE_GB = 2;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_GB * 1024 * 1024 * 1024; // 2 GiB (server backstop is 5 GB)
+const MAX_FILE_SIZE_LABEL = `${MAX_FILE_SIZE_GB}GB`;
+const ALLOWED_FORMATS = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+
+// TUS upload credentials are bound to a specific Bunny video GUID (the auth
+// signature = SHA256(libraryId + apiKey + expire + guid)), so resuming an
+// interrupted upload requires the ORIGINAL creds — persist them keyed by file
+// identity so a reload/interruption can resume against the same GUID.
+const TUS_CREDS_PREFIX = 'eyebuckz:tus-creds:';
+const credsKeyFor = (f: File) => `${TUS_CREDS_PREFIX}${f.name}/${f.size}/${f.lastModified}`;
+
+// Human-readable ETA from seconds remaining.
+const formatEta = (s: number): string =>
+  s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`
+    : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s`
+      : `${s}s`;
+
+export const VideoUploader = ({
   onUploadComplete,
   onRemove,
   initialVideoUrl,
-  disabled = false
-}) => {
+  disabled = false,
+  onUploadingChange,
+  ref,
+}: VideoUploaderProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(initialVideoUrl || null);
   const [error, setError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tusUploadRef = useRef<tus.Upload | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  // Identity of the in-flight upload, for deliberate cancel / orphan cleanup.
+  const activeVideoIdRef = useRef<string | null>(null);
+  const activeCredsKeyRef = useRef<string | null>(null);
+  // Rolling window of {timestamp, bytes} samples for ETA estimation.
+  const rateSamplesRef = useRef<Array<{ t: number; bytes: number }>>([]);
+  const lastEtaUpdateRef = useRef(0);
 
-  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-  const ALLOWED_FORMATS = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+  // Notify parent (e.g. ModuleManager) so it can guard modal-close while uploading.
+  useEffect(() => { onUploadingChange?.(uploading); }, [uploading, onUploadingChange]);
 
-  // Cleanup object URL and abort TUS upload on unmount
+  // Warn on tab close / reload while an upload is in flight. If the admin
+  // proceeds anyway, the persisted creds + TUS fingerprint make it resumable.
+  useEffect(() => {
+    if (!uploading) { return; }
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [uploading]);
+
+  // Cleanup object URL and PAUSE (not terminate) the TUS upload on unmount.
+  // Pause-only preserves resume state after a hard navigation; deliberate
+  // cancels go through cancelUpload() which terminates + cleans up.
   useEffect(() => {
     return () => {
       if (tusUploadRef.current) {
@@ -55,6 +103,42 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       }
     };
   }, []);
+
+  const resetRate = () => {
+    rateSamplesRef.current = [];
+    lastEtaUpdateRef.current = 0;
+    setEtaSeconds(null);
+  };
+
+  const loadStoredCreds = (file: File): TusCredentials | null => {
+    try {
+      const raw = localStorage.getItem(credsKeyFor(file));
+      if (!raw) { return null; }
+      const creds = JSON.parse(raw) as TusCredentials;
+      // Expired (or about to expire) — the GUID is now unreachable; drop the
+      // stored creds and fire-and-forget delete the orphaned Bunny entry.
+      if (!creds.authExpire || creds.authExpire * 1000 < Date.now() + 60_000) {
+        localStorage.removeItem(credsKeyFor(file));
+        if (creds.videoId) {
+          supabase.functions.invoke('video-cleanup', { body: { deleteVideoId: creds.videoId } }).catch(() => {});
+        }
+        return null;
+      }
+      return creds;
+    } catch { return null; }
+  };
+
+  const storeCreds = (file: File, creds: TusCredentials) => {
+    try { localStorage.setItem(credsKeyFor(file), JSON.stringify(creds)); } catch { /* quota — non-fatal */ }
+  };
+
+  const clearActiveCreds = () => {
+    if (activeCredsKeyRef.current) {
+      try { localStorage.removeItem(activeCredsKeyRef.current); } catch { /* non-fatal */ }
+      activeCredsKeyRef.current = null;
+    }
+    activeVideoIdRef.current = null;
+  };
 
   const handleDrag = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -117,7 +201,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      setError('File size exceeds 500MB limit');
+      setError(`File size exceeds ${MAX_FILE_SIZE_LABEL} limit`);
       return;
     }
 
@@ -141,48 +225,65 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
   const uploadVideo = async (file: File) => {
     setUploading(true);
     setUploadProgress(0);
+    resetRate();
 
     try {
-      // Phase 1: Get TUS credentials from Edge Function
-      let { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
-        body: { title: file.name, fileSizeBytes: file.size, mimeType: file.type },
-      });
+      // Phase 1: reuse valid persisted creds (resume) or mint fresh ones.
+      let creds = loadStoredCreds(file);
 
-      if (fnError) {
-        // If JWT expired, refresh session and retry once
-        if (isEdgeFnAuthError(fnError)) {
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) {
-            throw new Error('Your session has expired. Please log in again.');
+      if (!creds) {
+        let { data, error: fnError } = await supabase.functions.invoke('admin-video-upload', {
+          body: { title: file.name, fileSizeBytes: file.size, mimeType: file.type },
+        });
+
+        if (fnError) {
+          // If JWT expired, refresh session and retry once
+          if (isEdgeFnAuthError(fnError)) {
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+              throw new Error('Your session has expired. Please log in again.');
+            }
+            const retry = await supabase.functions.invoke('admin-video-upload', {
+              body: { title: file.name, fileSizeBytes: file.size, mimeType: file.type },
+            });
+            data = retry.data;
+            if (retry.error) {
+              throw new Error(await extractEdgeFnError(retry.error, retry.error.message));
+            }
+          } else {
+            throw new Error(await extractEdgeFnError(fnError, fnError.message));
           }
-          const retry = await supabase.functions.invoke('admin-video-upload', {
-            body: { title: file.name, fileSizeBytes: file.size, mimeType: file.type },
-          });
-          data = retry.data;
-          if (retry.error) {
-            throw new Error(await extractEdgeFnError(retry.error, retry.error.message));
-          }
-        } else {
-          throw new Error(await extractEdgeFnError(fnError, fnError.message));
         }
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Upload failed');
+        }
+
+        creds = data.video as TusCredentials;
+        storeCreds(file, creds);
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Upload failed');
-      }
+      activeVideoIdRef.current = creds.videoId;
+      activeCredsKeyRef.current = credsKeyFor(file);
 
-      const creds: TusCredentials = data.video;
+      const activeCreds = creds;
 
-      // Phase 2: Upload file directly to Bunny via TUS protocol
+      // Phase 2: Upload file directly to Bunny via chunked, resumable TUS.
       await new Promise<void>((resolve, reject) => {
         const upload = new tus.Upload(file, {
-          endpoint: creds.tusEndpoint,
-          retryDelays: [0, 1000, 3000, 5000],
+          endpoint: activeCreds.tusEndpoint,
+          // 64 MiB chunks bound worst-case retransmission on a dropped
+          // connection to one chunk (Infinity — the old default — could lose
+          // the whole transfer). 32 PATCHes for a 2GB file.
+          chunkSize: 64 * 1024 * 1024,
+          retryDelays: [0, 1000, 3000, 5000, 10000, 20000],
+          storeFingerprintForResuming: true,
+          removeFingerprintOnSuccess: true,
           headers: {
-            AuthorizationSignature: creds.authSignature,
-            AuthorizationExpire: String(creds.authExpire),
-            VideoId: creds.videoId,
-            LibraryId: creds.libraryId,
+            AuthorizationSignature: activeCreds.authSignature,
+            AuthorizationExpire: String(activeCreds.authExpire),
+            VideoId: activeCreds.videoId,
+            LibraryId: activeCreds.libraryId,
           },
           metadata: {
             filetype: file.type,
@@ -193,8 +294,21 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
             reject(new Error(err.message || 'Video upload failed'));
           },
           onProgress(bytesUploaded, bytesTotal) {
-            const pct = Math.round((bytesUploaded / bytesTotal) * 100);
-            setUploadProgress(pct);
+            setUploadProgress(Math.round((bytesUploaded / bytesTotal) * 100));
+
+            // ETA from a 15s sliding window, throttled to ~1 Hz.
+            const now = Date.now();
+            const samples = rateSamplesRef.current;
+            samples.push({ t: now, bytes: bytesUploaded });
+            while (samples.length > 2 && now - samples[0].t > 15_000) { samples.shift(); }
+            if (now - lastEtaUpdateRef.current >= 1000 && samples.length >= 2) {
+              const dt = (now - samples[0].t) / 1000;
+              const dBytes = bytesUploaded - samples[0].bytes;
+              if (dt >= 3 && dBytes > 0) {
+                setEtaSeconds(Math.round((bytesTotal - bytesUploaded) / (dBytes / dt)));
+                lastEtaUpdateRef.current = now;
+              }
+            }
           },
           onSuccess() {
             resolve();
@@ -202,17 +316,28 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
         });
 
         tusUploadRef.current = upload;
-        upload.start();
+        // Resume a prior interrupted transfer of this same file if one exists.
+        upload.findPreviousUploads()
+          .then((previous) => {
+            if (previous.length > 0) { upload.resumeFromPreviousUpload(previous[0]); }
+            upload.start();
+          })
+          .catch(() => upload.start());
       });
 
       setUploadProgress(100);
+      setEtaSeconds(null);
       setUploadSuccess(true);
 
+      // Upload complete — the video is now (about to be) referenced by the
+      // lesson, so drop the persisted creds; a re-upload mints fresh ones.
+      clearActiveCreds();
+
       onUploadComplete({
-        publicId: creds.videoId,
-        secureUrl: creds.hlsUrl,
+        publicId: activeCreds.videoId,
+        secureUrl: activeCreds.hlsUrl,
         duration: fileDurationRef.current,
-        thumbnail: creds.thumbnailUrl,
+        thumbnail: activeCreds.thumbnailUrl,
       });
 
       setUploading(false);
@@ -222,16 +347,58 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
       setUploadSuccess(false);
       setUploading(false);
       setUploadProgress(0);
+      resetRate();
+      // Keep persisted creds + TUS fingerprint on error so a retry can resume.
     } finally {
       tusUploadRef.current = null;
     }
   };
 
+  // Deliberate cancel — the ONLY path that terminates the upload server-side
+  // and deletes the orphaned Bunny video entry.
+  const cancelUpload = async () => {
+    const upload = tusUploadRef.current;
+    const videoId = activeVideoIdRef.current;
+    tusUploadRef.current = null;
+
+    if (upload) {
+      try {
+        await upload.abort(true); // shouldTerminate=true → DELETE the tus upload + clear fingerprint
+      } catch (e) {
+        logger.error('TUS terminate failed:', e);
+      }
+    }
+
+    clearActiveCreds();
+
+    if (videoId) {
+      // Fire-and-forget: delete the up-front-created Bunny video entry.
+      supabase.functions.invoke('video-cleanup', { body: { deleteVideoId: videoId } })
+        .catch((err) => logger.error('[VideoUploader] Orphan cleanup failed:', err));
+    }
+
+    // Reset UI (mirrors removeVideo's non-uploading reset).
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setVideoPreview(null);
+    setUploading(false);
+    setUploadProgress(0);
+    setUploadSuccess(false);
+    setError(null);
+    resetRate();
+    if (fileInputRef.current) { fileInputRef.current.value = ''; }
+    onRemove?.();
+  };
+
+  useImperativeHandle(ref, () => ({ cancelUpload }), []);
+
   const removeVideo = () => {
-    // Abort in-progress TUS upload if any
-    if (tusUploadRef.current) {
-      tusUploadRef.current.abort();
-      tusUploadRef.current = null;
+    // If an upload is in flight, route through the terminating cancel path.
+    if (uploading) {
+      void cancelUpload();
+      return;
     }
     // Revoke object URL to prevent memory leak
     if (objectUrlRef.current) {
@@ -285,7 +452,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
                 Drop video here or click to browse
               </p>
               <p className="text-sm t-text-2 mt-1">
-                Supports MP4, MOV, AVI, WebM (max 500MB)
+                Supports MP4, MOV, AVI, WebM (max {MAX_FILE_SIZE_LABEL})
               </p>
             </div>
 
@@ -309,12 +476,15 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
               <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
               <span className="text-sm font-medium t-text">
                 Uploading video... {uploadProgress}%
+                {etaSeconds !== null && (
+                  <span className="t-text-2"> · ~{formatEta(etaSeconds)} left</span>
+                )}
               </span>
             </div>
 
             <button
               type="button"
-              onClick={removeVideo}
+              onClick={cancelUpload}
               className="t-text-3 hover:text-red-600 transition-colors"
               title="Cancel upload"
             >
@@ -330,7 +500,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({
           </div>
 
           <p className="text-xs t-text-2 mt-2">
-            Please don't close this window while uploading
+            You can safely leave — an interrupted upload resumes when you return.
           </p>
         </div>
       )}

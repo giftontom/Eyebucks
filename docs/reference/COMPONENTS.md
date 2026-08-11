@@ -242,7 +242,7 @@ interface AssetUploaderProps {
 ```
 
 **Behavior:**
-- Drag-and-drop zone or click-to-select file input (any file type; max 500 MB).
+- Drag-and-drop zone or click-to-select file input (any file type; max 2 GB).
 - Calls `admin-asset-upload` Edge Function to obtain a Supabase Storage signed upload URL.
 - Uploads directly to the `digital-assets` private bucket using the signed URL (no binary passes through the Edge Function).
 - Shows upload progress bar.

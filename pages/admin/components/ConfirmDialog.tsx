@@ -26,7 +26,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmLabel = 'Confirm',
   loading = false,
 }) => (
-  <AdminModal open={open} onClose={onClose} title={title}>
+  // While a destructive action is running, block backdrop/Escape dismissal so
+  // the dialog can't be closed out from under an in-flight mutation.
+  <AdminModal open={open} onClose={onClose} title={title} closeOnBackdrop={!loading}>
     <div className="t-text-2 mb-2">{message}</div>
     {warning && (
       <p className="text-sm mb-6" style={{ color: 'var(--status-warning-text)' }}>{warning}</p>

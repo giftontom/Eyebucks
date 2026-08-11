@@ -10,11 +10,17 @@ interface VideoCleanupProps {
   showToast: (msg: string, type: 'success' | 'error' | 'info', duration?: number) => void;
 }
 
+// Bunny video status codes (operator info only).
+const BUNNY_STATUS: Record<number, string> = {
+  0: 'Created', 1: 'Uploaded', 2: 'Processing', 3: 'Transcoding',
+  4: 'Finished', 5: 'Error', 6: 'Upload failed',
+};
+
 interface ScanResult {
   totalBunnyVideos: number;
   referencedInDb: number;
   orphanedCount: number;
-  orphanedVideos: Array<{ guid: string; title: string; dateUploaded: string }>;
+  orphanedVideos: Array<{ guid: string; title: string; dateUploaded: string; status?: number }>;
 }
 
 export const VideoCleanup: React.FC<VideoCleanupProps> = ({ showToast }) => {
@@ -121,6 +127,9 @@ export const VideoCleanup: React.FC<VideoCleanupProps> = ({ showToast }) => {
                     <div>
                       <span className="t-text font-medium">{v.title}</span>
                       <span className="t-text-3 text-xs ml-2 font-mono">{v.guid.slice(0, 8)}...</span>
+                      {v.status !== undefined && BUNNY_STATUS[v.status] && (
+                        <span className="t-text-3 text-xs ml-2">· {BUNNY_STATUS[v.status]}</span>
+                      )}
                     </div>
                     {v.dateUploaded && (
                       <span className="t-text-3 text-xs">
@@ -140,7 +149,7 @@ export const VideoCleanup: React.FC<VideoCleanupProps> = ({ showToast }) => {
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleDelete}
         title="Delete Orphaned Videos"
-        message={`This will permanently delete ${scanResult?.orphanedCount || 0} videos from Bunny.net that are not referenced by any module or course.`}
+        message={`This will permanently delete ${scanResult?.orphanedCount || 0} videos from Bunny.net that are not referenced by any lesson or course and are older than 24 hours.`}
         warning="This action cannot be undone."
         confirmLabel="Delete Videos"
         loading={deleting}

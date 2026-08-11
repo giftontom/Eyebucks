@@ -1,7 +1,7 @@
 import { Plus, ChevronUp, ChevronDown } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-import { VideoUploader } from '../../../components/VideoUploader';
+import { VideoUploader, type VideoUploaderHandle } from '../../../components/VideoUploader';
 import { adminApi } from '../../../services/api/admin.api';
 import { translateAdminError } from '../../../utils/adminErrors';
 import { logger } from '../../../utils/logger';
@@ -34,6 +34,10 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [videoUploadMode, setVideoUploadMode] = useState<'url' | 'upload'>('url');
   const [lessonForm, setLessonForm] = useState(emptyLessonForm);
+  // Video-upload guard: block stray modal-close while a lesson video uploads.
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [confirmAbortUpload, setConfirmAbortUpload] = useState(false);
+  const uploaderRef = useRef<VideoUploaderHandle>(null);
 
   // Delete confirms
   const [deleteChapter, setDeleteChapter] = useState<Module | null>(null);
@@ -53,6 +57,28 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
   };
 
   useEffect(() => { fetchModules(); }, [courseId]);
+
+  // ---- Lesson modal close guards (video-upload aware) ----
+  const closeLessonModal = () => {
+    setShowLessonModal(false);
+    setEditingLessonId(null);
+    setLessonModuleId(null);
+    setVideoUploading(false);
+  };
+
+  // Backdrop/Escape/Cancel all funnel through here: if a video is uploading,
+  // ask before discarding it instead of silently killing the upload.
+  const requestCloseLessonModal = () => {
+    if (videoUploading) { setConfirmAbortUpload(true); return; }
+    closeLessonModal();
+  };
+
+  // If the upload finishes while the "cancel upload?" prompt is open, dismiss
+  // the prompt — there is nothing left to cancel. This also closes the window
+  // where both modals would briefly be Escape-dismissable (double-close race).
+  useEffect(() => {
+    if (!videoUploading && confirmAbortUpload) { setConfirmAbortUpload(false); }
+  }, [videoUploading, confirmAbortUpload]);
 
   // ---- Chapter (module) handlers ----
   const openCreateChapter = () => {
@@ -347,7 +373,8 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
       {/* Lesson Create/Edit Modal */}
       <AdminModal
         open={showLessonModal}
-        onClose={() => { setShowLessonModal(false); setEditingLessonId(null); setLessonModuleId(null); }}
+        onClose={requestCloseLessonModal}
+        closeOnBackdrop={!videoUploading}
         title={editingLessonId ? 'Edit Lesson' : 'Create New Lesson'}
         maxWidth="max-w-lg"
         zIndex="z-[60]"
@@ -379,7 +406,8 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               <button
                 type="button"
                 onClick={() => setVideoUploadMode('url')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                disabled={videoUploading}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
                   videoUploadMode === 'url' ? 'bg-brand-600 text-white' : 't-bg-alt t-border border hover:bg-[var(--surface-hover)] t-text-2'
                 }`}
               >
@@ -388,7 +416,8 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               <button
                 type="button"
                 onClick={() => setVideoUploadMode('upload')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
+                disabled={videoUploading}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
                   videoUploadMode === 'upload' ? 'bg-brand-600 text-white' : 't-bg-alt t-border border hover:bg-[var(--surface-hover)] t-text-2'
                 }`}
               >
@@ -405,6 +434,8 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               />
             ) : (
               <VideoUploader
+                ref={uploaderRef}
+                onUploadingChange={setVideoUploading}
                 onUploadComplete={(videoData) => {
                   const minutes = Math.floor(videoData.duration / 60);
                   const seconds = Math.floor(videoData.duration % 60);
@@ -436,7 +467,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
         </div>
         <div className="flex gap-3 mt-6">
           <button
-            onClick={() => { setShowLessonModal(false); setEditingLessonId(null); setLessonModuleId(null); }}
+            onClick={requestCloseLessonModal}
             className="flex-1 t-card t-border border hover:bg-[var(--surface-hover)] t-text py-2 rounded-lg font-medium transition"
           >
             Cancel
@@ -449,6 +480,21 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
           </button>
         </div>
       </AdminModal>
+
+      {/* Cancel-upload confirmation — closing the lesson modal mid-upload */}
+      <ConfirmDialog
+        open={confirmAbortUpload}
+        onClose={() => setConfirmAbortUpload(false)}
+        onConfirm={() => {
+          void uploaderRef.current?.cancelUpload(); // terminates + cleans the Bunny orphan
+          setConfirmAbortUpload(false);
+          closeLessonModal();
+        }}
+        title="Cancel Upload?"
+        message={<p>A video is still uploading. Closing now will cancel the upload and discard the partial video.</p>}
+        warning="This cannot be undone."
+        confirmLabel="Cancel Upload"
+      />
 
       {/* Delete Chapter Confirm */}
       <ConfirmDialog

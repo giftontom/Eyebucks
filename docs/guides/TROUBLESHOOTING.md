@@ -604,7 +604,7 @@ Failures can occur in either phase.
 2. **Phase 2 failure (TUS upload):**
    - Check the browser console for `TUS upload error:` messages.
    - The upload uses the `tus-js-client` library with retry delays of `[0, 1000, 3000, 5000]` ms.
-   - File size limit is 500MB (enforced client-side in `VideoUploader.tsx` line 39).
+   - File size limit is 2GB (enforced client-side via the `MAX_FILE_SIZE` constant in `VideoUploader.tsx`; server backstop is 5GB in `admin-video-upload`).
    - Allowed formats: MP4, MOV, AVI, WebM (line 40).
 
 3. **Session expiry during long uploads:** Large uploads can take several minutes. If the JWT expires mid-upload, Phase 1 credentials remain valid (they use Bunny's own auth signature). But if the user navigates away and back, a new Phase 1 call will fail with 401. The uploader detects this and retries after refreshing the session.

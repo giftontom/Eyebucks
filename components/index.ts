@@ -46,3 +46,4 @@ export { SegmentGate } from './SegmentGate';
 export { JsonLd } from './JsonLd';
 export { VideoPlayer } from './VideoPlayer';
 export { VideoUploader } from './VideoUploader';
+export type { VideoUploaderHandle } from './VideoUploader';
