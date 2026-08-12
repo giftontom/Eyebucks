@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { ImageUpload, Input } from '../../../components';
 import { VideoUploader } from '../../../components/VideoUploader';
 
 import { BundleAssetPicker } from './BundleAssetPicker';
 import { BundleCoursePicker } from './BundleCoursePicker';
+import { VideoLibraryPicker } from './VideoLibraryPicker';
 
 import type { AdminCourse, AdminDigitalAsset, CourseFormData, CourseType, CourseLanguage } from '../../../types';
 
@@ -40,6 +41,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
 }) => {
   const update = (partial: Partial<CourseFormData>) => onChange({ ...formData, ...partial });
   const autoSlugRef = useRef<string>('');
+  const [showVideoPicker, setShowVideoPicker] = useState(false);
 
   const handleTitleChange = (title: string) => {
     const newAutoSlug = slugify(title);
@@ -105,11 +107,26 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           value={formData.heroVideoId || ''}
           onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
           placeholder="Bunny Stream video GUID (optional)"
-          hint="Plays as the trailer on the course page. Paste a GUID, or upload below. Clear the field to remove."
+          hint="Plays as the trailer on the course page. Paste a GUID, pick from the library, or upload below. Clear the field to remove."
         />
+        <button
+          type="button"
+          onClick={() => setShowVideoPicker(true)}
+          className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+        >
+          Browse video library…
+        </button>
         <VideoUploader
           onUploadComplete={(v) => update({ heroVideoId: v.publicId })}
           onRemove={() => update({ heroVideoId: undefined })}
+        />
+        <VideoLibraryPicker
+          open={showVideoPicker}
+          onClose={() => setShowVideoPicker(false)}
+          onSelect={(v) => {
+            update({ heroVideoId: v.guid });
+            setShowVideoPicker(false);
+          }}
         />
       </div>
       <div>
