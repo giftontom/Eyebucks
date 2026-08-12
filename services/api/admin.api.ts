@@ -568,7 +568,9 @@ export const adminApi = {
       updateFields.duration_seconds = parseDurationSeconds(lessonData.duration);
     }
     if (lessonData.videoUrl !== undefined) {updateFields.video_url = lessonData.videoUrl;}
-    if (lessonData.videoId !== undefined) {updateFields.video_id = lessonData.videoId;}
+    // '' → null so an empty form field never masquerades as a real GUID
+    // (video_id feeds orphan detection and delete-safety reference checks).
+    if (lessonData.videoId !== undefined) {updateFields.video_id = lessonData.videoId || null;}
     if (lessonData.isFreePreview !== undefined) {updateFields.is_free_preview = lessonData.isFreePreview;}
     if (lessonData.orderIndex !== undefined) {updateFields.order_index = lessonData.orderIndex;}
 
@@ -1048,7 +1050,45 @@ export const adminApi = {
     if (!data?.success) {throw new Error(data?.error || 'Video cleanup failed');}
     return data;
   },
+
+  // ============================================
+  // VIDEO LIBRARY (browse existing Bunny videos)
+  // ============================================
+
+  async listLibraryVideos(params?: { page?: number; itemsPerPage?: number; search?: string }): Promise<{
+    success: boolean;
+    page: number;
+    itemsPerPage: number;
+    totalItems: number;
+    videos: LibraryVideo[];
+  }> {
+    const { data, error } = await supabase.functions.invoke('admin-video-list', {
+      body: {
+        page: params?.page ?? 1,
+        itemsPerPage: params?.itemsPerPage ?? 24,
+        search: params?.search || undefined,
+      },
+    });
+
+    if (error) {
+      throw new Error(await extractEdgeFnError(error, 'Failed to list videos'));
+    }
+
+    if (!data?.success) {throw new Error(data?.error || 'Failed to list videos');}
+    return data;
+  },
 };
+
+export interface LibraryVideo {
+  guid: string;
+  title: string;
+  dateUploaded: string;
+  status: number;
+  lengthSeconds: number;
+  thumbnailUrl: string;
+  hlsUrl: string;
+  isPlayable: boolean;
+}
 
 export interface AdminReview {
   id: string;

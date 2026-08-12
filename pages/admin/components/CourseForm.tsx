@@ -1,26 +1,15 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
-import { Input } from '../../../components';
-import { Thumbnail } from '../../../components/Thumbnail';
+import { ImageUpload, Input } from '../../../components';
 import { VideoUploader } from '../../../components/VideoUploader';
 
 import { BundleAssetPicker } from './BundleAssetPicker';
 import { BundleCoursePicker } from './BundleCoursePicker';
+import { VideoLibraryPicker } from './VideoLibraryPicker';
 
 import type { AdminCourse, AdminDigitalAsset, CourseFormData, CourseType, CourseLanguage } from '../../../types';
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
-/** A blank value is allowed (thumbnail is optional); otherwise it must be a real http(s) URL. */
-function isValidHttpUrl(value: string): boolean {
-  if (!value) { return true; }
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
 
 function slugify(text: string): string {
   return text
@@ -52,6 +41,7 @@ export const CourseForm: React.FC<CourseFormProps> = ({
 }) => {
   const update = (partial: Partial<CourseFormData>) => onChange({ ...formData, ...partial });
   const autoSlugRef = useRef<string>('');
+  const [showVideoPicker, setShowVideoPicker] = useState(false);
 
   const handleTitleChange = (title: string) => {
     const newAutoSlug = slugify(title);
@@ -64,7 +54,6 @@ export const CourseForm: React.FC<CourseFormProps> = ({
   };
 
   const isSlugValid = !formData.slug || SLUG_PATTERN.test(formData.slug);
-  const isThumbnailValid = isValidHttpUrl(formData.thumbnail);
 
   return (
     <div className="space-y-4">
@@ -103,26 +92,14 @@ export const CourseForm: React.FC<CourseFormProps> = ({
         onChange={(e) => update({ price: e.target.value })}
         placeholder="1999"
       />
-      <div>
-        <Input
-          label="Thumbnail URL"
-          type="url"
-          value={formData.thumbnail}
-          onChange={(e) => update({ thumbnail: e.target.value })}
-          placeholder="https://..."
-          error={!isThumbnailValid ? 'Enter a valid image URL starting with http:// or https://' : undefined}
-        />
-        {formData.thumbnail && (
-          <div className="mt-2">
-            <p className="text-xs t-text-3 mb-1.5">Preview</p>
-            <Thumbnail
-              src={isThumbnailValid ? formData.thumbnail : null}
-              alt="Thumbnail preview"
-              className="w-40 aspect-video rounded-lg t-border border object-cover"
-            />
-          </div>
-        )}
-      </div>
+      <ImageUpload
+        label="Thumbnail"
+        value={formData.thumbnail}
+        onChange={(url) => update({ thumbnail: url })}
+        folder="courses"
+        aspect="aspect-video"
+        allowUrlInput
+      />
       <div className="space-y-2">
         <Input
           label="Hero / Trailer Video"
@@ -130,11 +107,26 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           value={formData.heroVideoId || ''}
           onChange={(e) => update({ heroVideoId: e.target.value || undefined })}
           placeholder="Bunny Stream video GUID (optional)"
-          hint="Plays as the trailer on the course page. Paste a GUID, or upload below. Clear the field to remove."
+          hint="Plays as the trailer on the course page. Paste a GUID, pick from the library, or upload below. Clear the field to remove."
         />
+        <button
+          type="button"
+          onClick={() => setShowVideoPicker(true)}
+          className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+        >
+          Browse video library…
+        </button>
         <VideoUploader
           onUploadComplete={(v) => update({ heroVideoId: v.publicId })}
           onRemove={() => update({ heroVideoId: undefined })}
+        />
+        <VideoLibraryPicker
+          open={showVideoPicker}
+          onClose={() => setShowVideoPicker(false)}
+          onSelect={(v) => {
+            update({ heroVideoId: v.guid });
+            setShowVideoPicker(false);
+          }}
         />
       </div>
       <div>
