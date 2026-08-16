@@ -144,7 +144,7 @@ export const AssetDetails: React.FC = () => {
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Preview */}
-          <div className="rounded-3xl overflow-hidden t-bg-alt t-border border aspect-[4/3]">
+          <div className="rounded-3xl overflow-hidden t-bg-alt t-border border aspect-video">
             <Thumbnail src={preview} alt={asset.title} className="w-full h-full object-cover" />
           </div>
 

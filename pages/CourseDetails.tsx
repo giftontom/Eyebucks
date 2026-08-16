@@ -1,5 +1,5 @@
 import { Play, ChevronDown, ChevronUp, Lock, Zap, Star, ArrowRight, Loader2, Layers, Award, Clock, Infinity as InfinityIcon, Smartphone } from 'lucide-react';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
@@ -88,10 +88,21 @@ export const CourseDetails: React.FC = () => {
     return () => { cancelled = true; };
   }, [user, course, hasAccess]);
 
-  // Ref for the main Call-to-Action button to track visibility
-  const mainCtaRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
+  // Observe the main Call-to-Action button to decide when the sticky bar shows.
+  // This must be a *callback* ref: the button only mounts after the course has
+  // loaded (the component early-returns a spinner while `isLoadingCourse`), and
+  // it unmounts whenever the visitor leaves the OVERVIEW tab. A `useRef` +
+  // mount-only effect observed nothing at all, leaving the bar permanently
+  // stuck in its hidden state — a callback ref re-runs on every mount/unmount.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const mainCtaRef = useCallback((node: HTMLButtonElement | null) => {
+    observerRef.current?.disconnect();
+    if (!node) {
+      // No CTA on screen (non-OVERVIEW tab) → the sticky bar is the only
+      // enroll surface, so show it.
+      setShowSticky(true);
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         // Show sticky footer when the main CTA is NOT visible
@@ -99,17 +110,22 @@ export const CourseDetails: React.FC = () => {
       },
       {
         threshold: 0,
-        rootMargin: "-100px 0px 0px 0px" // Offset slightly so it triggers before it's completely gone
-      }
+        rootMargin: '-100px 0px 0px 0px', // Offset slightly so it triggers before it's completely gone
+      },
     );
+    observer.observe(node);
+    observerRef.current = observer;
+  }, []);
 
-    if (mainCtaRef.current) {
-      observer.observe(mainCtaRef.current);
-    }
+  useEffect(() => () => observerRef.current?.disconnect(), []);
 
-    return () => {
-      observer.disconnect();
-    };
+  // Reserve room under the page (and the shared footer, via `pb-bottom-nav`)
+  // for the mobile sticky enroll bar that stacks on top of the bottom nav.
+  // index.css turns this into `--sticky-cta-height` below the lg breakpoint.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.stickyCta = 'true';
+    return () => { delete root.dataset.stickyCta; };
   }, []);
 
   const courseSchema = useMemo(() => {
@@ -371,7 +387,7 @@ export const CourseDetails: React.FC = () => {
                                 onClick={() => navigate(`/course/${bc.id}`)}
                                 className="flex gap-4 p-4 border t-border rounded-xl hover:border-brand-500/30 hover:shadow-md transition cursor-pointer group t-bg"
                             >
-                                <div className="w-24 h-24 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
+                                <div className="w-28 md:w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                                     <Thumbnail src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -418,7 +434,7 @@ export const CourseDetails: React.FC = () => {
                             <div className="grid gap-3 sm:grid-cols-2">
                                 {course.bundledAssets.map((asset) => (
                                     <div key={asset.id} className="flex gap-3 p-3 border t-border rounded-xl t-bg items-center">
-                                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
+                                        <div className="w-24 aspect-video rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                                             <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -490,8 +506,17 @@ export const CourseDetails: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
-      <div className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-lg shadow-black/5 dark:shadow-none transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+      {/* Mobile Sticky Buy Button (Conditionally Rendered).
+          `translate-y-full` alone does NOT hide this: it parks the bar exactly
+          over the bottom nav, which is only 90% opaque, so the price and
+          "Enroll Now" ghosted through the nav bar. Fade it out and take it out
+          of the hit-testing/a11y tree as well. */}
+      <div
+        aria-hidden={!showSticky}
+        className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between gap-4 shadow-lg shadow-black/5 dark:shadow-none transition-[transform,opacity] duration-300 motion-reduce:transition-none ${
+          showSticky ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         {!hasAccess ? (
           <>
             <div>
