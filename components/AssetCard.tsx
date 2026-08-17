@@ -36,7 +36,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, index, disableRevea
 
   const card = (
     <div data-scene-card className="group flex flex-col t-card rounded-3xl overflow-hidden t-border border hover:border-brand-500/30 dark:hover:border-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none h-full backdrop-blur-sm">
-      <Link to={href} className="relative overflow-hidden t-bg-alt block aspect-[4/3]">
+      <Link to={href} className="relative overflow-hidden t-bg-alt block aspect-video">
         <Thumbnail
           src={asset.thumbnail}
           alt={asset.title}

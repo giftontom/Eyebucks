@@ -33,12 +33,28 @@ export function useHlsAttach(
       return;
     }
 
+    /**
+     * The `autoplay` attribute only fires the browser's autoplay algorithm for a
+     * source present at load time. This source is attached *after* mount (it
+     * needs a signed URL round-trip), which mobile browsers do not re-trigger —
+     * so nudge playback explicitly once the media is ready.
+     *
+     * Deliberately does not touch `muted`: the caller owns that (a muted
+     * element autoplays under policy, and an unmuted one only got that way via
+     * a user gesture, which also permits playback). Forcing it here would
+     * silently re-mute a visitor mid-trailer when the signed URL refreshes.
+     */
+    const nudgePlay = () => {
+      void video.play().catch(() => { /* autoplay blocked — poster stays */ });
+    };
+
     const isHls = hlsUrl.includes('.m3u8');
 
     // Native HLS (Safari/iOS) or a plain mp4/webm URL — set directly.
     if (!isHls || video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl;
-      return;
+      video.addEventListener('loadedmetadata', nudgePlay, { once: true });
+      return () => video.removeEventListener('loadedmetadata', nudgePlay);
     }
 
     // Other browsers: lazy-load hls.js and attach.
@@ -53,9 +69,11 @@ export function useHlsAttach(
           hls = instance;
           instance.loadSource(hlsUrl);
           instance.attachMedia(videoRef.current);
+          instance.on(Hls.Events.MANIFEST_PARSED, nudgePlay);
         } else {
           // Last resort: let the browser try (will likely just show the poster).
           videoRef.current.src = hlsUrl;
+          videoRef.current.addEventListener('loadedmetadata', nudgePlay, { once: true });
         }
       })
       .catch((err) => {
@@ -65,6 +83,7 @@ export function useHlsAttach(
 
     return () => {
       cancelled = true;
+      video.removeEventListener('loadedmetadata', nudgePlay);
       if (hls) { hls.destroy(); }
     };
   }, [videoRef, hlsUrl]);

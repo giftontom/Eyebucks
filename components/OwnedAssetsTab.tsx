@@ -62,7 +62,7 @@ export const OwnedAssetsTab: React.FC = () => {
         {items.map(({ asset, id }) => (
           <div key={id} className="t-card t-border border rounded-2xl overflow-hidden flex flex-col">
             <Link to={`/asset/${asset.slug}`}>
-              <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full h-40 object-cover" />
+              <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full aspect-video object-cover" />
             </Link>
             <div className="p-4 flex flex-col flex-grow">
               <p className="font-bold t-text leading-tight mb-1">{asset.title}</p>

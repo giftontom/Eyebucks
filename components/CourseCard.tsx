@@ -25,7 +25,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index, disableRe
   const isNew = course.publishedAt && (Date.now() - new Date(course.publishedAt).getTime()) < 30 * 24 * 60 * 60 * 1000;
   const card = (
     <div data-scene-card className="group flex flex-col t-card rounded-3xl overflow-hidden t-border border hover:border-brand-500/30 dark:hover:border-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none h-full backdrop-blur-sm">
-        <Link to={`/course/${course.id}`} className="relative overflow-hidden t-bg-alt block aspect-[4/3]">
+        <Link to={`/course/${course.id}`} className="relative overflow-hidden t-bg-alt block aspect-video">
           <Thumbnail
             src={course.thumbnail}
             alt={course.title}

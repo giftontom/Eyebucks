@@ -65,7 +65,7 @@ export const CheckoutSummary: React.FC<Props> = ({
     <div className="relative z-10">
       <h2 className="text-2xl font-bold mb-6 t-text">Order Summary</h2>
       <div className="flex gap-4 mb-6">
-        <Thumbnail src={course.thumbnail} alt={course.title} className="w-24 h-16 object-cover rounded-lg t-border border shrink-0" />
+        <Thumbnail src={course.thumbnail} alt={course.title} className="w-28 aspect-video object-cover rounded-lg t-border border shrink-0" />
         <div>
           <h3 className="font-bold t-text leading-tight">{course.title}</h3>
           <p className="text-sm t-text-2 mt-1">{course.type === CourseType.BUNDLE ? `Bundle • ${course.bundledCourses?.length || 0} Courses` : course.type}</p>

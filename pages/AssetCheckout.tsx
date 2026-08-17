@@ -212,7 +212,7 @@ export const AssetCheckout: React.FC = () => {
           <Link to={`/asset/${asset.slug}`} className="inline-flex items-center gap-2 text-sm t-text-2 hover:t-text transition mb-6">
             <ArrowLeft size={16} /> Back
           </Link>
-          <div className="rounded-2xl overflow-hidden t-border border aspect-[4/3] mb-5">
+          <div className="rounded-2xl overflow-hidden t-border border aspect-video mb-5">
             <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full h-full object-cover" />
           </div>
           <h2 className="text-xl font-bold t-text mb-2">{asset.title}</h2>
