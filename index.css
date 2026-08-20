@@ -334,10 +334,20 @@
   bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 1rem);
 }
 /* Sits a sticky bar flush on top of the bottom nav (no breathing gap),
-   so they stack as two bars. When such a bar is translate-y-full to
-   hide, it tucks behind the higher-z nav. */
+   so they stack as two bars. Pair the hidden state with
+   `translate-y-clear-nav` — see below. */
 @utility bottom-nav-offset {
   bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+}
+/* Hidden state for a `bottom-nav-offset` bar. Plain `translate-y-full` only
+   moves the bar down by its own height, which parks it exactly over the nav
+   band — and the nav is only 90% opaque, so the "hidden" bar ghosts through
+   the frosted glass. This clears the nav (and the safe-area inset) so the bar
+   really leaves the viewport. Reset to `translate-y-full` at md+, where the
+   nav is hidden and the bar sits at bottom-0. */
+@utility translate-y-clear-nav {
+  --tw-translate-y: calc(100% + var(--bottom-nav-height) + var(--safe-area-bottom));
+  translate: var(--tw-translate-x, 0) var(--tw-translate-y);
 }
 
 /* ─── Global styles ──────────────────────────────────────── */

@@ -110,7 +110,10 @@ export const CourseDetails: React.FC = () => {
     return () => {
       observer.disconnect();
     };
-  }, []);
+    // The CTA only exists once the course has rendered — the loading/error
+    // branches return early. Re-run whenever that changes, otherwise the
+    // observer attaches to a null ref on mount and the sticky bar never shows.
+  }, [course, isLoadingCourse, loadError]);
 
   const courseSchema = useMemo(() => {
     if (!course) return null;
@@ -491,7 +494,14 @@ export const CourseDetails: React.FC = () => {
       )}
 
       {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
-      <div className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-lg shadow-black/5 dark:shadow-none transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div
+        aria-hidden={!showSticky}
+        className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-lg shadow-black/5 dark:shadow-none transition-[translate,opacity] duration-300 ${
+          showSticky
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-clear-nav md:translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         {!hasAccess ? (
           <>
             <div>
