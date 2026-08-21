@@ -29,7 +29,7 @@ export const SocialProofTicker: React.FC = () => {
     // The ticker's light text lives on the dark scene; it fades out with the
     // scene grade (--scene-dark) as the canvas lightens, so its last sliver
     // never washes against a brightening backdrop. Default 1 before JS runs.
-    <section className="t-bg-alt overflow-hidden py-6 relative" style={{ opacity: 'var(--scene-dark, 1)' }}>
+    <section id="social-proof" className="t-bg-alt overflow-hidden py-6 relative" style={{ opacity: 'var(--scene-dark, 1)' }}>
       {/* Edge fades via alpha mask (not painted black gradients) so they work
           over any backdrop tone while the scene grade dissolves behind. */}
       <div className="flex w-full whitespace-nowrap overflow-hidden opacity-70 hover:opacity-100 transition-opacity duration-300 [mask-image:linear-gradient(to_right,transparent,black_8rem,black_calc(100%-8rem),transparent)]">

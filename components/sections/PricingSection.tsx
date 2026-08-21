@@ -283,7 +283,7 @@ export const PricingSection: React.FC = () => {
   }, [language]);
 
   return (
-    <section className="relative py-24 t-bg border-t t-border overflow-x-clip">
+    <section id="pricing" className="relative py-24 t-bg border-t t-border overflow-x-clip">
       {/* Cinematic glow behind the cards, echoing the hero */}
       <div
         className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[320px] h-[320px] sm:w-[480px] sm:h-[480px] bg-brand-600/10 rounded-full blur-[140px] pointer-events-none"
