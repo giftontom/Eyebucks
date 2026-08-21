@@ -108,6 +108,7 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section
+      id="hero"
       ref={sectionRef}
       onPointerMove={handleKeylight}
       className="hero-stage relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden t-bg pt-28 pb-16 px-4"

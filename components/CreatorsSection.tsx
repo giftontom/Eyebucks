@@ -71,7 +71,7 @@ export const CreatorsSection: React.FC<Props> = ({ items = [] }) => {
   }, []);
 
   return (
-    <section className="py-24 t-bg-alt overflow-hidden border-t t-border">
+    <section id="creators" className="py-24 t-bg-alt overflow-hidden border-t t-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn>
           <div className="text-center mb-16">

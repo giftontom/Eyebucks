@@ -134,7 +134,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `certificates` | Course completion certificates; `certificate_number`, `download_url`, `pdf_data` |
 | `reviews` | Course ratings + comments; `helpful` upvote count |
 | `notifications` | User notification inbox; `type` ENUM, `link`, `read` boolean |
-| `site_content` | CMS blocks; `section` CHECK: 18 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, social_proof, featured_copy, how_it_works, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing |
+| `site_content` | CMS blocks; `section` CHECK: 20 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, hero_slides, social_proof, featured_copy, how_it_works, how_it_works_steps, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing |
 | `bundle_courses` | Junction: BUNDLE-type courses → individual courses; `order_index` |
 | `bundle_assets` | Junction: BUNDLE-type courses → digital assets; `order_index` (migration 043) |
 | `upgrade_pricing_config` | Single-row runtime knobs for module→bundle upgrade pricing: `enabled`, `credit_pct`, `window_days`, `cross_sell_pct` (migration 044) |
@@ -199,7 +199,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 046** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 047** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -238,7 +238,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `UserDetailPage.tsx` | `/admin/users/:id` | User profile, enrollments, manual enroll |
 | `PaymentsPage.tsx` | `/admin/payments` | Payment history, refund processing |
 | `CertificatesPage.tsx` | `/admin/certificates` | Issue/revoke certificates |
-| `ContentPage.tsx` | `/admin/content` | CMS editor — typed per-section sub-forms, image upload, JSON escape hatch; covers all 18 CMS section keys |
+| `ContentPage.tsx` | `/admin/content` | CMS editor — typed per-section sub-forms, image upload, JSON escape hatch; covers all 20 CMS section keys, each labelled with where it renders on the site |
 | `CouponsPage.tsx` | `/admin/coupons` | Create/deactivate coupon codes |
 | `ReviewsPage.tsx` | `/admin/reviews` | Moderate + delete course reviews |
 | `AuditLogPage.tsx` | `/admin/audit` | Admin action log (created_at, action, entity, diff) |
@@ -551,7 +551,7 @@ supabase functions deploy  # Deploy Edge Functions
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-045** (file gaps at 030/031, applied from another branch); next = 046. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+- `supabase/migrations/` — **SQL migrations 001-046** (file gaps at 030/031, applied from another branch); next = 047. 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
 - `supabase/functions/` — **16 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)

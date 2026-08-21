@@ -1,4 +1,4 @@
-import { Plus, Layers, Code2, FormInput } from 'lucide-react';
+import { Plus, Layers, Code2, FormInput, ExternalLink, MapPin, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { ImageUpload, VideoField } from '../../components';
@@ -13,6 +13,7 @@ import {
   CREATE_SECTIONS,
   GROUP_ORDER,
   defaultMetaFor,
+  siteLinkFor,
   type FieldDef,
 } from './content/sectionSchemas';
 
@@ -156,6 +157,14 @@ export const ContentPage: React.FC = () => {
   const [advancedJson, setAdvancedJson] = useState('{}');
 
   const schema = SECTION_SCHEMAS[form.section];
+
+  // Creating a *second* row in a singleton section is the classic "I edited the
+  // CMS but the site didn't change" trap: the storefront reads items[0] ordered
+  // by order_index, so a duplicate at the same order wins or loses at random.
+  const singletonRows = schema?.singleton
+    ? siteContent.filter((c) => c.section === form.section)
+    : [];
+  const singletonConflict = !editingId && singletonRows.length > 0;
 
   const fetchContent = async () => {
     try {
@@ -352,14 +361,36 @@ export const ContentPage: React.FC = () => {
             {orderedSections.map((section) => {
               const items = siteContent.filter((c) => c.section === section);
               if (items.length === 0) { return null; }
-              const label = SECTION_SCHEMAS[section]?.label ?? section;
+              const sectionSchema = SECTION_SCHEMAS[section];
+              const label = sectionSchema?.label ?? section;
+              const siteLink = siteLinkFor(section);
               return (
                 <div key={section} className="p-6">
-                  <h4 className="text-sm font-bold t-text-2 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <h4 className="text-sm font-bold t-text-2 uppercase tracking-wider mb-1 flex items-center gap-2">
                     <Layers size={14} />
                     {label} ({items.length})
                   </h4>
-                  <div className="space-y-3">
+                  {/* Section keys are internal names — spell out which band of
+                      the live site these rows drive, and link straight to it. */}
+                  {sectionSchema?.where && (
+                    <p className="text-xs t-text-3 flex items-start gap-1.5">
+                      <MapPin size={12} className="mt-0.5 shrink-0" />
+                      <span>
+                        {sectionSchema.where}
+                        {siteLink && (
+                          <a
+                            href={siteLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 inline-flex items-center gap-1 text-brand-600 hover:text-brand-500 font-medium"
+                          >
+                            View on site <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </span>
+                    </p>
+                  )}
+                  <div className="space-y-3 mt-4">
                     {items.map((item) => (
                       <div
                         key={item.id}
@@ -435,10 +466,55 @@ export const ContentPage: React.FC = () => {
             </div>
           )}
 
-          {schema?.singleton && (
+          {/* "Which part of the site am I editing?" — the question the section
+              key alone never answers. Mirrors the hint on the list page. */}
+          {schema?.where && (
+            <p className="text-xs t-text-3 -mt-1 flex items-start gap-1.5">
+              <MapPin size={12} className="mt-0.5 shrink-0" />
+              <span>
+                {schema.where}
+                {siteLinkFor(form.section) && (
+                  <a
+                    href={siteLinkFor(form.section) as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 inline-flex items-center gap-1 text-brand-600 hover:text-brand-500 font-medium"
+                  >
+                    View on site <ExternalLink size={10} />
+                  </a>
+                )}
+              </span>
+            </p>
+          )}
+
+          {schema?.singleton && !singletonConflict && (
             <p className="text-xs t-text-3 -mt-1">
               Single-row section — only the first row (lowest order) is shown on the site.
             </p>
+          )}
+          {singletonConflict && (
+            <div className="t-status-danger border rounded-lg p-3 text-xs flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">
+                  “{schema?.label}” already has {singletonRows.length === 1 ? 'a row' : `${singletonRows.length} rows`}.
+                </p>
+                <p className="mt-1">
+                  Only the first row is shown on the site, so a new one here will most likely
+                  change nothing. Edit the existing row instead.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = [...singletonRows].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+                    if (existing) { openEdit(existing); }
+                  }}
+                  className="mt-2 font-semibold underline hover:opacity-80"
+                >
+                  Edit the existing row
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Core title + body, with section-aware labels (some singletons omit them) */}
