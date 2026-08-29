@@ -166,20 +166,24 @@ export const DigitalAssetEditorPage: React.FC = () => {
         await digitalAssetsApi.updateAsset(assetId, patch);
         showToast('Asset updated!', 'success');
       } else {
-        if (!isLink && !uploaded) {
+        // Branch rather than assert: this is the shape that lets TypeScript
+        // narrow `uploaded` on its own.
+        let input: DigitalAssetInput;
+        if (isLink) {
+          input = { ...base, externalUrl: form.externalUrl, storagePath: null };
+        } else if (uploaded) {
+          input = {
+            ...base,
+            storagePath: uploaded.path,
+            externalUrl: null,
+            fileExt: uploaded.fileExt,
+            fileSize: uploaded.fileSize,
+          };
+        } else {
           showToast('Please upload the asset file', 'error');
           setSaving(false);
           return;
         }
-        const input: DigitalAssetInput = isLink
-          ? { ...base, externalUrl: form.externalUrl, storagePath: null }
-          : {
-              ...base,
-              storagePath: uploaded!.path,
-              externalUrl: null,
-              fileExt: uploaded!.fileExt,
-              fileSize: uploaded!.fileSize,
-            };
         await digitalAssetsApi.createAsset(input);
         showToast('Asset created!', 'success');
       }
