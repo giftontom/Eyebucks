@@ -140,7 +140,7 @@ export const InstructorsSection: React.FC = () => {
   return (
     // data-scene-dark: the scroll-driven scene grade (useSceneGrade) darkens
     // the whole viewport canvas while this section occupies it.
-    <section data-scene-dark className="py-40 t-bg force-dark">
+    <section id="instructors" data-scene-dark className="py-40 t-bg force-dark">
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <HorizontalGallery
           count={instructors.length}

@@ -141,7 +141,7 @@ export const ValuePropsSection: React.FC = () => {
   }, []);
 
   return (
-    <section className="py-20 md:py-28 t-bg">
+    <section id="value-props" className="py-20 md:py-28 t-bg">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <HorizontalGallery
           count={props.length}

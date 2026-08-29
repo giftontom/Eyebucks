@@ -317,6 +317,9 @@
 /* A pin track that stays tall on ALL viewports (the steps section scrubs on
    both mobile and desktop via useScrollProgress). */
 .pin-track { height: var(--track-h, auto); }
+/* Anchored sections (the admin CMS "View on site" deep links, e.g.
+   /#how-it-works) must land below the sticky nav, not underneath it. */
+section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 /* Hide the scrollbar on the mobile horizontal card rail. */
 .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }

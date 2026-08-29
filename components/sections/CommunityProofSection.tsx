@@ -152,7 +152,7 @@ export const CommunityProofSection: React.FC = () => {
   const supporting = testimonials.slice(1, 3);
 
   return (
-    <section className="py-20 md:py-28 t-bg-alt">
+    <section id="community-proof" className="py-20 md:py-28 t-bg-alt">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header — scene-adaptive: this section flanks the dark Instructors
             island above it, so its on-canvas text flips light while the scene

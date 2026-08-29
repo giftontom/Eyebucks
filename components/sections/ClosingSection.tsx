@@ -95,7 +95,7 @@ export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
   }, [email]);
 
   return (
-    <section className="py-20 md:py-28 t-bg relative overflow-hidden">
+    <section id="closing" className="py-20 md:py-28 t-bg relative overflow-hidden">
       {/* Subtle ambient glow */}
       <div className="absolute top-1/2 right-1/4 w-[400px] h-[400px] bg-brand-500/10 rounded-full blur-[120px] animate-glow-pulse pointer-events-none" />
 
