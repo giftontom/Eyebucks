@@ -260,6 +260,12 @@ export interface AssetPurchaseWithAsset extends AssetPurchase {
 /** Admin-list shape — adds the soft-delete marker (omitted from the storefront type). */
 export interface AdminDigitalAsset extends DigitalAsset {
   deletedAt: string | null;
+  /**
+   * Externally-hosted download (e.g. Google Drive), or null when the asset is
+   * a file in private storage. Admin-only — deliberately absent from the
+   * public `DigitalAsset` shape, like `storagePath`.
+   */
+  externalUrl: string | null;
 }
 
 // ============================================

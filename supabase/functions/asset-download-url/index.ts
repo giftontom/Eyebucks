@@ -37,17 +37,19 @@ serve(async (req) => {
 
     const admin = createAdminClient();
 
-    // Load the asset with service role — this is the only place storage_path is read.
+    // Load the asset with service role — this is the only place storage_path
+    // and external_url are read. Migration 048 guarantees exactly one of them
+    // is set, so "has neither" means the row is broken, not externally hosted.
     const { data: asset, error: assetErr } = await admin
       .from('digital_assets')
-      .select('id, slug, storage_path, file_ext, status, deleted_at, download_count')
+      .select('id, slug, storage_path, external_url, file_ext, status, deleted_at, download_count')
       .eq('id', assetId)
       .maybeSingle();
     if (assetErr) {
       console.error('[asset-download-url] asset lookup failed:', assetErr);
       return errorResponse('Internal server error', corsHeaders, 500);
     }
-    if (!asset || !asset.storage_path) {
+    if (!asset || (!asset.storage_path && !asset.external_url)) {
       return errorResponse('Asset not found', corsHeaders, 404);
     }
 
@@ -80,9 +82,17 @@ serve(async (req) => {
     // Friendly download filename: slug + extension, forced via content-disposition.
     const ext = asset.file_ext ? `.${asset.file_ext}` : '';
     const filename = `${asset.slug}${ext}`;
-    const downloadUrl = await presign(r2, asset.storage_path, 'GET', EXPIRES_IN, {
-      'response-content-disposition': `attachment; filename="${filename}"`,
-    });
+
+    // Externally-hosted assets (e.g. a Google Drive share link) are handed over
+    // as-is. The entitlement check above still gates who receives the link, but
+    // the link itself is a bearer credential we cannot expire or revoke — see
+    // migration 048 for the tradeoff this accepts.
+    const isExternal = !asset.storage_path && !!asset.external_url;
+    const downloadUrl = isExternal
+      ? asset.external_url as string
+      : await presign(r2, asset.storage_path as string, 'GET', EXPIRES_IN, {
+          'response-content-disposition': `attachment; filename="${filename}"`,
+        });
 
     // Best-effort download counters — never fail the response on a counter error.
     try {
@@ -103,8 +113,10 @@ serve(async (req) => {
       console.error('[asset-download-url] counter update failed:', counterErr);
     }
 
-    const expiresAt = Math.floor(Date.now() / 1000) + EXPIRES_IN;
-    return jsonResponse({ success: true, downloadUrl, expiresAt, filename }, corsHeaders);
+    // An external link has no expiry; report 0 so the client does not show a
+    // countdown it cannot honour.
+    const expiresAt = isExternal ? 0 : Math.floor(Date.now() / 1000) + EXPIRES_IN;
+    return jsonResponse({ success: true, downloadUrl, expiresAt, filename, isExternal }, corsHeaders);
   } catch (error) {
     console.error('[asset-download-url] Error:', error);
     return errorResponse('Internal server error', getCorsHeaders(req), 500);
