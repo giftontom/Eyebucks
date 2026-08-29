@@ -52,7 +52,12 @@ export interface Course {
   slug: string;
   title: string;
   description: string;
-  price: number; // in paise
+  price: number; // in paise — the amount actually charged
+  /**
+   * Optional strike-through "MRP" in paise; `null` shows `price` alone.
+   * Display-only — checkout, coupons and upgrade credits all price off `price`.
+   */
+  comparePrice: number | null;
   thumbnail: string;
   heroVideoId: string | null;
   type: CourseType;
@@ -443,6 +448,8 @@ export interface CourseFormData {
   slug: string;
   description: string;
   price: string; // String for form input, converted to number
+  /** Optional strike-through MRP, as typed. Empty string = no compare price. */
+  comparePrice: string;
   thumbnail: string;
   type: CourseType;
   language: CourseLanguage;

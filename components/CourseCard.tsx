@@ -7,7 +7,7 @@ import { Badge } from './Badge';
 import { Thumbnail } from './Thumbnail';
 import { WishlistButton } from './WishlistButton';
 
-import { formatPrice } from '../utils/format';
+import { formatPrice, showsComparePrice } from '../utils/format';
 import { CourseType } from '../types';
 import type { Course } from '../types';
 
@@ -72,6 +72,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index, disableRe
           <div className="mt-auto pt-4 md:pt-5 border-t t-border flex items-center justify-between gap-4">
             <div className="flex flex-col">
               <span className="text-xl md:text-2xl font-bold t-text">{formatPrice(course.price)}</span>
+              {showsComparePrice(course.price, course.comparePrice) && (
+                <span className="text-sm t-text-3 line-through">{formatPrice(course.comparePrice)}</span>
+              )}
             </div>
             <Link
               to={`/course/${course.id}`}

@@ -55,6 +55,13 @@ export const CourseForm: React.FC<CourseFormProps> = ({
 
   const isSlugValid = !formData.slug || SLUG_PATTERN.test(formData.slug);
 
+  // The DB enforces compare_price > price (migration 047). Say so here rather
+  // than letting the admin discover it as a constraint violation on save.
+  const comparePriceError =
+    formData.comparePrice && Number(formData.comparePrice) <= Number(formData.price)
+      ? 'Actual price must be higher than the offer price.'
+      : undefined;
+
   return (
     <div className="space-y-4">
       <Input
@@ -83,15 +90,32 @@ export const CourseForm: React.FC<CourseFormProps> = ({
           placeholder="Course description"
         />
       </div>
-      <Input
-        label="Price (₹ in rupees) *"
-        type="number"
-        step="0.01"
-        min="0"
-        value={formData.price}
-        onChange={(e) => update({ price: e.target.value })}
-        placeholder="1999"
-      />
+      {/* Offer price is what the student is charged; the actual price is the
+          optional struck-through "MRP" shown next to it. Same pair the digital
+          asset editor already uses. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Input
+          label="Offer price (₹ in rupees) *"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.price}
+          onChange={(e) => update({ price: e.target.value })}
+          placeholder="1999"
+          hint="What the student actually pays at checkout."
+        />
+        <Input
+          label="Actual price (₹ in rupees)"
+          type="number"
+          step="0.01"
+          min="0"
+          value={formData.comparePrice}
+          onChange={(e) => update({ comparePrice: e.target.value })}
+          placeholder="optional"
+          hint="Shown struck through beside the offer price. Leave blank for no discount."
+          error={comparePriceError}
+        />
+      </div>
       <ImageUpload
         label="Thumbnail"
         value={formData.thumbnail}

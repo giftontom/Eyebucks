@@ -340,6 +340,7 @@ export type Database = {
       }
       courses: {
         Row: {
+          compare_price: number | null
           created_at: string | null
           deleted_at: string | null
           description: string
@@ -360,6 +361,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          compare_price?: number | null
           created_at?: string | null
           deleted_at?: string | null
           description: string
@@ -380,6 +382,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          compare_price?: number | null
           created_at?: string | null
           deleted_at?: string | null
           description?: string

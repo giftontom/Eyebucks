@@ -248,6 +248,7 @@ export const adminApi = {
       title: c.title,
       description: c.description,
       price: c.price,
+      comparePrice: c.compare_price ?? null,
       thumbnail: c.thumbnail,
       heroVideoId: c.hero_video_id,
       type: c.type,
@@ -276,6 +277,8 @@ export const adminApi = {
     slug: string;
     description: string;
     price: number;
+    /** Optional strike-through MRP in paise; must exceed `price` (DB CHECK). */
+    comparePrice?: number | null;
     thumbnail?: string;
     type: string;
     features?: string[];
@@ -290,6 +293,7 @@ export const adminApi = {
         slug: courseData.slug,
         description: courseData.description,
         price: courseData.price,
+        compare_price: courseData.comparePrice ?? null,
         thumbnail: courseData.thumbnail || '',
         type: courseData.type as 'BUNDLE' | 'MODULE',
         features: courseData.features || [],
@@ -307,6 +311,7 @@ export const adminApi = {
 
   async updateCourse(courseId: string, courseData: {
     title?: string; slug?: string; description?: string; price?: number;
+    comparePrice?: number | null;
     thumbnail?: string; type?: string; features?: string[];
     heroVideoId?: string | null; status?: string;
     language?: CourseLanguage; courseGroupId?: string | null;
@@ -320,6 +325,7 @@ export const adminApi = {
     if (courseData.slug !== undefined) {update.slug = courseData.slug;}
     if (courseData.description !== undefined) {update.description = courseData.description;}
     if (courseData.price !== undefined) {update.price = courseData.price;}
+    if (courseData.comparePrice !== undefined) {update.compare_price = courseData.comparePrice;}
     if (courseData.thumbnail !== undefined) {update.thumbnail = courseData.thumbnail;}
     if (courseData.type !== undefined) {update.type = courseData.type as 'BUNDLE' | 'MODULE';}
     if (courseData.features !== undefined) {update.features = courseData.features;}

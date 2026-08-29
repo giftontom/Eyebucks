@@ -11,7 +11,7 @@ import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi, checkoutApi } from '../services/api';
 import { CourseType } from '../types';
 import { analytics } from '../utils/analytics';
-import { formatPrice } from '../utils/format';
+import { formatPrice, showsComparePrice } from '../utils/format';
 
 import { CourseDetailsHero } from './course-details/CourseDetailsHero';
 import { CourseDetailsSidebar } from './course-details/CourseDetailsSidebar';
@@ -529,7 +529,14 @@ export const CourseDetails: React.FC = () => {
           <>
             <div>
               <p className="text-xs t-text-2">Total Price</p>
-              <p className="text-xl font-bold t-text">{formatPrice(course.price)}</p>
+              <p className="text-xl font-bold t-text">
+                {formatPrice(course.price)}
+                {showsComparePrice(course.price, course.comparePrice) && (
+                  <span className="ml-2 text-sm font-normal t-text-3 line-through">
+                    {formatPrice(course.comparePrice)}
+                  </span>
+                )}
+              </p>
             </div>
             <Button
               onClick={handleCTA}
