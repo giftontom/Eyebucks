@@ -83,6 +83,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 - **Auth:** Supabase Auth with Google OAuth. `context/AuthContext.tsx` manages session state. Auth trigger auto-creates user profile on signup.
 - **Data access:** All queries go through `services/api/*.api.ts` modules using `@supabase/supabase-js`. Security is enforced by RLS policies at the database level, not in frontend code.
 - **Edge Functions:** Deno runtime in `supabase/functions/`. Used for server-side secrets (Razorpay, Bunny.net, Resend). Most require JWT auth; `checkout-webhook` does not (Razorpay calls it). Shared utilities in `supabase/functions/_shared/`.
+- **CMS reads:** `context/SiteContentContext.tsx` loads every `site_content` row in ONE request and hydrates synchronously from a localStorage copy, so a returning visitor's first paint already has real copy. Sections call `useSiteSection(key)`; do NOT reintroduce per-section `siteContentApi.getBySection` in components.
 - **Types:** `types/index.ts` (business types), `types/api.ts` (request/response), `types/supabase.ts` (auto-generated DB types).
 - **Admin pages:** Split into sub-pages under `pages/admin/` with shared `AdminContext` and `AdminLayout`.
 
@@ -199,7 +200,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 047** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 049** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -329,6 +330,7 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `useVideoPlayer(videoRef)` | `{isPlaying, currentTime, duration, volume, playbackRate, togglePlay, seek, ...}` | Video UI state abstraction over VideoPlayer ref |
 | `useVideoUrl(videoId, lessonId, fallbackUrl, purpose?)` | `{videoUrl, hlsUrl, isLoading, error, refreshUrl}` | Fetches a signed URL from `video-signed-url`; auto-refresh 5min before expiry. `purpose:'trailer'` uses the anonymous public-trailer path (best-effort → poster on failure) |
 | `useHlsAttach(videoRef, hlsUrl)` | `void` | Attaches an HLS source to a plain `<video>` (Safari native; else lazy-imports hls.js); used for the CourseDetails trailer hero |
+| `useSiteSection(sectionKey)` | `SiteContentItem[] \| null` | CMS rows for one section, from `SiteContentProvider`'s single batched fetch. `null` = not loaded yet → use your hardcoded defaults. Derive copy with `useMemo`, never mirror into state in an effect (that repaints the fallback first — the flash this replaced) |
 | `useWishlist(courseId?)` | `{isSaved, toggle, wishlistIds, isLoading}` | Wishlist state; optimistic toggle; loads full list on mount |
 
 ---
@@ -384,7 +386,7 @@ Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `respon
 
 **User:** `Role ('USER'|'ADMIN')`, `User {id, name, email, avatar, phone_e164, role, phoneVerified, emailVerified, google_id, created_at, last_login_at}`
 
-**Course:** `CourseType ('BUNDLE'|'MODULE')`, `CourseStatus ('PUBLISHED'|'DRAFT')`, `Course {id, slug, title, description, price(paise), thumbnail, heroVideoId, type, status, rating, totalStudents, features[], chapters?, reviews?, bundledCourses?}`, `CourseWithModules extends Course`
+**Course:** `CourseType ('BUNDLE'|'MODULE')`, `CourseStatus ('PUBLISHED'|'DRAFT')`, `Course {id, slug, title, description, price(paise), comparePrice(paise|null, display-only MRP), thumbnail, heroVideoId, type, status, rating, totalStudents, features[], chapters?, reviews?, bundledCourses?}`, `CourseWithModules extends Course`
 
 **Module:** `Module {id, courseId, title, duration, durationSeconds, videoUrl, videoId(BunnyGUID), isFreePreview, orderIndex}`
 
@@ -400,7 +402,7 @@ Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `respon
 
 **Other:** `SiteContentItem {id, section, title, body, metadata, orderIndex, isActive}`, `Coupon {code, discount_pct, max_uses, use_count, expires_at, is_active}`, `WishlistEntry {id, courseId, createdAt}`, `Review {id, userId, rating, comment, helpful}`, `ReviewSummary {total, averageRating, distribution{5,4,3,2,1}}`
 
-**Digital Assets:** `AssetFileType ('LUT'|'PRESET'|'SFX'|'MUSIC'|'OVERLAY'|'PROJECT'|'PDF'|'TEMPLATE'|'OTHER')`, `AssetLicense ('PERSONAL'|'COMMERCIAL'|'EXTENDED')`, `DigitalAsset {id, slug, title, description, price(paise), comparePrice, fileType, license, thumbnail, previewUrl, version, status, downloadCount, deletedAt, timestamps}` (note: `storagePath` is NOT included — server-only), `AdminDigitalAsset extends DigitalAsset` (includes `storagePath`, `fileSizebytes`, `fileExt`), `AssetPurchase {id, userId, assetId, status, paymentId, orderId, amount, downloadCount, lastDownloadedAt, purchasedAt}`, `AssetPurchaseWithAsset extends AssetPurchase`
+**Digital Assets:** `AssetFileType ('LUT'|'PRESET'|'SFX'|'MUSIC'|'OVERLAY'|'PROJECT'|'PDF'|'TEMPLATE'|'OTHER')`, `AssetLicense ('PERSONAL'|'COMMERCIAL'|'EXTENDED')`, `DigitalAsset {id, slug, title, description, price(paise), comparePrice, fileType, license, thumbnail, previewUrl, version, status, downloadCount, deletedAt, timestamps}` (note: `storagePath` is NOT included — server-only), `AdminDigitalAsset extends DigitalAsset` (includes `storagePath`, `fileSizebytes`, `fileExt`, `externalUrl` — admin-only, like storagePath), `AssetPurchase {id, userId, assetId, status, paymentId, orderId, amount, downloadCount, lastDownloadedAt, purchasedAt}`, `AssetPurchaseWithAsset extends AssetPurchase`
 
 ---
 
@@ -532,6 +534,7 @@ npm run build          # Production build
 npm test               # Run tests (Vitest)
 npm run test:coverage  # Coverage report (50% threshold)
 npm run lint           # ESLint
+npm run verify:migrations   # Replay all migrations against a throwaway local Postgres
 npm run type-check     # TypeScript check
 supabase db reset      # Reset local DB + migrations + seed
 supabase functions deploy  # Deploy Edge Functions
@@ -550,8 +553,12 @@ supabase functions deploy  # Deploy Edge Functions
 - `index.css` — Tailwind v4 entry (`@import "tailwindcss"`) + `@theme {}` token block
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
+- `context/SiteContentContext.tsx` — batched CMS loader + `useSiteSection`; kills the flash of hardcoded fallback copy
+- `scripts/verify-migrations.sh` — replays migrations against a throwaway local Postgres (`npm run verify:migrations`)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-046** (file gaps at 030/031, applied from another branch); next = 047. 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+- `supabase/migrations/` — **SQL migrations 001-048** (file gaps at 030/031, applied from another branch); next = 049. 048 = digital_assets.external_url (link delivery); 047 = courses.compare_price (offer vs actual price); 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+  - ⚠️ **Never run `supabase db push` on this project.** Remote history holds 030/031 with no local files AND is missing 041-045, which are applied. `db push` would replay them. Apply migrations as raw SQL — see `docs/operations/AUG_INTEGRATION_GO_LIVE.md`.
+  - Verify migrations before applying: `npm run verify:migrations 046 047 048` (needs `brew install postgresql@16`; no Docker).
 - `supabase/functions/` — **16 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)
