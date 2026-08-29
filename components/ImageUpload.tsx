@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 export interface ImageUploadProps {
   /** Current image URL (controlled). */
   value?: string;
-  /** Called with the new public CDN URL after a successful upload, or '' on remove. */
+  /** Called with the new public CDN URL after a successful upload, a pasted URL, or '' on remove. */
   onChange: (url: string) => void;
   /** Bunny storage folder the image lands in. */
   folder: ImageFolder;
@@ -15,13 +15,30 @@ export interface ImageUploadProps {
   /** Tailwind aspect-ratio class for the preview box, e.g. 'aspect-video' | 'aspect-square'. */
   aspect?: string;
   disabled?: boolean;
+  /** Also allow pasting an external http(s) image URL (shown under the dropzone). */
+  allowUrlInput?: boolean;
 }
+
+const isHttpUrl = (s: string) => {
+  try { const u = new URL(s); return u.protocol === 'http:' || u.protocol === 'https:'; }
+  catch { return false; }
+};
+
+// Identifies assets we uploaded to Bunny Storage (safe to delete on
+// replace/remove) — a pasted external URL must never be deleted.
+const isBunnyUrl = (s?: string) => {
+  if (!s) { return false; }
+  try { return new URL(s).host.endsWith('.b-cdn.net'); }
+  catch { return false; }
+};
 
 /**
  * Reusable admin image picker: drag/drop or click, instant local preview, upload
  * progress, replace and remove. Uploads via siteImagesApi (Bunny Storage proxy)
  * and emits the resulting public CDN URL through onChange. Cleans up the previous
- * image best-effort when replaced/removed.
+ * image best-effort when replaced/removed (only images we uploaded — never a
+ * pasted external URL). With `allowUrlInput`, an external URL can be pasted
+ * instead of uploading (mirrors the {@link VideoField} UX).
  */
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   value,
@@ -30,11 +47,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   label = 'Image',
   aspect = 'aspect-video',
   disabled,
+  allowUrlInput,
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imgBroken, setImgBroken] = useState(false);
+  const [urlDraft, setUrlDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const prevUrlRef = useRef<string | undefined>(value);
 
@@ -51,7 +70,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     try {
       const { url } = await siteImagesApi.uploadImage(file, folder);
       // Best-effort clean up the previous image we owned.
-      if (prevUrlRef.current && prevUrlRef.current !== url) {
+      if (prevUrlRef.current && prevUrlRef.current !== url && isBunnyUrl(prevUrlRef.current)) {
         void siteImagesApi.deleteImage(prevUrlRef.current);
       }
       prevUrlRef.current = url;
@@ -79,9 +98,18 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setDragActive(e.type === 'dragenter' || e.type === 'dragover');
   };
   const remove = () => {
-    if (value) { void siteImagesApi.deleteImage(value); }
+    if (value && isBunnyUrl(value)) { void siteImagesApi.deleteImage(value); }
     prevUrlRef.current = undefined;
     onChange('');
+  };
+  const applyUrl = () => {
+    const u = urlDraft.trim();
+    if (!u) { return; }
+    if (!isHttpUrl(u)) { setError('Enter a valid image URL starting with http:// or https://'); return; }
+    setError(null);
+    prevUrlRef.current = u;
+    onChange(u);
+    setUrlDraft('');
   };
 
   return (
@@ -124,32 +152,55 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
         </div>
       ) : (
-        <div
-          onClick={pick}
-          onDragEnter={onDrag}
-          onDragLeave={onDrag}
-          onDragOver={onDrag}
-          onDrop={onDrop}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}
-          className={`relative border-2 border-dashed rounded-lg w-full max-w-[240px] ${aspect} flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
-            dragActive ? 'border-brand-500 bg-brand-500/5' : 't-border hover:border-brand-400'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {uploading ? (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
-              <span className="text-sm t-text-2">Uploading…</span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 p-4">
-              <Upload className="w-7 h-7 text-brand-600" />
-              <p className="text-sm font-medium t-text">Drop image or click to upload</p>
-              <p className="text-xs t-text-3">JPEG, PNG, WebP, AVIF · max 5MB</p>
+        <>
+          <div
+            onClick={pick}
+            onDragEnter={onDrag}
+            onDragLeave={onDrag}
+            onDragOver={onDrag}
+            onDrop={onDrop}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}
+            className={`relative border-2 border-dashed rounded-lg w-full max-w-[240px] ${aspect} flex flex-col items-center justify-center text-center transition-colors cursor-pointer ${
+              dragActive ? 'border-brand-500 bg-brand-500/5' : 't-border hover:border-brand-400'
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {uploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
+                <span className="text-sm t-text-2">Uploading…</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 p-4">
+                <Upload className="w-7 h-7 text-brand-600" />
+                <p className="text-sm font-medium t-text">Drop image or click to upload</p>
+                <p className="text-xs t-text-3">JPEG, PNG, WebP, AVIF · max 5MB</p>
+              </div>
+            )}
+          </div>
+          {allowUrlInput && (
+            <div className="flex gap-2 max-w-[420px]">
+              <input
+                type="url"
+                value={urlDraft}
+                onChange={(e) => setUrlDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}
+                placeholder="…or paste an image URL (https://)"
+                disabled={disabled || uploading}
+                className="flex-1 t-input-bg t-border border rounded-lg px-3 py-1.5 text-sm t-text outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <button
+                type="button"
+                onClick={applyUrl}
+                disabled={disabled || uploading || !urlDraft.trim()}
+                className="px-3 py-1.5 text-sm rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+              >
+                Use
+              </button>
             </div>
           )}
-        </div>
+        </>
       )}
 
       <input
