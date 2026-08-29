@@ -457,3 +457,38 @@ export function siteLinkFor(section: string): string | null {
   const anchor = SECTION_SCHEMAS[section]?.anchor;
   return anchor ? `/#${anchor}` : null;
 }
+
+/**
+ * Every CMS section in the order it appears as you scroll the live storefront,
+ * header row before the list it heads.
+ *
+ * The admin list used to be grouped by internal category ("Landing copy",
+ * "Social proof"), which meant finding the row behind a bit of on-screen text
+ * required already knowing the taxonomy. Walking the page top to bottom is the
+ * order an admin actually thinks in.
+ *
+ * Derived from the JSX order in pages/Storefront.tsx — keep the two in step
+ * when a section moves. `orderedSections` in ContentPage.tsx appends anything
+ * missing here, so a forgotten key degrades to "listed last", never "hidden".
+ */
+export const PAGE_ORDER: string[] = [
+  'banner',            // AnnouncementBanner — above everything
+  'hero',              // HeroSection
+  'hero_slides',       //   └ carousel slides inside the hero
+  'social_proof',      // SocialProofTicker
+  'featured_copy',     // FeaturedCoursesSection
+  'showcase',          // AssetsShowcaseSection
+  'how_it_works',      // HowItWorksSection header
+  'how_it_works_steps',//   └ the numbered step cards
+  'value_props_copy',  // ValuePropsSection header
+  'value_cards',       //   └ the benefit cards
+  'instructors_copy',  // InstructorsSection header
+  'instructors',       //   └ the instructor cards
+  'creators_copy',     // CreatorsSection header
+  'creators',          //   └ the creator cards
+  'community_copy',    // CommunityProofSection header
+  'testimonial',       //   └ the testimonials
+  'pricing_copy',      // PricingSection header
+  'closing',           // ClosingSection
+  'faq',               //   └ the FAQ accordion inside the closing section
+];

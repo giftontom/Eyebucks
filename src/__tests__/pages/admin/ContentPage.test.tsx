@@ -96,10 +96,30 @@ describe('ContentPage', () => {
     expect(mockAdminApi.getSiteContent).toHaveBeenCalled();
   });
 
-  it('shows "No content found" when list is empty', async () => {
+  // An empty CMS used to render a single "No content found" line, which hid the
+  // fact that the site was still rendering built-in copy for every section and
+  // gave the admin nowhere to start. Every known section is now listed instead.
+  it('lists every known section even when no rows exist at all', async () => {
     mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
     render(<ContentPage />);
-    await waitFor(() => expect(screen.getByText(/no content found/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    expect(screen.queryByText(/no content found/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/using built-in text/i).length).toBeGreaterThan(5);
+  });
+
+  it('offers an add-content shortcut on a section that has no rows', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: /add content/i }).length).toBeGreaterThan(0);
+  });
+
+  it('orders sections down the page, hero before pricing', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    const text = document.body.textContent ?? '';
+    expect(text.indexOf('Hero')).toBeLessThan(text.indexOf('Pricing'));
   });
 
   it('shows "Site Content Manager" heading', async () => {

@@ -12,6 +12,7 @@ import {
   SECTION_SCHEMAS,
   CREATE_SECTIONS,
   GROUP_ORDER,
+  PAGE_ORDER,
   defaultMetaFor,
   siteLinkFor,
   type FieldDef,
@@ -182,10 +183,17 @@ export const ContentPage: React.FC = () => {
 
   useEffect(() => { fetchContent(); }, []);
 
-  const openCreate = () => {
+  /**
+   * Open the create modal, optionally pre-picked to a section.
+   *
+   * The "Add content" button on an empty section passes its own key so the
+   * admin does not have to re-find it in the dropdown they already failed to
+   * find it in.
+   */
+  const openCreate = (section = 'faq') => {
     setEditingId(null);
-    setForm({ section: 'faq', title: '', body: '', orderIndex: 0, isActive: true });
-    setMeta(defaultMetaFor('faq'));
+    setForm({ section, title: '', body: '', orderIndex: 0, isActive: true });
+    setMeta(defaultMetaFor(section));
     setAdvancedMode(false);
     setAdvancedJson('{}');
     setShowModal(true);
@@ -323,9 +331,14 @@ export const ContentPage: React.FC = () => {
 
   // Sections to render in the list: registry order (by group) + any legacy
   // sections present in data but not in the registry (so they stay manageable).
-  const registrySections = GROUP_ORDER.flatMap((g) =>
-    Object.values(SECTION_SCHEMAS).filter((s) => s.group === g).map((s) => s.section),
-  );
+  // Walk the page top to bottom. Anything in the registry that PAGE_ORDER
+  // forgot still gets listed (after the ordered ones) rather than disappearing.
+  const registrySections = [
+    ...PAGE_ORDER.filter((s) => SECTION_SCHEMAS[s]),
+    ...Object.values(SECTION_SCHEMAS)
+      .map((s) => s.section)
+      .filter((s) => !PAGE_ORDER.includes(s)),
+  ];
   // 'settings' rows are owned by the Settings page, not the content editor — hide them.
   const extraSections = Array.from(new Set(siteContent.map((c) => c.section))).filter(
     (s) => !registrySections.includes(s) && s !== 'settings',
@@ -338,7 +351,7 @@ export const ContentPage: React.FC = () => {
         <div className="p-6 border-b t-border flex justify-between items-center">
           <h3 className="text-xl font-bold t-text">Site Content Manager</h3>
           <button
-            onClick={openCreate}
+            onClick={() => openCreate()}
             className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
           >
             <Plus size={16} /> New Content
@@ -354,14 +367,17 @@ export const ContentPage: React.FC = () => {
               Retry
             </button>
           </div>
-        ) : siteContent.length === 0 ? (
-          <div className="flex items-center justify-center py-20"><div className="t-text-3">No content found</div></div>
         ) : (
           <div className="divide-y t-divide">
             {orderedSections.map((section) => {
               const items = siteContent.filter((c) => c.section === section);
-              if (items.length === 0) { return null; }
               const sectionSchema = SECTION_SCHEMAS[section];
+              // A section with no rows used to be skipped entirely, which is
+              // precisely why an admin hunting for on-screen text could not
+              // find it: the site was rendering built-in fallback copy from a
+              // section that the CMS refused to admit existed. List every known
+              // section and say what state it is in.
+              if (items.length === 0 && !sectionSchema) { return null; }
               const label = sectionSchema?.label ?? section;
               const siteLink = siteLinkFor(section);
               return (
@@ -369,6 +385,11 @@ export const ContentPage: React.FC = () => {
                   <h4 className="text-sm font-bold t-text-2 uppercase tracking-wider mb-1 flex items-center gap-2">
                     <Layers size={14} />
                     {label} ({items.length})
+                    {items.length === 0 && (
+                      <span className="normal-case tracking-normal font-medium t-text-3">
+                        — using built-in text
+                      </span>
+                    )}
                   </h4>
                   {/* Section keys are internal names — spell out which band of
                       the live site these rows drive, and link straight to it. */}
@@ -389,6 +410,20 @@ export const ContentPage: React.FC = () => {
                         )}
                       </span>
                     </p>
+                  )}
+                  {items.length === 0 && sectionSchema && (
+                    <div className="mt-4 rounded-lg border border-dashed t-border p-4 flex items-center justify-between gap-4">
+                      <p className="text-sm t-text-3">
+                        Nothing here yet, so the site shows the wording built into the page.
+                        Add a row to take control of it.
+                      </p>
+                      <button
+                        onClick={() => openCreate(section)}
+                        className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-500"
+                      >
+                        <Plus size={14} /> Add content
+                      </button>
+                    </div>
                   )}
                   <div className="space-y-3 mt-4">
                     {items.map((item) => (
