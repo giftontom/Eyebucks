@@ -507,14 +507,22 @@ export const CourseDetails: React.FC = () => {
       )}
 
       {/* Mobile Sticky Buy Button (Conditionally Rendered).
-          `translate-y-full` alone does NOT hide this: it parks the bar exactly
-          over the bottom nav, which is only 90% opaque, so the price and
-          "Enroll Now" ghosted through the nav bar. Fade it out and take it out
-          of the hit-testing/a11y tree as well. */}
+          `translate-y-full` alone does NOT hide this: it moves the bar down by
+          only its own height, which parks it exactly over the bottom nav — and
+          the nav is only 90% opaque, so the price and "Enroll Now" ghosted
+          through the frosted glass. `translate-y-clear-nav` also clears the nav
+          height + safe-area inset so the bar genuinely leaves the viewport;
+          `md:translate-y-full` resets that above the breakpoint where the nav is
+          hidden and the bar sits at bottom-0. Fade it out and take it out of the
+          hit-testing and a11y trees too (`inert` also drops it from the tab
+          order, which `aria-hidden` alone would not). */}
       <div
         aria-hidden={!showSticky}
-        className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between gap-4 shadow-lg shadow-black/5 dark:shadow-none transition-[transform,opacity] duration-300 motion-reduce:transition-none ${
-          showSticky ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'
+        inert={!showSticky}
+        className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between gap-4 shadow-lg shadow-black/5 dark:shadow-none transition-[translate,opacity] duration-300 motion-reduce:transition-none ${
+          showSticky
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-clear-nav md:translate-y-full opacity-0 pointer-events-none'
         }`}
       >
         {!hasAccess ? (
