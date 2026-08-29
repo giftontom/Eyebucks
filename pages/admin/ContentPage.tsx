@@ -377,7 +377,12 @@ export const ContentPage: React.FC = () => {
               // find it: the site was rendering built-in fallback copy from a
               // section that the CMS refused to admit existed. List every known
               // section and say what state it is in.
-              if (items.length === 0 && !sectionSchema) { return null; }
+              // An empty section is still listed so the admin can find it — except
+              // a retired one, which has nothing to say and must not invite new
+              // rows (CREATE_SECTIONS already hides deprecated keys from the New
+              // Content dropdown). Retired sections that still HAVE rows stay
+              // visible so that legacy content remains editable.
+              if (items.length === 0 && (!sectionSchema || sectionSchema.deprecated)) { return null; }
               const label = sectionSchema?.label ?? section;
               const siteLink = siteLinkFor(section);
               return (
@@ -411,7 +416,7 @@ export const ContentPage: React.FC = () => {
                       </span>
                     </p>
                   )}
-                  {items.length === 0 && sectionSchema && (
+                  {items.length === 0 && sectionSchema && !sectionSchema.deprecated && (
                     <div className="mt-4 rounded-lg border border-dashed t-border p-4 flex items-center justify-between gap-4">
                       <p className="text-sm t-text-3">
                         Nothing here yet, so the site shows the wording built into the page.

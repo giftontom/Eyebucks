@@ -114,6 +114,28 @@ describe('ContentPage', () => {
     expect(screen.getAllByRole('button', { name: /add content/i }).length).toBeGreaterThan(0);
   });
 
+  // `showcase` is deprecated: CREATE_SECTIONS hides it from the New Content
+  // dropdown, so listing it with an "Add content" button would invite rows the
+  // rest of the UI refuses to create.
+  it('does not list a retired section that has no rows', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    expect(screen.queryByText('Showcase')).not.toBeInTheDocument();
+  });
+
+  it('still lists a retired section when it has rows, so legacy content stays editable', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({
+      items: [{
+        id: 'sc1', section: 'showcase', title: 'Legacy showcase row', body: 'b',
+        metadata: {}, orderIndex: 0, isActive: true,
+        createdAt: '2026-01-01', updatedAt: '2026-01-01',
+      }],
+    });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Legacy showcase row')).toBeInTheDocument());
+  });
+
   it('orders sections down the page, hero before pricing', async () => {
     mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
     render(<ContentPage />);
