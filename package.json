@@ -13,6 +13,7 @@
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 350",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "lint:skills": "node scripts/skills-lint.mjs",
+    "verify:migrations": "bash scripts/verify-migrations.sh",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "type-check": "tsc --noEmit"
