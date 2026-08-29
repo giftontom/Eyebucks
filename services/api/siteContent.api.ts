@@ -33,6 +33,32 @@ export const siteContentApi = {
     return (data || []).map(mapRow);
   },
 
+  /**
+   * Every active row, in one request.
+   *
+   * The storefront renders ~15 CMS-driven sections. Each one calling
+   * `getBySection` meant ~15 separate round-trips that resolved at different
+   * times, so the page visibly re-flowed section by section as each swapped
+   * from its hardcoded fallback to the real copy. `SiteContentProvider` calls
+   * this once instead and hands every section its rows from that single result.
+   *
+   * The public RLS policy on `site_content` is `is_active = true`, so an
+   * anonymous visitor gets exactly these rows either way — filtering here just
+   * keeps the admin's inactive drafts out of the storefront payload.
+   */
+  async getAllActive(): Promise<SiteContentItem[]> {
+    const { data, error } = await supabase
+      .from('site_content')
+      .select('*')
+      .eq('is_active', true)
+      .order('section')
+      .order('order_index', { ascending: true })
+      .limit(500);
+
+    if (error) {throw new Error(error.message);}
+    return (data || []).map(mapRow);
+  },
+
   async getAll(params?: { page?: number; limit?: number }): Promise<{ items: SiteContentItem[]; total: number }> {
     const page = params?.page || 1;
     const limit = Math.min(params?.limit || 100, 500);

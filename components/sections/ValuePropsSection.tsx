@@ -1,9 +1,8 @@
 import { BookOpen, Award, Video, Palette, Layers, Users, Zap, ArrowRight, type LucideIcon } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
-import { siteContentApi } from '../../services/api';
-import { logger } from '../../utils/logger';
+import { useSiteSection } from '../../context/SiteContentContext';
 import { FadeIn, STAGGER_MS } from '../FadeIn';
 import { HorizontalGallery } from '../HorizontalGallery';
 
@@ -111,34 +110,27 @@ const SpotlightCard: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 };
 
 export const ValuePropsSection: React.FC = () => {
-  const [props, setProps] = useState<ValueProp[]>(DEFAULT_PROPS);
-  const [copy, setCopy] = useState<ValuePropsCopy>(DEFAULT_COPY);
+  const cardRows = useSiteSection('value_cards');
+  const copyRows = useSiteSection('value_props_copy');
 
-  useEffect(() => {
-    siteContentApi.getBySection('value_cards')
-      .then(items => {
-        if (items.length > 0) {setProps(items.map(parseProp));}
-      })
-      .catch(err => logger.warn('[ValuePropsSection] Failed to load from CMS:', err));
-  }, []);
+  const props = useMemo<ValueProp[]>(
+    () => (cardRows && cardRows.length > 0 ? cardRows.map(parseProp) : DEFAULT_PROPS),
+    [cardRows],
+  );
 
-  useEffect(() => {
-    siteContentApi.getBySection('value_props_copy')
-      .then(items => {
-        const item = items[0];
-        if (!item) { return; }
-        const meta = (item.metadata ?? {}) as Record<string, unknown>;
-        setCopy({
-          pill: typeof meta.pill === 'string' && meta.pill ? meta.pill : DEFAULT_COPY.pill,
-          title: item.title || DEFAULT_COPY.title,
-          body: item.body || DEFAULT_COPY.body,
-          footerLinkLabel: typeof meta.footerLinkLabel === 'string' && meta.footerLinkLabel
-            ? meta.footerLinkLabel
-            : DEFAULT_COPY.footerLinkLabel,
-        });
-      })
-      .catch(err => logger.warn('[ValuePropsSection] header CMS load failed:', err));
-  }, []);
+  const copy = useMemo<ValuePropsCopy>(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    return {
+      pill: typeof meta.pill === 'string' && meta.pill ? meta.pill : DEFAULT_COPY.pill,
+      title: item.title || DEFAULT_COPY.title,
+      body: item.body || DEFAULT_COPY.body,
+      footerLinkLabel: typeof meta.footerLinkLabel === 'string' && meta.footerLinkLabel
+        ? meta.footerLinkLabel
+        : DEFAULT_COPY.footerLinkLabel,
+    };
+  }, [copyRows]);
 
   return (
     <section id="value-props" className="py-20 md:py-28 t-bg">

@@ -1,36 +1,43 @@
 import { X } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
-import { siteContentApi } from '../services/api/siteContent.api';
-import { logger } from '../utils/logger';
+import { useSiteSection } from '../context/SiteContentContext';
 
-import type { SiteContentItem } from '../types';
+const DISMISSED_KEY = 'eyebuckz_banner_dismissed_ids';
+
+function readDismissedIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 export const AnnouncementBanner: React.FC = () => {
-  const [banner, setBanner] = useState<SiteContentItem | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const rows = useSiteSection('banner');
 
+  // Drop dismissal records for banners the admin has since deleted, so the IDs
+  // don't accumulate forever. Purely housekeeping — it cannot change which
+  // banner shows, because the check below only tests IDs that are still live.
   useEffect(() => {
-    siteContentApi.getBySection('banner').then(items => {
-      // Clean up stale dismissed banner IDs from localStorage
-      const activeIds = new Set(items.map(i => i.id));
-      const raw = localStorage.getItem('eyebuckz_banner_dismissed_ids');
-      const dismissedIds: string[] = raw ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : [];
-      const pruned = dismissedIds.filter(id => activeIds.has(id));
-      localStorage.setItem('eyebuckz_banner_dismissed_ids', JSON.stringify(pruned));
+    if (!rows) { return; }
+    const activeIds = new Set(rows.map(i => i.id));
+    const pruned = readDismissedIds().filter(id => activeIds.has(id));
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(pruned));
+    } catch {
+      // Storage unavailable — dismissal just won't persist.
+    }
+  }, [rows]);
 
-      if (items.length > 0) {
-        const item = items[0];
-        if (dismissedIds.includes(item.id)) {
-          setDismissed(true);
-        } else {
-          setBanner(item);
-        }
-      }
-    }).catch(err => {
-      logger.error('[AnnouncementBanner] Failed to fetch banner:', err);
-    });
-  }, []);
+  const banner = useMemo(() => {
+    const item = rows?.[0];
+    if (!item) { return null; }
+    return readDismissedIds().includes(item.id) ? null : item;
+  }, [rows]);
 
   if (!banner || dismissed) {return null;}
 

@@ -1,10 +1,9 @@
 import { Search, CreditCard, Award, Check, Video, Users, Zap } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 
+import { useSiteSection } from '../../context/SiteContentContext';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
-import { siteContentApi } from '../../services/api';
-import { logger } from '../../utils/logger';
 import { FadeIn } from '../FadeIn';
 
 import type { SiteContentItem } from '../../types';
@@ -64,37 +63,29 @@ const DEFAULT_COPY = {
 
 export const HowItWorksSection: React.FC = () => {
   const [active, setActive] = useState(0);
-  const [copy, setCopy] = useState(DEFAULT_COPY);
-  const [steps, setSteps] = useState<Step[]>(DEFAULT_STEPS);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const copyRows = useSiteSection('how_it_works');
+  const stepRows = useSiteSection('how_it_works_steps');
 
   // Header copy is CMS-overridable (singleton: items[0]).
   // Per-field fallback keeps the visual output identical when CMS is empty.
-  useEffect(() => {
-    siteContentApi.getBySection('how_it_works')
-      .then((items: SiteContentItem[]) => {
-        const item = items[0];
-        if (!item) { return; }
-        const meta = (item.metadata ?? {}) as Record<string, unknown>;
-        setCopy({
-          pill: (meta.pill as string) || DEFAULT_COPY.pill,
-          heading: item.title || DEFAULT_COPY.heading,
-          subheading: item.body || DEFAULT_COPY.subheading,
-        });
-      })
-      .catch(err => logger.warn('[HowItWorksSection] CMS load failed:', err));
-  }, []);
+  const copy = useMemo(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    return {
+      pill: (meta.pill as string) || DEFAULT_COPY.pill,
+      heading: item.title || DEFAULT_COPY.heading,
+      subheading: item.body || DEFAULT_COPY.subheading,
+    };
+  }, [copyRows]);
 
   // Step cards are CMS-driven (one row per step, ordered by order_index); the
   // hardcoded DEFAULT_STEPS stand in while the section has no rows.
-  useEffect(() => {
-    siteContentApi.getBySection('how_it_works_steps')
-      .then((items: SiteContentItem[]) => {
-        if (items.length === 0) { return; }
-        setSteps(items.map(parseStepItem));
-      })
-      .catch(err => logger.warn('[HowItWorksSection] steps CMS load failed:', err));
-  }, []);
+  const steps = useMemo<Step[]>(
+    () => (stepRows && stepRows.length > 0 ? stepRows.map(parseStepItem) : DEFAULT_STEPS),
+    [stepRows],
+  );
 
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);

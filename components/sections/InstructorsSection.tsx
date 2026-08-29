@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 
+import { useSiteSection } from '../../context/SiteContentContext';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
-import { siteContentApi } from '../../services/api';
-import { logger } from '../../utils/logger';
 import { FadeIn } from '../FadeIn';
 import { HorizontalGallery } from '../HorizontalGallery';
 
@@ -108,34 +107,26 @@ const VIEWFINDER_CORNERS = [
 ];
 
 export const InstructorsSection: React.FC = () => {
-  const [instructors, setInstructors] = useState<Instructor[]>(DEFAULT_INSTRUCTORS);
-  const [copy, setCopy] = useState<InstructorsCopy>(DEFAULT_COPY);
+  const instructorRows = useSiteSection('instructors');
+  const copyRows = useSiteSection('instructors_copy');
 
-  useEffect(() => {
-    siteContentApi.getBySection('instructors')
-      .then(items => {
-        if (items.length > 0) {
-          setInstructors(items.map(parseInstructorItem));
-        }
-      })
-      .catch(err => logger.warn('[InstructorsSection] Failed to load from CMS:', err));
-  }, []);
+  const instructors = useMemo<Instructor[]>(
+    () => (instructorRows && instructorRows.length > 0
+      ? instructorRows.map(parseInstructorItem)
+      : DEFAULT_INSTRUCTORS),
+    [instructorRows],
+  );
 
-  useEffect(() => {
-    siteContentApi.getBySection('instructors_copy')
-      .then(items => {
-        const item = items[0];
-        if (item) {
-          const meta = (item.metadata ?? {}) as Record<string, string>;
-          setCopy({
-            pill: meta.pill ?? DEFAULT_COPY.pill,
-            title: item.title ?? DEFAULT_COPY.title,
-            body: item.body ?? DEFAULT_COPY.body,
-          });
-        }
-      })
-      .catch(err => logger.warn('[InstructorsSection] header CMS load failed:', err));
-  }, []);
+  const copy = useMemo<InstructorsCopy>(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, string>;
+    return {
+      pill: meta.pill ?? DEFAULT_COPY.pill,
+      title: item.title ?? DEFAULT_COPY.title,
+      body: item.body ?? DEFAULT_COPY.body,
+    };
+  }, [copyRows]);
 
   return (
     // data-scene-dark: the scroll-driven scene grade (useSceneGrade) darkens

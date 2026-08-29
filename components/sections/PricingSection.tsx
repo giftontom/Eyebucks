@@ -1,9 +1,10 @@
 import { ArrowRight, Award, Check, ShieldCheck, Zap } from 'lucide-react';
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useLanguage } from '../../context/LanguageContext';
-import { coursesApi, siteContentApi } from '../../services/api';
+import { useSiteSection } from '../../context/SiteContentContext';
+import { coursesApi } from '../../services/api';
 import { formatPrice } from '../../utils/format';
 import { logger } from '../../utils/logger';
 import { Button } from '../Button';
@@ -222,31 +223,27 @@ const TicketCard: React.FC<{ tier: PricingTier; copy: SectionCopy }> = ({ tier, 
 export const PricingSection: React.FC = () => {
   const { language } = useLanguage();
   const [tiers, setTiers] = useState<PricingTier[]>(FALLBACK_TIERS);
-  const [copy, setCopy] = useState<SectionCopy>(DEFAULT_COPY);
+  const copyRows = useSiteSection('pricing_copy');
 
   // CMS override for header/chrome copy only (prices stay computed live). Singleton: items[0].
-  useEffect(() => {
-    siteContentApi.getBySection('pricing_copy')
-      .then((items) => {
-        const item = items[0];
-        if (!item) { return; }
-        const meta = (item.metadata || {}) as Record<string, unknown>;
-        const str = (v: unknown, fallback: string) =>
-          typeof v === 'string' && v.trim() ? v : fallback;
-        const arr = (v: unknown, fallback: string[]) =>
-          Array.isArray(v) && v.length > 0 ? v.map(String) : fallback;
-        setCopy({
-          eyebrow: str(meta.pill, DEFAULT_COPY.eyebrow),
-          heading: str(item.title, DEFAULT_COPY.heading),
-          subheading: str(item.body, DEFAULT_COPY.subheading),
-          popularLabel: str(meta.popularLabel, DEFAULT_COPY.popularLabel),
-          paymentNote: str(meta.paymentNote, DEFAULT_COPY.paymentNote),
-          ticketLabel: str(meta.ticketLabel, DEFAULT_COPY.ticketLabel),
-          trustBadges: arr(meta.trustBadges, DEFAULT_COPY.trustBadges),
-        });
-      })
-      .catch(err => logger.warn('[PricingSection] CMS load failed:', err));
-  }, []);
+  const copy = useMemo<SectionCopy>(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata || {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) =>
+      typeof v === 'string' && v.trim() ? v : fallback;
+    const arr = (v: unknown, fallback: string[]) =>
+      Array.isArray(v) && v.length > 0 ? v.map(String) : fallback;
+    return {
+      eyebrow: str(meta.pill, DEFAULT_COPY.eyebrow),
+      heading: str(item.title, DEFAULT_COPY.heading),
+      subheading: str(item.body, DEFAULT_COPY.subheading),
+      popularLabel: str(meta.popularLabel, DEFAULT_COPY.popularLabel),
+      paymentNote: str(meta.paymentNote, DEFAULT_COPY.paymentNote),
+      ticketLabel: str(meta.ticketLabel, DEFAULT_COPY.ticketLabel),
+      trustBadges: arr(meta.trustBadges, DEFAULT_COPY.trustBadges),
+    };
+  }, [copyRows]);
 
   useEffect(() => {
     Promise.all([

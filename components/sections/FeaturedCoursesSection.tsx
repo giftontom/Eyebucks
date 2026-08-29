@@ -1,9 +1,10 @@
 import { ArrowRight } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useLanguage } from '../../context/LanguageContext';
-import { coursesApi, siteContentApi } from '../../services/api';
+import { useSiteSection } from '../../context/SiteContentContext';
+import { coursesApi } from '../../services/api';
 import { logger } from '../../utils/logger';
 import { CourseCard } from '../CourseCard';
 import { CourseCardSkeleton } from '../CourseCardSkeleton';
@@ -30,7 +31,7 @@ export const FeaturedCoursesSection: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [copy, setCopy] = useState(DEFAULT_COPY);
+  const copyRows = useSiteSection('featured_copy');
 
   useEffect(() => {
     coursesApi.getCourses({ page: 1, pageSize: FEATURED_COUNT, withCount: false, language })
@@ -46,22 +47,19 @@ export const FeaturedCoursesSection: React.FC = () => {
   }, [language]);
 
   // CMS override for header/CTA copy only — singleton row [0], per-field
-  // fallback to DEFAULT_COPY. Non-critical: failures keep the defaults.
-  useEffect(() => {
-    siteContentApi.getBySection('featured_copy')
-      .then(items => {
-        const item = items[0];
-        if (!item) {return;}
-        const meta = (item.metadata || {}) as Record<string, unknown>;
-        setCopy({
-          pill: typeof meta.pill === 'string' && meta.pill ? meta.pill : DEFAULT_COPY.pill,
-          title: item.title || DEFAULT_COPY.title,
-          body: item.body || DEFAULT_COPY.body,
-          ctaLabel: typeof meta.ctaLabel === 'string' && meta.ctaLabel ? meta.ctaLabel : DEFAULT_COPY.ctaLabel,
-        });
-      })
-      .catch(err => logger.warn('[FeaturedCoursesSection] CMS load failed:', err));
-  }, []);
+  // fallback to DEFAULT_COPY. Derived in render so the defaults are never
+  // painted first when the CMS payload is already known.
+  const copy = useMemo(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata || {}) as Record<string, unknown>;
+    return {
+      pill: typeof meta.pill === 'string' && meta.pill ? meta.pill : DEFAULT_COPY.pill,
+      title: item.title || DEFAULT_COPY.title,
+      body: item.body || DEFAULT_COPY.body,
+      ctaLabel: typeof meta.ctaLabel === 'string' && meta.ctaLabel ? meta.ctaLabel : DEFAULT_COPY.ctaLabel,
+    };
+  }, [copyRows]);
 
   // Don't render anything if no courses and not loading
   if (!isLoading && !hasError && courses.length === 0) {

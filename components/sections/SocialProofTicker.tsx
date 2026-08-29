@@ -1,7 +1,7 @@
 import { Users, Trophy, Globe } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { siteContentApi } from '../../services/api';
-import { logger } from '../../utils/logger';
+import React, { useMemo } from 'react';
+
+import { useSiteSection } from '../../context/SiteContentContext';
 
 // Verbatim ticker text. Icons stay positional/hardcoded (Users, Trophy, Globe);
 // only these strings can be overridden via CMS metadata.items (string[]).
@@ -12,18 +12,12 @@ const DEFAULT_ITEMS = [
 ];
 
 export const SocialProofTicker: React.FC = () => {
-  const [items, setItems] = useState<string[]>(DEFAULT_ITEMS);
+  const rows = useSiteSection('social_proof');
 
-  useEffect(() => {
-    siteContentApi.getBySection('social_proof')
-      .then(content => {
-        const cmsItems = content[0]?.metadata?.items;
-        if (Array.isArray(cmsItems) && cmsItems.length > 0) {
-          setItems(cmsItems);
-        }
-      })
-      .catch(err => logger.warn('[SocialProofTicker] CMS load failed:', err));
-  }, []);
+  const items = useMemo(() => {
+    const cmsItems = rows?.[0]?.metadata?.items;
+    return Array.isArray(cmsItems) && cmsItems.length > 0 ? (cmsItems as string[]) : DEFAULT_ITEMS;
+  }, [rows]);
 
   return (
     // The ticker's light text lives on the dark scene; it fades out with the

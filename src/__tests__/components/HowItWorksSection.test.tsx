@@ -10,7 +10,14 @@ const { mockGetBySection } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../services/api', () => ({
-  siteContentApi: { getBySection: mockGetBySection },
+  siteContentApi: { getBySection: mockGetBySection,
+  // SiteContentProvider batches every section into one `getAllActive` call.
+  // Derive that batch from the per-section fixtures below so each test keeps
+  // describing its data section-by-section.
+  getAllActive: async () => (
+    await Promise.all(['hero','hero_slides','banner','faq','creators','creators_copy','value_cards','value_props_copy','instructors','instructors_copy','testimonial','community_copy','how_it_works','how_it_works_steps','featured_copy','pricing_copy','closing','social_proof','showcase','settings'].map((s: string) => mockGetBySection(s)))
+  ).flatMap((r: unknown) => (Array.isArray(r) ? r : [])),
+},
 }));
 
 vi.mock('../../../utils/logger', () => ({
@@ -26,6 +33,7 @@ vi.mock('../../../hooks/usePrefersReducedMotion', () => ({
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import { HowItWorksSection } from '../../../components/sections/HowItWorksSection';
+import { SiteContentProvider } from '../../../context/SiteContentContext';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +63,9 @@ const DEFAULT_HEADING = 'Your Path to Pro Filmmaker.';
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+const renderWithCms = (ui: React.ReactElement) =>
+  render(<SiteContentProvider>{ui}</SiteContentProvider>);
+
 describe('HowItWorksSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -73,29 +84,29 @@ describe('HowItWorksSection', () => {
     });
 
     it('renders the first CMS step title', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText('Pick a Track')).toBeInTheDocument());
     });
 
     it('renders the first CMS step description', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() =>
         expect(screen.getByText('Choose the path that matches your goal.')).toBeInTheDocument(),
       );
     });
 
     it('renders one rail tab per CMS step', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(2));
     });
 
     it('derives the step counter from the CMS row count', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText('Step 01 / 02')).toBeInTheDocument());
     });
 
     it('does NOT render the hardcoded default step', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText('Pick a Track')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_STEP_TITLE)).not.toBeInTheDocument();
       expect(screen.queryByText(DEFAULT_STEP_BODY)).not.toBeInTheDocument();
@@ -103,7 +114,7 @@ describe('HowItWorksSection', () => {
 
     it('shows the second CMS step after clicking its rail tab', async () => {
       const user = userEvent.setup();
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(2));
       await user.click(screen.getByRole('tab', { name: 'Step 02: Shoot Weekly' }));
       expect(screen.getByText('Ship one edit every week with feedback.')).toBeInTheDocument();
@@ -111,7 +122,7 @@ describe('HowItWorksSection', () => {
     });
 
     it('still applies the header copy row', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText('Your Path to Top Influencer')).toBeInTheDocument());
       expect(screen.getByText('CMS Pill')).toBeInTheDocument();
     });
@@ -121,23 +132,23 @@ describe('HowItWorksSection', () => {
 
   describe('when how_it_works_steps is empty (fallback guard)', () => {
     it('renders the hardcoded first step', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_STEP_TITLE)).toBeInTheDocument());
       expect(screen.getByText(DEFAULT_STEP_BODY)).toBeInTheDocument();
     });
 
     it('renders three rail tabs', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(3));
     });
 
     it('renders the "/ 03" counter', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText('Step 01 / 03')).toBeInTheDocument());
     });
 
     it('renders the default heading', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_HEADING)).toBeInTheDocument());
     });
   });
@@ -150,7 +161,7 @@ describe('HowItWorksSection', () => {
     });
 
     it('falls back to the hardcoded steps without throwing', async () => {
-      expect(() => render(<HowItWorksSection />)).not.toThrow();
+      expect(() => renderWithCms(<HowItWorksSection />)).not.toThrow();
       await waitFor(() => expect(screen.getByText(DEFAULT_STEP_TITLE)).toBeInTheDocument());
       expect(screen.getByText(DEFAULT_HEADING)).toBeInTheDocument();
     });
@@ -168,7 +179,7 @@ describe('HowItWorksSection', () => {
     });
 
     it('renders the step with the fallback icon', async () => {
-      render(<HowItWorksSection />);
+      renderWithCms(<HowItWorksSection />);
       await waitFor(() => expect(screen.getByText('Odd Icon')).toBeInTheDocument());
       expect(screen.getByText('Step 01 / 01')).toBeInTheDocument();
     });
