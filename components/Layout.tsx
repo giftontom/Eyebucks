@@ -11,6 +11,7 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { JsonLd } from './JsonLd';
 import { LanguageToggle } from './LanguageToggle';
 import { MobileBottomNav, shouldShowBottomNav } from './MobileBottomNav';
+import { ViewportProbe } from './ViewportProbe';
 import { NotificationBell } from './NotificationBell';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -316,6 +317,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </footer>
 
       <MobileBottomNav />
+      <ViewportProbe />
       <BackToTop bottomNavVisible={showBottomNav} />
     </div>
   );
