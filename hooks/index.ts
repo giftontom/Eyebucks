@@ -14,3 +14,4 @@ export { useScrollParallax } from './useScrollParallax';
 export { useSceneGrade } from './useSceneGrade';
 export { useInViewActive } from './useInViewActive';
 export { useScrollProgress } from './useScrollProgress';
+export { useVisualViewportInset } from './useVisualViewportInset';
