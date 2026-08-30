@@ -2,7 +2,6 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
-import { useVisualViewportInset } from '../hooks/useVisualViewportInset';
 
 /**
  * Whether the mobile bottom nav is rendered for a given route.
@@ -19,7 +18,6 @@ const MobileBottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  useVisualViewportInset();
 
   const path = location.pathname;
 
@@ -45,18 +43,11 @@ const MobileBottomNav: React.FC = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
-      style={{
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        // Ride the *visible* viewport, not the layout one, so the collapsing
-        // browser toolbar cannot drag the bar off-screen. See
-        // useVisualViewportInset. `animate-slide-up` moved to the inner element
-        // because it animates transform too and would fight this one.
-        transform: 'translateY(calc(-1 * var(--vv-bottom-inset, 0px)))',
-      }}
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden animate-slide-up"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label="Mobile navigation"
     >
-      <div className="animate-slide-up [background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border">
+      <div className="[background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border">
         <div className="flex items-end justify-around px-1 h-[var(--bottom-nav-height)]">
           {tabs.map((tab) => {
             const active = path === tab.route;

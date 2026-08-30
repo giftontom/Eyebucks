@@ -340,9 +340,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
    so they stack as two bars. Pair the hidden state with
    `translate-y-clear-nav` — see below. */
 @utility bottom-nav-offset {
-  /* `--vv-bottom-inset` keeps this stacked on the nav while the mobile browser
-     toolbar collapses; without it the two would separate. */
-  bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + var(--vv-bottom-inset, 0px));
+  bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
 }
 /* Hidden state for a `bottom-nav-offset` bar. Plain `translate-y-full` only
    moves the bar down by its own height, which parks it exactly over the nav
@@ -357,8 +355,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 
 /* ─── Global styles ──────────────────────────────────────── */
 :root {
-  /* Set by useVisualViewportInset; 0 until/unless the toolbar collapses. */
-  --vv-bottom-inset: 0px;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --bottom-nav-height: 76px;
   /* Extra clearance for a page-level sticky CTA bar stacked on top of the
@@ -375,15 +371,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
   [data-sticky-cta] {
     --sticky-cta-height: 5.25rem;
   }
-}
-
-/* Stop the rubber-band at the end of a short page. Each bounce re-triggers the
-   mobile toolbar's collapse/expand, which is what made the bottom nav jitter
-   most on the catalog (~2.7 screens tall) and barely at all on the home page
-   (~18 screens). Trade-off: this also disables Chrome Android's pull-to-refresh.
-   Remove `overscroll-behavior-y` if that gesture is wanted back. */
-html {
-  overscroll-behavior-y: contain;
 }
 
 body {
