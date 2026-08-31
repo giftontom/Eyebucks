@@ -353,6 +353,31 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
   translate: var(--tw-translate-x, 0) var(--tw-translate-y);
 }
 
+/* A full-viewport fixed layer present on EVERY route.
+ *
+ * The Storefront already has one (`.scene-plate-dark`, the cinematic backdrop);
+ * no other page did. That was the only fixed-positioning difference between the
+ * home page and the catalog — and the bottom nav was reported as jittering on
+ * the catalog while sitting still on home.
+ *
+ * A full-viewport fixed layer changes how Chromium treats its collapsing
+ * address bar, because shrinking the viewport means re-laying-out that layer.
+ * Giving every route the same structure makes them behave the same way.
+ *
+ * Deliberately invisible: it paints the page background it already sits on, so
+ * it cannot alter any page's appearance. `z-index: -1` keeps it behind all
+ * content; `pointer-events: none` keeps it out of hit-testing. No
+ * `will-change` — see the note on .scene-plate-dark for why promoting a fixed
+ * layer here backfires.
+ */
+.viewport-anchor {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--page-bg);
+}
+
 /* ─── Global styles ──────────────────────────────────────── */
 :root {
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);

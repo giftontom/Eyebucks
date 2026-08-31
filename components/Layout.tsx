@@ -46,6 +46,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className="min-h-screen t-bg t-text flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900">
+      {/* Keeps every route structurally like the Storefront, which already
+          has a full-viewport fixed layer. See .viewport-anchor in index.css. */}
+      <div aria-hidden="true" className="viewport-anchor" />
       {/* Skip to main content — WCAG 2.4.1 */}
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand-600 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-white">
         Skip to main content
