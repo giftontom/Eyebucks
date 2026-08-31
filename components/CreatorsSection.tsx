@@ -84,7 +84,21 @@ export const CreatorsSection: React.FC<Props> = ({ items = [] }) => {
           </div>
         </FadeIn>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Column count follows the row count (capped at 4). A fixed
+            lg:grid-cols-4 left an empty fourth column when the CMS held three
+            rows, so the whole card group sat visibly left of centre on
+            desktop — fine on mobile, where it is a single column. */}
+        <div
+          className={`grid grid-cols-1 gap-6 ${
+            cards.length === 1
+              ? 'max-w-sm mx-auto'
+              : cards.length === 2
+                ? 'sm:grid-cols-2 lg:max-w-4xl lg:mx-auto'
+                : cards.length === 3
+                  ? 'sm:grid-cols-2 lg:grid-cols-3'
+                  : 'sm:grid-cols-2 lg:grid-cols-4'
+          }`}
+        >
           {cards.map((card, i) => {
             const Icon = ICON_MAP[card.icon] ?? Zap;
             return (

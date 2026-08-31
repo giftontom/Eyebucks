@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { Badge, Thumbnail, useToast } from '../components';
+import { useBreadcrumbLabel } from '../components/Breadcrumbs';
 import { checkoutApi, digitalAssetsApi } from '../services/api';
 import { formatPrice } from '../utils/format';
 import { logger } from '../utils/logger';
@@ -41,6 +42,9 @@ export const AssetDetails: React.FC = () => {
   const { showToast, ToastContainer } = useToast();
 
   const [asset, setAsset] = useState<DigitalAsset | null>(null);
+  // The breadcrumb is built from the URL, so without this it shows the raw
+  // slug instead of the asset's actual title.
+  useBreadcrumbLabel(slug, asset?.title);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [owned, setOwned] = useState(false);

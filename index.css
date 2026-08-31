@@ -398,6 +398,16 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
   }
 }
 
+/* Kill horizontal panning outright. Several hero decorations are absolutely
+   positioned past the viewport edge (one spans to x=521 on a 360px screen);
+   on mobile that lets the visual viewport pan sideways, dragging every
+   fixed element — including the bottom nav — with it. `clip` (not `hidden`)
+   forbids the overflow without creating a scroll container, so it cannot
+   interfere with position:sticky descendants. */
+html, body {
+  overflow-x: clip;
+}
+
 body {
   font-family: 'Inter', 'Noto Sans Malayalam', sans-serif;
   background-color: var(--page-bg);

@@ -113,6 +113,16 @@ const ICON_OPTIONS_STEPS: FieldOption[] = [
   { value: 'zap', label: 'Zap (fast start)' },
 ];
 
+const ICON_OPTIONS_INCLUDES: FieldOption[] = [
+  { value: 'infinity', label: 'Infinity (lifetime)' },
+  { value: 'smartphone', label: 'Smartphone (devices)' },
+  { value: 'award', label: 'Award (certificate)' },
+  { value: 'clock', label: 'Clock (own pace)' },
+  { value: 'star', label: 'Star (community)' },
+  { value: 'play', label: 'Play (lessons)' },
+  { value: 'layers', label: 'Layers (bundle)' },
+];
+
 export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
   faq: {
     section: 'faq',
@@ -321,6 +331,34 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'icon', label: 'Icon', type: 'select', options: ICON_OPTIONS_STEPS, default: 'search' },
     ],
   },
+  footer_links: {
+    section: 'footer_links',
+    label: 'Footer Links',
+    group: 'Landing copy',
+    where: 'Every page → footer → the link columns (Company / Support). One row per link; rows sharing a Column name cluster under that heading.',
+    anchor: 'footer',
+    titleLabel: 'Link label',
+    titlePlaceholder: 'About Us',
+    bodyLabel: 'Body',
+    coreBody: false,
+    fields: [
+      { key: 'group', label: 'Column', type: 'text', required: true, placeholder: 'Company', help: 'Links with the same Column name appear under one heading, in Order Index order.' },
+      { key: 'url', label: 'URL', type: 'text', required: true, placeholder: '/about or https://…', help: 'Paths like /about stay in-app; full https:// URLs open in a new tab.' },
+    ],
+  },
+  course_includes: {
+    section: 'course_includes',
+    label: 'Course Page: "This course includes"',
+    group: 'Landing copy',
+    where: 'Every course page → "This course includes" card → the bullet list. One row per bullet. The first bullet (lesson/course count) is computed from the course itself and always shown.',
+    titleLabel: 'Bullet text',
+    titlePlaceholder: 'Full lifetime access',
+    bodyLabel: 'Body',
+    coreBody: false,
+    fields: [
+      { key: 'icon', label: 'Icon', type: 'select', options: ICON_OPTIONS_INCLUDES, default: 'infinity' },
+    ],
+  },
   value_props_copy: {
     section: 'value_props_copy',
     label: 'Value Props Header',
@@ -406,6 +444,22 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'popularLabel', label: '"Most Popular" badge', type: 'text' },
       { key: 'paymentNote', label: 'Payment note', type: 'text' },
       { key: 'ticketLabel', label: 'Ticket label', type: 'text' },
+      { key: 'tier1Title', label: 'Tier 1 (Individual Course) — title', type: 'text' },
+      { key: 'tier1Subtitle', label: 'Tier 1 — subtitle', type: 'text' },
+      { key: 'tier1PricePrefix', label: 'Tier 1 — price prefix', type: 'text', placeholder: 'Starting at', help: 'Small text above the price, e.g. "Starting at".' },
+      { key: 'tier1Price', label: 'Tier 1 — price (plain text)', type: 'text', placeholder: '₹2,999', help: 'Shown exactly as typed — NOT linked to any product. Leave blank to keep the automatic price.' },
+      { key: 'tier1Compare', label: 'Tier 1 — strike-through price', type: 'text', placeholder: '₹4,499' },
+      { key: 'tier1SaveLabel', label: 'Tier 1 — save badge', type: 'text', placeholder: 'SAVE 33%', help: 'The pill on the tear line. Blank = no pill (when a plain-text price is set).' },
+      { key: 'tier1Features', label: 'Tier 1 — bullet points', type: 'string-array', placeholder: 'Full course curriculum', help: 'One per line. Blank = keep the built-in list.' },
+      { key: 'tier1Cta', label: 'Tier 1 — button label', type: 'text' },
+      { key: 'tier2Title', label: 'Tier 2 (Bundle) — title', type: 'text' },
+      { key: 'tier2Subtitle', label: 'Tier 2 — subtitle', type: 'text' },
+      { key: 'tier2PricePrefix', label: 'Tier 2 — price prefix', type: 'text', placeholder: 'Starting at', help: 'Small text above the price, e.g. "Starting at".' },
+      { key: 'tier2Price', label: 'Tier 2 — price (plain text)', type: 'text', placeholder: '₹2,999', help: 'Shown exactly as typed — NOT linked to any product. Leave blank to keep the automatic price.' },
+      { key: 'tier2Compare', label: 'Tier 2 — strike-through price', type: 'text', placeholder: '₹4,499' },
+      { key: 'tier2SaveLabel', label: 'Tier 2 — save badge', type: 'text', placeholder: 'SAVE 33%', help: 'The pill on the tear line. Blank = no pill (when a plain-text price is set).' },
+      { key: 'tier2Features', label: 'Tier 2 — bullet points', type: 'string-array', placeholder: '3–5 curated courses', help: 'One per line. Blank = keep the built-in list.' },
+      { key: 'tier2Cta', label: 'Tier 2 — button label', type: 'text' },
       { key: 'trustBadges', label: 'Trust badges (one per line)', type: 'string-array' },
     ],
   },
@@ -499,4 +553,6 @@ export const PAGE_ORDER: string[] = [
   'pricing_copy',      // PricingSection header
   'closing',           // ClosingSection
   'faq',               //   └ the FAQ accordion inside the closing section
+  'footer_links',      // footer link columns (every page)
+  'course_includes',   // course page "This course includes" bullets
 ];

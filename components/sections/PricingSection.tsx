@@ -19,6 +19,16 @@ interface PricingTier {
   features: string[];
   cta: string;
   highlighted: boolean;
+  /**
+   * Plain-text price overrides from the CMS (`pricing_copy` tierN* fields).
+   * When `priceText` is set it is rendered VERBATIM — deliberately not linked
+   * to any product's price — with `pricePrefix` ("Starting at") above it.
+   * The save pill then comes from `saveLabel` instead of being computed.
+   */
+  pricePrefix?: string;
+  priceText?: string;
+  compareText?: string;
+  saveLabel?: string;
 }
 
 // Fallback tiers used when DB prices can't be loaded
@@ -136,9 +146,14 @@ const TicketCard: React.FC<{ tier: PricingTier; copy: SectionCopy }> = ({ tier, 
     return () => { observer.disconnect(); };
   }, []);
 
-  const savePct = tier.originalPrice > tier.price
+  // With a plain-text price there is nothing to compute a percentage from —
+  // the pill shows the CMS saveLabel or nothing at all.
+  const savePct = !tier.priceText && tier.originalPrice > tier.price
     ? Math.round((1 - tier.price / tier.originalPrice) * 100)
     : 0;
+  const saveLabel = tier.priceText
+    ? tier.saveLabel
+    : (tier.saveLabel ?? (savePct > 0 ? `SAVE ${savePct}%` : undefined));
 
   return (
     <div
@@ -186,16 +201,23 @@ const TicketCard: React.FC<{ tier: PricingTier; copy: SectionCopy }> = ({ tier, 
         </div>
 
         <div className="relative">
+          {tier.pricePrefix && (
+            <p className="text-xs font-bold uppercase tracking-wider t-text-3 mb-1">{tier.pricePrefix}</p>
+          )}
           <div className="flex items-baseline gap-2">
             <span className="text-4xl sm:text-5xl font-black t-text" style={{ fontFamily: 'var(--font-display)' }}>
-              {formatPrice(tier.price)}
+              {tier.priceText ?? formatPrice(tier.price)}
             </span>
-            <span className="text-lg t-text-3 line-through">{formatPrice(tier.originalPrice)}</span>
+            {(tier.priceText ? tier.compareText : true) && (
+              <span className="text-lg t-text-3 line-through">
+                {tier.priceText ? tier.compareText : formatPrice(tier.originalPrice)}
+              </span>
+            )}
           </div>
           <p className="text-xs t-text-3 mt-2">{copy.paymentNote}</p>
         </div>
 
-        <TicketPerforation ref={perforationRef} label={savePct > 0 ? `SAVE ${savePct}%` : undefined} />
+        <TicketPerforation ref={perforationRef} label={saveLabel} />
 
         <ul className="relative space-y-3 mb-8 flex-1">
           {tier.features.map(f => (
@@ -245,6 +267,30 @@ export const PricingSection: React.FC = () => {
     };
   }, [copyRows]);
 
+  // CMS per-tier overrides. Text fields override their computed counterparts
+  // individually; anything left blank keeps the automatic value. Feature lists
+  // replace wholesale when non-empty.
+  const mergedTiers = useMemo<PricingTier[]>(() => {
+    const meta = (copyRows?.[0]?.metadata ?? {}) as Record<string, unknown>;
+    const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+    const arr = (v: unknown) => (Array.isArray(v) && v.filter(x => String(x).trim()).length > 0
+      ? v.map(String).filter(x => x.trim()) : undefined);
+    return tiers.map((tier, i) => {
+      const n = i + 1;
+      return {
+        ...tier,
+        title: str(meta[`tier${n}Title`]) ?? tier.title,
+        subtitle: str(meta[`tier${n}Subtitle`]) ?? tier.subtitle,
+        features: arr(meta[`tier${n}Features`]) ?? tier.features,
+        cta: str(meta[`tier${n}Cta`]) ?? tier.cta,
+        pricePrefix: str(meta[`tier${n}PricePrefix`]),
+        priceText: str(meta[`tier${n}Price`]),
+        compareText: str(meta[`tier${n}Compare`]),
+        saveLabel: str(meta[`tier${n}SaveLabel`]),
+      };
+    });
+  }, [tiers, copyRows]);
+
   useEffect(() => {
     Promise.all([
       coursesApi.getCourses({ page: 1, pageSize: 50, withCount: false, language }),
@@ -289,7 +335,7 @@ export const PricingSection: React.FC = () => {
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <HorizontalGallery
-          count={tiers.length}
+          count={mergedTiers.length}
           desktopGrid="md:grid-cols-2"
           mobileLayout="stack"
           heading={
@@ -315,7 +361,7 @@ export const PricingSection: React.FC = () => {
             </FadeIn>
           }
         >
-          {tiers.map((tier) => (
+          {mergedTiers.map((tier) => (
             <TicketCard key={tier.title} tier={tier} copy={copy} />
           ))}
         </HorizontalGallery>
