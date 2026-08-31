@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { mockSupabase } = vi.hoisted(() => ({
@@ -22,6 +25,57 @@ const mockRow = {
   updated_at: '2024-01-01',
 };
 
+
+/**
+ * The bug these guard: three `community_copy` rows all sat at order_index 0.
+ * `ORDER BY order_index` alone is not a total order, so Postgres returned them
+ * in whatever order it liked and the storefront — which reads items[0] for a
+ * single-row section — showed a different one on different loads. An admin's
+ * edit appeared to revert at random.
+ */
+
+/**
+ * A `.order()` that can be chained any number of times and still resolves.
+ * The API applies three order clauses (order_index, updated_at, id) to make the
+ * result a total order; a single-shot mock would break on the second call.
+ */
+const chainableOrder = (result: unknown) => {
+  const thenable: Record<string, unknown> = {
+    then: (res: (v: unknown) => unknown) => Promise.resolve(result).then(res),
+  };
+  thenable.order = vi.fn(() => thenable);
+  thenable.limit = vi.fn(() => thenable);
+  thenable.range = vi.fn(() => thenable);
+  return vi.fn(() => thenable);
+};
+
+describe('siteContentApi deterministic ordering', () => {
+  const SOURCE = readFileSync(
+    resolve(__dirname, '../../../services/api/siteContent.api.ts'),
+    'utf8',
+  );
+
+  const readsFor = (fn: string) => {
+    const i = SOURCE.indexOf(`async ${fn}(`);
+    return SOURCE.slice(i, SOURCE.indexOf('},', i));
+  };
+
+  for (const fn of ['getBySection', 'getAllActive', 'getAll']) {
+    it(`${fn} breaks order_index ties toward the most recently updated row`, () => {
+      const body = readsFor(fn);
+      expect(body).toContain("order('order_index', { ascending: true })");
+      expect(body).toContain("order('updated_at', { ascending: false })");
+    });
+
+    it(`${fn} ends with a total order so results never vary between calls`, () => {
+      const body = readsFor(fn);
+      expect(body).toContain("order('id', { ascending: true })");
+      // id must come last, otherwise it, not updated_at, decides the tie.
+      expect(body.indexOf("order('updated_at'")).toBeLessThan(body.indexOf("order('id'"));
+    });
+  }
+});
+
 describe('siteContentApi', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -31,7 +85,7 @@ describe('siteContentApi', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: [mockRow], error: null }),
+              order: chainableOrder({ data: [mockRow], error: null }),
             }),
           }),
         }),
@@ -49,7 +103,7 @@ describe('siteContentApi', () => {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+              order: chainableOrder({ data: null, error: { message: 'DB error' } }),
             }),
           }),
         }),
@@ -135,11 +189,7 @@ describe('siteContentApi', () => {
     it('should return paginated items', async () => {
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue({
-              range: vi.fn().mockResolvedValue({ data: [mockRow], error: null, count: 1 }),
-            }),
-          }),
+          order: chainableOrder({ data: [mockRow], error: null, count: 1 }),
         }),
       });
 
@@ -151,11 +201,7 @@ describe('siteContentApi', () => {
     it('should return empty items when data is null', async () => {
       mockSupabase.from.mockReturnValue({
         select: vi.fn().mockReturnValue({
-          order: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue({
-              range: vi.fn().mockResolvedValue({ data: null, error: null, count: 0 }),
-            }),
-          }),
+          order: chainableOrder({ data: null, error: null, count: 0 }),
         }),
       });
 

@@ -27,7 +27,19 @@ export const siteContentApi = {
       .select('*')
       .eq('section', section)
       .eq('is_active', true)
-      .order('order_index', { ascending: true });
+      // Deterministic tiebreakers matter more than they look. `order_index`
+      // alone is not a total order: three `community_copy` rows all sat at 0,
+      // so Postgres returned them in whatever order it liked and the storefront
+      // — which reads items[0] for a singleton section — showed a different one
+      // on different loads. An admin edit appeared to "revert" at random.
+      //
+      // `updated_at DESC` breaks the tie toward the row most recently edited,
+      // which is what an admin expects after saving. Real lists give their rows
+      // distinct order_index values, so this never reorders them; `id` last
+      // makes the result total and stable.
+      .order('order_index', { ascending: true })
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true });
 
     if (error) {throw new Error(error.message);}
     return (data || []).map(mapRow);
@@ -52,7 +64,19 @@ export const siteContentApi = {
       .select('*')
       .eq('is_active', true)
       .order('section')
+      // Deterministic tiebreakers matter more than they look. `order_index`
+      // alone is not a total order: three `community_copy` rows all sat at 0,
+      // so Postgres returned them in whatever order it liked and the storefront
+      // — which reads items[0] for a singleton section — showed a different one
+      // on different loads. An admin edit appeared to "revert" at random.
+      //
+      // `updated_at DESC` breaks the tie toward the row most recently edited,
+      // which is what an admin expects after saving. Real lists give their rows
+      // distinct order_index values, so this never reorders them; `id` last
+      // makes the result total and stable.
       .order('order_index', { ascending: true })
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
       .limit(500);
 
     if (error) {throw new Error(error.message);}
@@ -68,7 +92,11 @@ export const siteContentApi = {
       .from('site_content')
       .select('*', { count: 'exact' })
       .order('section')
+      // Same tiebreakers as the storefront reads with, so the admin list shows
+      // rows in the order that decides which one is actually live.
       .order('order_index', { ascending: true })
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (error) {throw new Error(error.message);}

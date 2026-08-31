@@ -25,6 +25,8 @@ import type { ImageFolder } from '../../../services/api/siteImages.api';
 
 export type FieldType =
   | 'text'
+  /** Fixed-length list of {value, suffix, label} tiles — the community counters. */
+  | 'stat-list'
   | 'url'
   | 'number'
   | 'boolean'
@@ -236,7 +238,7 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     bodyMultiline: true,
     fields: [
       { key: 'headline2', label: 'Headline (line 2)', type: 'text', placeholder: 'of Filmmaking.' },
-      { key: 'pill', label: 'Announcement pill', type: 'text' },
+      { key: 'pill', label: 'Announcement pill', type: 'text', help: 'The small badge above the headline — currently reads "New Cohort Starting Soon".' },
       { key: 'ctaPrimaryGuest', label: 'Primary CTA (logged-out)', type: 'text' },
       { key: 'ctaPrimaryUser', label: 'Primary CTA (logged-in)', type: 'text' },
       { key: 'ctaSecondary', label: 'Secondary CTA', type: 'text' },
@@ -360,6 +362,12 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     bodyMultiline: true,
     fields: [
       { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+      {
+        key: 'stats',
+        label: 'Community stat tiles',
+        type: 'stat-list',
+        help: 'The four counters (Active Members, Messages / Month, Work Reviews, Avg Response). Icons stay fixed by position; only these numbers and labels are editable.',
+      },
       { key: 'verifiedLabel', label: 'Verified badge label', type: 'text' },
       { key: 'discordEyebrow', label: 'Discord eyebrow', type: 'text' },
       { key: 'discordTitle', label: 'Discord title', type: 'text' },

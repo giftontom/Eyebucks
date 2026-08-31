@@ -72,6 +72,61 @@ const FieldInput: React.FC<{
           </select>
         </div>
       );
+    case 'stat-list': {
+      // Shape kept identical to what CommunityProofSection reads:
+      // [{ value: number, suffix: string, label: string }]. Icons are positional
+      // in the component, so rows are edited in place rather than added/removed.
+      const rows = Array.isArray(value)
+        ? (value as Array<Record<string, unknown>>)
+        : [];
+      const setRow = (i: number, patch: Record<string, unknown>) => {
+        const next = rows.map((r, j) => (j === i ? { ...r, ...patch } : r));
+        onChange(next);
+      };
+      return (
+        <div>
+          <label className="block text-sm font-medium t-text-2 mb-2">{field.label}</label>
+          {rows.length === 0 ? (
+            <p className="text-xs t-text-3">
+              Not set — the site is showing its built-in numbers. Save this row once to start
+              editing them.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {rows.map((r, i) => (
+                <div key={i} className="grid grid-cols-[5rem_4rem_1fr] gap-2">
+                  <input
+                    type="number"
+                    aria-label={`Stat ${i + 1} value`}
+                    className={inputCls}
+                    value={String(r.value ?? '')}
+                    onChange={(e) => setRow(i, { value: e.target.value === '' ? '' : Number(e.target.value) })}
+                    placeholder="2500"
+                  />
+                  <input
+                    type="text"
+                    aria-label={`Stat ${i + 1} suffix`}
+                    className={inputCls}
+                    value={String(r.suffix ?? '')}
+                    onChange={(e) => setRow(i, { suffix: e.target.value })}
+                    placeholder="+"
+                  />
+                  <input
+                    type="text"
+                    aria-label={`Stat ${i + 1} label`}
+                    className={inputCls}
+                    value={String(r.label ?? '')}
+                    onChange={(e) => setRow(i, { label: e.target.value })}
+                    placeholder="Active Members"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {field.help && <p className="text-xs t-text-3 mt-1">{field.help}</p>}
+        </div>
+      );
+    }
     case 'string-array': {
       const lines = Array.isArray(value) ? (value as unknown[]).map(String).join('\n') : '';
       return (
@@ -416,6 +471,25 @@ export const ContentPage: React.FC = () => {
                       </span>
                     </p>
                   )}
+                  {/* A single-row section with more than one row is the trap that
+                      made an edit look like it "reverted": the storefront shows
+                      items[0] and, before ordering was made deterministic, which
+                      row that was varied between page loads. Name the live one
+                      and flag the rest so they can be deleted. */}
+                  {sectionSchema?.singleton && items.length > 1 && (
+                    <div className="mt-4 t-status-danger border rounded-lg p-3 text-xs flex items-start gap-2">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">
+                          {items.length} rows in a single-row section — only the first is shown on the site.
+                        </p>
+                        <p className="mt-1">
+                          Edits to any of the others will look like they do nothing. Delete the extras
+                          to make this section behave predictably.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {items.length === 0 && sectionSchema && !sectionSchema.deprecated && (
                     <div className="mt-4 rounded-lg border border-dashed t-border p-4 flex items-center justify-between gap-4">
                       <p className="text-sm t-text-3">
@@ -442,6 +516,11 @@ export const ContentPage: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-xs t-text-3 font-mono">#{item.orderIndex}</span>
                             <p className="font-medium t-text truncate">{item.title}</p>
+                            {sectionSchema?.singleton && items.length > 1 && (
+                              items[0].id === item.id
+                                ? <span className="px-1.5 py-0.5 t-status-success border text-xs font-bold rounded shrink-0">Live</span>
+                                : <span className="px-1.5 py-0.5 t-status-warning border text-xs font-bold rounded shrink-0">Ignored</span>
+                            )}
                             {!item.isActive && <span className="px-1.5 py-0.5 t-status-danger border text-xs font-bold rounded">Inactive</span>}
                           </div>
                           <p className="text-sm t-text-2 truncate mt-1">{item.body}</p>
