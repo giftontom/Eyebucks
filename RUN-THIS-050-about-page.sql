@@ -72,3 +72,22 @@ WHERE NOT EXISTS (SELECT 1 FROM public.site_content WHERE section = 'about_page'
 -- Verify:
 --   SELECT title, LEFT(body, 80) FROM public.site_content WHERE section = 'about_page';
 --   SELECT title, body FROM public.site_content WHERE section = 'footer_links' ORDER BY order_index;
+
+
+-- ============================================================
+--  Read-only. Nothing below changes anything.
+--
+--  Why the announcement band was blank on the home page: an active
+--  banner row with no title renders as a coloured empty stripe. The
+--  deployed code now skips such rows, so the blank space is already
+--  gone — this just shows you whether that is what happened, and
+--  lets you put real text back if you did want an announcement.
+-- ============================================================
+SELECT id,
+       COALESCE(NULLIF(TRIM(title), ''), '(no title)') AS title,
+       COALESCE(NULLIF(TRIM(body),  ''), '(no body)')  AS body,
+       order_index,
+       is_active
+  FROM public.site_content
+ WHERE section = 'banner'
+ ORDER BY order_index, id;
