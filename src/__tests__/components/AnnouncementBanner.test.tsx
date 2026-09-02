@@ -67,4 +67,43 @@ describe('AnnouncementBanner', () => {
     const dismissedIds = JSON.parse(localStorage.getItem('eyebuckz_banner_dismissed_ids') || '[]');
     expect(dismissedIds).toContain('b1');
   });
+
+  /**
+   * Reported as "the announcement section is showing only space" on the home
+   * page. An active row whose title had been cleared still rendered the band —
+   * padding and a background colour wrapping no text — so the page showed a
+   * blank stripe with nothing in it.
+   */
+  it('renders nothing when the only banner row has no text', async () => {
+    mockGetBySection.mockResolvedValue([
+      { id: 'b1', title: '   ', body: '', metadata: { bgColor: '#111' } },
+    ]);
+
+    const { container } = renderWithCms(<AnnouncementBanner />);
+    await waitFor(() => expect(mockGetBySection).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('skips an empty row to show a real announcement behind it', async () => {
+    mockGetBySection.mockResolvedValue([
+      { id: 'b1', title: '', body: '', metadata: {} },
+      { id: 'b2', title: 'New cohort starting soon', body: '', metadata: {} },
+    ]);
+
+    renderWithCms(<AnnouncementBanner />);
+    await waitFor(() => {
+      expect(screen.getByText('New cohort starting soon')).toBeInTheDocument();
+    });
+  });
+
+  it('still shows a row that has body text but no title', async () => {
+    mockGetBySection.mockResolvedValue([
+      { id: 'b1', title: '', body: 'Free shipping this week', metadata: {} },
+    ]);
+
+    renderWithCms(<AnnouncementBanner />);
+    await waitFor(() => {
+      expect(screen.getByText('Free shipping this week')).toBeInTheDocument();
+    });
+  });
 });

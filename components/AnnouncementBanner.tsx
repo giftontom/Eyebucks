@@ -34,9 +34,16 @@ export const AnnouncementBanner: React.FC = () => {
   }, [rows]);
 
   const banner = useMemo(() => {
-    const item = rows?.[0];
-    if (!item) { return null; }
-    return readDismissedIds().includes(item.id) ? null : item;
+    if (!rows) { return null; }
+    // Take the first row that actually says something. An active row with a
+    // blank title used to render anyway: `py-2.5` plus a background colour and
+    // no text, i.e. a coloured empty band across the top of the page. Skipping
+    // empty rows also means a blank row left at order_index 0 no longer hides a
+    // real announcement sitting behind it.
+    const dismissedIds = readDismissedIds();
+    return rows.find(item =>
+      (item.title?.trim() || item.body?.trim()) && !dismissedIds.includes(item.id),
+    ) ?? null;
   }, [rows]);
 
   if (!banner || dismissed) {return null;}
