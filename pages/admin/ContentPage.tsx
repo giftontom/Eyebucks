@@ -649,7 +649,7 @@ export const ContentPage: React.FC = () => {
               />
             </div>
           )}
-          {schema?.coreBody !== false && (
+          {schema?.coreBody !== false ? (
             <div>
               <label className="block text-sm font-medium t-text-2 mb-2">{schema?.bodyLabel ?? 'Body'} *</label>
               <textarea
@@ -659,6 +659,28 @@ export const ContentPage: React.FC = () => {
                 className={inputCls}
                 placeholder={schema?.bodyPlaceholder}
               />
+            </div>
+          ) : form.body.trim() !== '' && (
+            /* This section has no Body on the site, yet this row carries body
+               text — so someone typed it here and it silently vanished when the
+               typed form replaced the generic one. That is how the About page
+               copy was lost. Always surface stranded text rather than hiding
+               it, and say plainly that it is not being displayed. */
+            <div>
+              <label className="block text-sm font-medium t-text-2 mb-2">
+                Unused text on this row
+              </label>
+              <textarea
+                value={form.body}
+                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                rows={4}
+                className={inputCls}
+              />
+              <p className="mt-2 text-xs t-text-3">
+                This section does not show a body on the site, so this text is
+                not visible to visitors. Copy it somewhere it belongs, then
+                clear this box.
+              </p>
             </div>
           )}
 
