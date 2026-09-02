@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { Button, Thumbnail, TrustBadges } from '../components';
+import { ASSET_BADGES } from '../components/TrustBadges';
 import { useAuth } from '../context/AuthContext';
 import { useScript } from '../hooks/useScript';
 import { checkoutApi, couponsApi, digitalAssetsApi } from '../services/api';
@@ -286,7 +287,7 @@ export const AssetCheckout: React.FC = () => {
               {!razorpayLoaded && (
                 <div className="mb-4 p-3 t-status-warning border rounded-lg text-sm">Loading payment gateway...</div>
               )}
-              <TrustBadges className="mb-4" />
+              <TrustBadges badges={ASSET_BADGES} className="mb-4" />
               <Button
                 type="button"
                 variant="primary"

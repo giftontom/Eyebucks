@@ -331,11 +331,25 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'icon', label: 'Icon', type: 'select', options: ICON_OPTIONS_STEPS, default: 'search' },
     ],
   },
+  about_page: {
+    section: 'about_page',
+    label: 'About Page',
+    group: 'Landing copy',
+    where: 'The /about page → the eyebrow, headline and intro paragraph at the top. This is the PAGE CONTENT — the "About Us" row under Footer Links is only the menu link that points here.',
+    singleton: true,
+    titleLabel: 'Headline',
+    titlePlaceholder: 'About Eyebuckz',
+    bodyLabel: 'Intro paragraph',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow', type: 'text', placeholder: 'Our Mission' },
+    ],
+  },
   footer_links: {
     section: 'footer_links',
     label: 'Footer Links',
     group: 'Landing copy',
-    where: 'Every page → footer → the link columns (Company / Support). One row per link; rows sharing a Column name cluster under that heading.',
+    where: 'Every page → footer → the link columns (Company / Support). One row per link: just a label and a destination — NOT the content of the page it points to. To edit the About page itself, use "About Page".',
     anchor: 'footer',
     titleLabel: 'Link label',
     titlePlaceholder: 'About Us',
@@ -460,6 +474,7 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'tier2SaveLabel', label: 'Tier 2 — save badge', type: 'text', placeholder: 'SAVE 33%', help: 'The pill on the tear line. Blank = no pill (when a plain-text price is set).' },
       { key: 'tier2Features', label: 'Tier 2 — bullet points', type: 'string-array', placeholder: '3–5 curated courses', help: 'One per line. Blank = keep the built-in list.' },
       { key: 'tier2Cta', label: 'Tier 2 — button label', type: 'text' },
+      { key: 'urgencyTag', label: 'Urgency tag', type: 'text', placeholder: 'Limited time', help: 'Small badge shown beside bundle prices (course page sticky bar). Blank = no tag.' },
       { key: 'trustBadges', label: 'Trust badges (one per line)', type: 'string-array' },
     ],
   },
@@ -553,6 +568,7 @@ export const PAGE_ORDER: string[] = [
   'pricing_copy',      // PricingSection header
   'closing',           // ClosingSection
   'faq',               //   └ the FAQ accordion inside the closing section
+  'about_page',        // /about page copy
   'footer_links',      // footer link columns (every page)
   'course_includes',   // course page "This course includes" bullets
 ];

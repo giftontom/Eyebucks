@@ -200,7 +200,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 050** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 051** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -556,7 +556,7 @@ supabase functions deploy  # Deploy Edge Functions
 - `context/SiteContentContext.tsx` — batched CMS loader + `useSiteSection`; kills the flash of hardcoded fallback copy
 - `scripts/verify-migrations.sh` — replays migrations against a throwaway local Postgres (`npm run verify:migrations`)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-049** (file gaps at 030/031, applied from another branch); next = 050. 049 = footer_links + course_includes CMS sections; 048 = digital_assets.external_url (link delivery); 047 = courses.compare_price (offer vs actual price); 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+- `supabase/migrations/` — **SQL migrations 001-050** (file gaps at 030/031, applied from another branch); next = 051. 050 = about_page CMS section (rescues About copy stranded in a footer_links body); 049 = footer_links + course_includes CMS sections; 048 = digital_assets.external_url (link delivery); 047 = courses.compare_price (offer vs actual price); 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
   - ⚠️ **Never run `supabase db push` on this project.** Remote history holds 030/031 with no local files AND is missing 041-045, which are applied. `db push` would replay them. Apply migrations as raw SQL — see `docs/operations/AUG_INTEGRATION_GO_LIVE.md`.
   - Verify migrations before applying: `npm run verify:migrations 046 047 048` (needs `brew install postgresql@16`; no Docker).
 - `supabase/functions/` — **16 Edge Functions** (see Edge Functions section above)

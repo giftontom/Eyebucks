@@ -1,4 +1,4 @@
-import { CheckCircle2, Award, Zap, Shield } from 'lucide-react';
+import { CheckCircle2, Award, Zap, Shield, Download, FileCheck } from 'lucide-react';
 import React from 'react';
 
 type Badge = {
@@ -11,6 +11,19 @@ const DEFAULT_BADGES: Badge[] = [
   { icon: Zap, label: 'Instant Access' },
   { icon: Award, label: 'Certificate Included' },
   { icon: CheckCircle2, label: 'Lifetime Access' },
+];
+
+/**
+ * Digital assets are a download, not a course: no certificate is issued and
+ * "lifetime access" means the file stays in your library, not course access.
+ * Claiming either on an asset checkout is simply untrue, so asset surfaces
+ * pass these instead.
+ */
+export const ASSET_BADGES: Badge[] = [
+  { icon: Zap, label: 'Instant Download' },
+  { icon: Download, label: 'Re-download Anytime' },
+  { icon: FileCheck, label: 'Commercial-Ready Files' },
+  { icon: Shield, label: 'Secure Checkout' },
 ];
 
 interface TrustBadgesProps {

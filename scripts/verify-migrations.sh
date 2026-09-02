@@ -23,7 +23,14 @@
 #
 # USAGE
 #   scripts/verify-migrations.sh              # all migrations
-#   scripts/verify-migrations.sh 046 047 048  # ...then re-run these to prove idempotency
+#   scripts/verify-migrations.sh 050          # ...then re-run these to prove idempotency
+#
+# Only ask it to re-run the NEWEST constraint migration. Each migration that
+# touches site_content's section CHECK redefines the whole allowed list, so
+# replaying an OLDER one after a newer has run narrows the list back and fails
+# against rows the newer migration legitimately added. That is a property of
+# forward-only migrations, not a defect — but it means "re-run 049 and 050"
+# reports a false failure on 049.
 set -euo pipefail
 
 # Locate a Postgres install. Written as a loop rather than a globbed `ls`

@@ -58,6 +58,29 @@ export const CourseDetails: React.FC = () => {
   // slug ("C4-editing") instead of the course's actual title.
   useBreadcrumbLabel(id, course?.title);
   const includeRows = useSiteSection('course_includes');
+  const pricingRows = useSiteSection('pricing_copy');
+  // Optional marketing tag beside the price; CMS-controlled so it can be
+  // switched off by clearing the field rather than needing a deploy.
+  const urgencyTag = useMemo(() => {
+    const v = (pricingRows?.[0]?.metadata as Record<string, unknown> | undefined)?.urgencyTag;
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  }, [pricingRows]);
+
+  /**
+   * What the bundle's contents would cost bought separately.
+   *
+   * The savings line previously summed only `bundledCourses`, so the digital
+   * assets bundled in — often the difference between a modest and a compelling
+   * discount — counted for nothing. Both are included now, and the total is
+   * surfaced as well as the saving: "₹14,999 of value for ₹4,999" argues the
+   * case far better than the saving alone.
+   */
+  const bundleValue = useMemo(() => {
+    const courses = (course?.bundledCourses ?? []).reduce((sum, c) => sum + (c.price || 0), 0);
+    const assets = (course?.bundledAssets ?? []).reduce((sum, a) => sum + (a.price || 0), 0);
+    const total = courses + assets;
+    return { courses, assets, total, savings: total - (course?.price ?? 0) };
+  }, [course]);
   const includeItems = useMemo(
     () => (includeRows && includeRows.length > 0
       ? includeRows.map((row) => ({
@@ -449,17 +472,26 @@ export const CourseDetails: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                    {course.bundledCourses && course.bundledCourses.length > 0 && (() => {
-                        const savings = course.bundledCourses.reduce((sum, c) => sum + c.price, 0) - course.price;
-                        return savings > 0 ? (
-                            <div className="t-status-success border rounded-xl p-4 mt-6">
+                    {bundleValue.savings > 0 && (
+                        <div className="t-status-success border rounded-xl p-4 mt-6">
+                            <div className="flex items-baseline justify-between gap-3 flex-wrap">
                                 <p className="text-sm font-medium flex items-center gap-2">
                                     <Zap size={16} />
-                                    Save {formatPrice(savings)} compared to buying individually
+                                    Save {formatPrice(bundleValue.savings)} compared to buying individually
+                                </p>
+                                <p className="text-xs opacity-80">
+                                    Total value <span className="line-through">{formatPrice(bundleValue.total)}</span>
+                                    {' → '}
+                                    <span className="font-bold">{formatPrice(course.price)}</span>
                                 </p>
                             </div>
-                        ) : null;
-                    })()}
+                            {bundleValue.assets > 0 && (
+                                <p className="text-xs opacity-80 mt-1.5">
+                                    Includes {formatPrice(bundleValue.assets)} of digital assets
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {course.bundledAssets && course.bundledAssets.length > 0 && (
                         <div className="pt-2">
@@ -564,7 +596,14 @@ export const CourseDetails: React.FC = () => {
         {!hasAccess ? (
           <>
             <div>
-              <p className="text-xs t-text-2">Total Price</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs t-text-2">Total Price</p>
+                {urgencyTag && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide t-status-danger border">
+                    {urgencyTag}
+                  </span>
+                )}
+              </div>
               <p className="text-xl font-bold t-text">
                 {formatPrice(course.price)}
                 {showsComparePrice(course.price, course.comparePrice) && (
@@ -573,6 +612,16 @@ export const CourseDetails: React.FC = () => {
                   </span>
                 )}
               </p>
+              {/* Keyed on the amount so it replays if the figure changes
+                  (e.g. an upgrade credit resolving), not on every render. */}
+              {bundleValue.savings > 0 && (
+                <p
+                  key={bundleValue.savings}
+                  className="text-[11px] font-bold text-[color:var(--status-success-text)] animate-value-pop motion-reduce:animate-none"
+                >
+                  You save {formatPrice(bundleValue.savings)}
+                </p>
+              )}
             </div>
             <Button
               onClick={handleCTA}
