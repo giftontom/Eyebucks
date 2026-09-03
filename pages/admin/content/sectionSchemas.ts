@@ -3,13 +3,19 @@
  *
  * The admin ContentPage dropdown, its typed per-section sub-forms, and the
  * list grouping all derive from this registry, so they cannot drift. The DB
- * `site_content_section_check` constraint (migration 033) must allow every
+ * `site_content_section_check` constraint (migration 046) must allow every
  * `section` key listed here — keep the two in lockstep.
  *
  * Each section serializes its typed fields into the row's `metadata` JSON; the
  * data model and siteContent API are unchanged. An "Advanced (JSON)" escape
  * hatch in the editor still allows raw metadata editing and round-trips any
  * unknown/legacy keys.
+ *
+ * Every schema also carries `where` (and usually `anchor`) — plain-English
+ * "this is the bit of the site you are editing" wording surfaced in the admin
+ * list and the create/edit modal. Section keys like `value_cards` or
+ * `instructors_copy` are internal names; without `where` an editor cannot tell
+ * which band of the page a row controls. Treat it as required for new sections.
  *
  * NOTE: `settings` is intentionally absent — those rows are owned by
  * SettingsPage (matched by title=key); exposing them here would let the two
@@ -19,6 +25,8 @@ import type { ImageFolder } from '../../../services/api/siteImages.api';
 
 export type FieldType =
   | 'text'
+  /** Fixed-length list of {value, suffix, label} tiles — the community counters. */
+  | 'stat-list'
   | 'url'
   | 'number'
   | 'boolean'
@@ -43,7 +51,7 @@ export interface FieldDef {
   placeholder?: string;
   options?: FieldOption[]; // for type 'select'
   default?: unknown;
-  folder?: ImageFolder; // for type 'image' | 'video'
+  folder?: ImageFolder; // for type 'video' | 'image'
   aspect?: string; // preview aspect for type 'image'
 }
 
@@ -60,6 +68,14 @@ export interface SectionSchema {
   bodyMultiline?: boolean;
   /** Typed metadata fields rendered as a sub-form. */
   fields: FieldDef[];
+  /**
+   * Where this content appears on the live site, in the editor's words —
+   * "Homepage → 'How It Works' band → the three step cards". Shown in the
+   * admin list and modal so a row can be traced back to the page.
+   */
+  where: string;
+  /** Element id on the storefront, used for the "View on site" deep link. */
+  anchor?: string;
   /** Hidden from the "create" dropdown (still editable if rows already exist). */
   deprecated?: boolean;
   /** Whether the core `title`/`body` columns are used by this section (default true). */
@@ -87,11 +103,33 @@ const ICON_OPTIONS_CREATORS: FieldOption[] = [
   { value: 'instagram', label: 'Instagram' },
 ];
 
+/** Keys must match STEP_ICONS in components/sections/HowItWorksSection.tsx. */
+const ICON_OPTIONS_STEPS: FieldOption[] = [
+  { value: 'search', label: 'Search (browse)' },
+  { value: 'card', label: 'Credit card (pay)' },
+  { value: 'award', label: 'Award (certify)' },
+  { value: 'video', label: 'Video (watch)' },
+  { value: 'users', label: 'Users (community)' },
+  { value: 'zap', label: 'Zap (fast start)' },
+];
+
+const ICON_OPTIONS_INCLUDES: FieldOption[] = [
+  { value: 'infinity', label: 'Infinity (lifetime)' },
+  { value: 'smartphone', label: 'Smartphone (devices)' },
+  { value: 'award', label: 'Award (certificate)' },
+  { value: 'clock', label: 'Clock (own pace)' },
+  { value: 'star', label: 'Star (community)' },
+  { value: 'play', label: 'Play (lessons)' },
+  { value: 'layers', label: 'Layers (bundle)' },
+];
+
 export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
   faq: {
     section: 'faq',
     label: 'FAQ',
     group: 'FAQ',
+    where: 'Homepage → bottom "Frequently Asked" accordion (one row per question)',
+    anchor: 'closing',
     titleLabel: 'Question',
     titlePlaceholder: 'What gear do I need to start?',
     bodyLabel: 'Answer',
@@ -103,6 +141,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'testimonial',
     label: 'Testimonial',
     group: 'Social proof',
+    where: 'Homepage → "Community" band → student quote cards (one row per quote)',
+    anchor: 'community-proof',
     titleLabel: 'Student name',
     titlePlaceholder: 'Rahul M.',
     bodyLabel: 'Quote',
@@ -118,6 +158,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'instructors',
     label: 'Instructor',
     group: 'Social proof',
+    where: 'Homepage → "Instructors" band → the portrait cards (one row per instructor)',
+    anchor: 'instructors',
     titleLabel: 'Instructor name',
     titlePlaceholder: 'Shahul Ameen',
     bodyLabel: 'Bio',
@@ -132,6 +174,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'value_cards',
     label: 'Value Card',
     group: 'Landing copy',
+    where: 'Homepage → "Why Eyebuckz" band → the benefit cards (one row per card)',
+    anchor: 'value-props',
     titleLabel: 'Card title',
     titlePlaceholder: 'Practical Learning',
     bodyLabel: 'Description',
@@ -146,6 +190,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'creators',
     label: 'Creators Academy Card',
     group: 'Landing copy',
+    where: 'Homepage → "Creators Academy" band → the cards (band is hidden while this has no rows)',
+    anchor: 'creators',
     titleLabel: 'Card title',
     titlePlaceholder: 'Brand Deal Ready',
     bodyLabel: 'Description',
@@ -159,6 +205,7 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'banner',
     label: 'Announcement Banner',
     group: 'Banner',
+    where: 'Every page → the strip pinned above the navigation bar',
     titleLabel: 'Headline',
     titlePlaceholder: 'New cohort starting soon',
     bodyLabel: 'Sub-text',
@@ -176,6 +223,7 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'showcase',
     label: 'Showcase',
     group: 'Showcase',
+    where: 'Retired — no longer rendered on the site. Existing rows stay editable.',
     titleLabel: 'Title',
     bodyLabel: 'Description',
     bodyMultiline: true,
@@ -191,6 +239,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'hero',
     label: 'Hero',
     group: 'Landing copy',
+    where: 'Homepage → the big opening headline, CTA buttons and stat strip',
+    anchor: 'hero',
     singleton: true,
     titleLabel: 'Headline (line 1)',
     titlePlaceholder: 'Master the Craft',
@@ -198,7 +248,7 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     bodyMultiline: true,
     fields: [
       { key: 'headline2', label: 'Headline (line 2)', type: 'text', placeholder: 'of Filmmaking.' },
-      { key: 'pill', label: 'Announcement pill', type: 'text' },
+      { key: 'pill', label: 'Announcement pill', type: 'text', help: 'The small badge above the headline — currently reads "New Cohort Starting Soon".' },
       { key: 'ctaPrimaryGuest', label: 'Primary CTA (logged-out)', type: 'text' },
       { key: 'ctaPrimaryUser', label: 'Primary CTA (logged-in)', type: 'text' },
       { key: 'ctaSecondary', label: 'Secondary CTA', type: 'text' },
@@ -211,6 +261,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'hero_slides',
     label: 'Hero Slide',
     group: 'Landing copy',
+    where: 'Homepage → the image/video carousel beside the opening headline (one row per slide)',
+    anchor: 'hero',
     coreBody: false,
     titleLabel: 'Slide caption',
     titlePlaceholder: 'Masterclass Series',
@@ -224,6 +276,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'social_proof',
     label: 'Social Proof Ticker',
     group: 'Social proof',
+    where: 'Homepage → the scrolling strip of stats just under the hero',
+    anchor: 'social-proof',
     singleton: true,
     coreTitle: false,
     coreBody: false,
@@ -237,6 +291,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'featured_copy',
     label: 'Featured Courses Copy',
     group: 'Landing copy',
+    where: 'Homepage → "Featured Courses" band → heading and subheading above the course cards',
+    anchor: 'featured-courses',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
@@ -250,6 +306,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'how_it_works',
     label: 'How It Works Copy',
     group: 'Landing copy',
+    where: 'Homepage → "How It Works" band → heading and subheading ONLY. The three step cards live in "How It Works Step".',
+    anchor: 'how-it-works',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
@@ -258,10 +316,69 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
     ],
   },
+  how_it_works_steps: {
+    section: 'how_it_works_steps',
+    label: 'How It Works Step',
+    group: 'Landing copy',
+    where: 'Homepage → "How It Works" band → the numbered step cards ("Browse Courses", "Enroll & Pay", …). One row per step, in Order Index order.',
+    anchor: 'how-it-works',
+    titleLabel: 'Step title',
+    titlePlaceholder: 'Browse Courses',
+    bodyLabel: 'Description',
+    bodyPlaceholder: 'Explore our catalog of filmmaking courses…',
+    bodyMultiline: true,
+    fields: [
+      { key: 'icon', label: 'Icon', type: 'select', options: ICON_OPTIONS_STEPS, default: 'search' },
+    ],
+  },
+  about_page: {
+    section: 'about_page',
+    label: 'About Page',
+    group: 'Landing copy',
+    where: 'The /about page → the eyebrow, headline and intro paragraph at the top. This is the PAGE CONTENT — the "About Us" row under Footer Links is only the menu link that points here.',
+    singleton: true,
+    titleLabel: 'Headline',
+    titlePlaceholder: 'About Eyebuckz',
+    bodyLabel: 'Intro paragraph',
+    bodyMultiline: true,
+    fields: [
+      { key: 'pill', label: 'Eyebrow', type: 'text', placeholder: 'Our Mission' },
+    ],
+  },
+  footer_links: {
+    section: 'footer_links',
+    label: 'Footer Links',
+    group: 'Landing copy',
+    where: 'Every page → footer → the link columns (Company / Support). One row per link: just a label and a destination — NOT the content of the page it points to. To edit the About page itself, use "About Page".',
+    anchor: 'footer',
+    titleLabel: 'Link label',
+    titlePlaceholder: 'About Us',
+    bodyLabel: 'Body',
+    coreBody: false,
+    fields: [
+      { key: 'group', label: 'Column', type: 'text', required: true, placeholder: 'Company', help: 'Links with the same Column name appear under one heading, in Order Index order.' },
+      { key: 'url', label: 'URL', type: 'text', required: true, placeholder: '/about or https://…', help: 'Paths like /about stay in-app; full https:// URLs open in a new tab.' },
+    ],
+  },
+  course_includes: {
+    section: 'course_includes',
+    label: 'Course Page: "This course includes"',
+    group: 'Landing copy',
+    where: 'Every course page → "This course includes" card → the bullet list. One row per bullet. The first bullet (lesson/course count) is computed from the course itself and always shown.',
+    titleLabel: 'Bullet text',
+    titlePlaceholder: 'Full lifetime access',
+    bodyLabel: 'Body',
+    coreBody: false,
+    fields: [
+      { key: 'icon', label: 'Icon', type: 'select', options: ICON_OPTIONS_INCLUDES, default: 'infinity' },
+    ],
+  },
   value_props_copy: {
     section: 'value_props_copy',
     label: 'Value Props Header',
     group: 'Landing copy',
+    where: 'Homepage → "Why Eyebuckz" band → heading and subheading above the benefit cards',
+    anchor: 'value-props',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
@@ -275,6 +392,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'instructors_copy',
     label: 'Instructors Header',
     group: 'Social proof',
+    where: 'Homepage → "Instructors" band → heading and subheading above the portrait cards',
+    anchor: 'instructors',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
@@ -287,12 +406,20 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'community_copy',
     label: 'Community Header & Discord',
     group: 'Social proof',
+    where: 'Homepage → "Community" band → heading, subheading and the Discord invite card',
+    anchor: 'community-proof',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
     bodyMultiline: true,
     fields: [
       { key: 'pill', label: 'Eyebrow / pill', type: 'text' },
+      {
+        key: 'stats',
+        label: 'Community stat tiles',
+        type: 'stat-list',
+        help: 'The four counters (Active Members, Messages / Month, Work Reviews, Avg Response). Icons stay fixed by position; only these numbers and labels are editable.',
+      },
       { key: 'verifiedLabel', label: 'Verified badge label', type: 'text' },
       { key: 'discordEyebrow', label: 'Discord eyebrow', type: 'text' },
       { key: 'discordTitle', label: 'Discord title', type: 'text' },
@@ -306,6 +433,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'creators_copy',
     label: 'Creators Academy Header',
     group: 'Landing copy',
+    where: 'Homepage → "Creators Academy" band → heading and subheading above the cards',
+    anchor: 'creators',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
@@ -318,6 +447,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'pricing_copy',
     label: 'Pricing Copy',
     group: 'Landing copy',
+    where: 'Homepage → "Pricing" band → heading, badges and trust chips (the plans themselves come from Courses)',
+    anchor: 'pricing',
     singleton: true,
     titleLabel: 'Heading',
     bodyLabel: 'Subheading',
@@ -327,6 +458,23 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'popularLabel', label: '"Most Popular" badge', type: 'text' },
       { key: 'paymentNote', label: 'Payment note', type: 'text' },
       { key: 'ticketLabel', label: 'Ticket label', type: 'text' },
+      { key: 'tier1Title', label: 'Tier 1 (Individual Course) — title', type: 'text' },
+      { key: 'tier1Subtitle', label: 'Tier 1 — subtitle', type: 'text' },
+      { key: 'tier1PricePrefix', label: 'Tier 1 — price prefix', type: 'text', placeholder: 'Starting at', help: 'Small text above the price, e.g. "Starting at".' },
+      { key: 'tier1Price', label: 'Tier 1 — price (plain text)', type: 'text', placeholder: '₹2,999', help: 'Shown exactly as typed — NOT linked to any product. Leave blank to keep the automatic price.' },
+      { key: 'tier1Compare', label: 'Tier 1 — strike-through price', type: 'text', placeholder: '₹4,499' },
+      { key: 'tier1SaveLabel', label: 'Tier 1 — save badge', type: 'text', placeholder: 'SAVE 33%', help: 'The pill on the tear line. Blank = no pill (when a plain-text price is set).' },
+      { key: 'tier1Features', label: 'Tier 1 — bullet points', type: 'string-array', placeholder: 'Full course curriculum', help: 'One per line. Blank = keep the built-in list.' },
+      { key: 'tier1Cta', label: 'Tier 1 — button label', type: 'text' },
+      { key: 'tier2Title', label: 'Tier 2 (Bundle) — title', type: 'text' },
+      { key: 'tier2Subtitle', label: 'Tier 2 — subtitle', type: 'text' },
+      { key: 'tier2PricePrefix', label: 'Tier 2 — price prefix', type: 'text', placeholder: 'Starting at', help: 'Small text above the price, e.g. "Starting at".' },
+      { key: 'tier2Price', label: 'Tier 2 — price (plain text)', type: 'text', placeholder: '₹2,999', help: 'Shown exactly as typed — NOT linked to any product. Leave blank to keep the automatic price.' },
+      { key: 'tier2Compare', label: 'Tier 2 — strike-through price', type: 'text', placeholder: '₹4,499' },
+      { key: 'tier2SaveLabel', label: 'Tier 2 — save badge', type: 'text', placeholder: 'SAVE 33%', help: 'The pill on the tear line. Blank = no pill (when a plain-text price is set).' },
+      { key: 'tier2Features', label: 'Tier 2 — bullet points', type: 'string-array', placeholder: '3–5 curated courses', help: 'One per line. Blank = keep the built-in list.' },
+      { key: 'tier2Cta', label: 'Tier 2 — button label', type: 'text' },
+      { key: 'urgencyTag', label: 'Urgency tag', type: 'text', placeholder: 'Limited time', help: 'Small badge shown beside bundle prices (course page sticky bar). Blank = no tag.' },
       { key: 'trustBadges', label: 'Trust badges (one per line)', type: 'string-array' },
     ],
   },
@@ -334,6 +482,8 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'closing',
     label: 'Closing CTA & Newsletter',
     group: 'Landing copy',
+    where: 'Homepage → the final band: closing CTA, guarantee chips and the email sign-up box',
+    anchor: 'closing',
     singleton: true,
     coreBody: false,
     titleLabel: 'Heading',
@@ -378,3 +528,47 @@ export function defaultMetaFor(section: string): Record<string, unknown> {
   }
   return meta;
 }
+
+/** Storefront URL that scrolls straight to the band a section renders in. */
+export function siteLinkFor(section: string): string | null {
+  const anchor = SECTION_SCHEMAS[section]?.anchor;
+  return anchor ? `/#${anchor}` : null;
+}
+
+/**
+ * Every CMS section in the order it appears as you scroll the live storefront,
+ * header row before the list it heads.
+ *
+ * The admin list used to be grouped by internal category ("Landing copy",
+ * "Social proof"), which meant finding the row behind a bit of on-screen text
+ * required already knowing the taxonomy. Walking the page top to bottom is the
+ * order an admin actually thinks in.
+ *
+ * Derived from the JSX order in pages/Storefront.tsx — keep the two in step
+ * when a section moves. `orderedSections` in ContentPage.tsx appends anything
+ * missing here, so a forgotten key degrades to "listed last", never "hidden".
+ */
+export const PAGE_ORDER: string[] = [
+  'banner',            // AnnouncementBanner — above everything
+  'hero',              // HeroSection
+  'hero_slides',       //   └ carousel slides inside the hero
+  'social_proof',      // SocialProofTicker
+  'featured_copy',     // FeaturedCoursesSection
+  'showcase',          // AssetsShowcaseSection
+  'how_it_works',      // HowItWorksSection header
+  'how_it_works_steps',//   └ the numbered step cards
+  'value_props_copy',  // ValuePropsSection header
+  'value_cards',       //   └ the benefit cards
+  'instructors_copy',  // InstructorsSection header
+  'instructors',       //   └ the instructor cards
+  'creators_copy',     // CreatorsSection header
+  'creators',          //   └ the creator cards
+  'community_copy',    // CommunityProofSection header
+  'testimonial',       //   └ the testimonials
+  'pricing_copy',      // PricingSection header
+  'closing',           // ClosingSection
+  'faq',               //   └ the FAQ accordion inside the closing section
+  'about_page',        // /about page copy
+  'footer_links',      // footer link columns (every page)
+  'course_includes',   // course page "This course includes" bullets
+];

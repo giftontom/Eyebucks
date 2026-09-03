@@ -9,7 +9,14 @@ const { mockGetBySection } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../services/api', () => ({
-  siteContentApi: { getBySection: mockGetBySection },
+  siteContentApi: { getBySection: mockGetBySection,
+  // SiteContentProvider batches every section into one `getAllActive` call.
+  // Derive that batch from the per-section fixtures below so each test keeps
+  // describing its data section-by-section.
+  getAllActive: async () => (
+    await Promise.all(['hero','hero_slides','banner','faq','creators','creators_copy','value_cards','value_props_copy','instructors','instructors_copy','testimonial','community_copy','how_it_works','how_it_works_steps','featured_copy','pricing_copy','closing','social_proof','showcase','settings'].map((s: string) => mockGetBySection(s)))
+  ).flatMap((r: unknown) => (Array.isArray(r) ? r : [])),
+},
 }));
 
 vi.mock('../../../utils/logger', () => ({
@@ -27,6 +34,7 @@ vi.mock('../../../hooks/useInViewActive', () => ({
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import { InstructorsSection } from '../../../components/sections/InstructorsSection';
+import { SiteContentProvider } from '../../../context/SiteContentContext';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -63,6 +71,9 @@ const DEFAULT_PILL = 'Meet Your Instructors';
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+const renderWithCms = (ui: React.ReactElement) =>
+  render(<SiteContentProvider>{ui}</SiteContentProvider>);
+
 describe('InstructorsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,44 +92,44 @@ describe('InstructorsSection', () => {
     });
 
     it('renders the CMS instructor name', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructor One')).toBeInTheDocument());
     });
 
     it('renders the CMS instructor bio', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('Expert in cinematography for 15 years.')).toBeInTheDocument());
     });
 
     it('renders the CMS instructor role from metadata', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('Director of Photography')).toBeInTheDocument());
     });
 
     it('renders the CMS heading from copy row', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructors Heading')).toBeInTheDocument());
     });
 
     it('renders the CMS pill from copy metadata', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructor Pill')).toBeInTheDocument());
     });
 
     it('does NOT render the default instructor name', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructor One')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_INSTRUCTOR_NAME)).not.toBeInTheDocument();
     });
 
     it('does NOT render the hardcoded default heading', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructors Heading')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_TITLE)).not.toBeInTheDocument();
     });
 
     it('does NOT render the hardcoded default pill', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructor Pill')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_PILL)).not.toBeInTheDocument();
     });
@@ -128,7 +139,7 @@ describe('InstructorsSection', () => {
 
   describe('when getBySection resolves [] for all keys (fallback guard)', () => {
     it('renders both default instructor names', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => {
         expect(screen.getByText('Shahul Ameen')).toBeInTheDocument();
         expect(screen.getByText('Shabeeb')).toBeInTheDocument();
@@ -136,17 +147,17 @@ describe('InstructorsSection', () => {
     });
 
     it('renders the default heading', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_TITLE)).toBeInTheDocument());
     });
 
     it('renders the default pill', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_PILL)).toBeInTheDocument());
     });
 
     it('renders the default bio snippet for Shahul', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() =>
         expect(screen.getByText(/Specialist in DaVinci Resolve/i)).toBeInTheDocument(),
       );
@@ -161,17 +172,17 @@ describe('InstructorsSection', () => {
     });
 
     it('renders the default instructor names when the API rejects', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_INSTRUCTOR_NAME)).toBeInTheDocument());
     });
 
     it('renders the default heading when the API rejects', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_TITLE)).toBeInTheDocument());
     });
 
     it('does not throw when the CMS API rejects', async () => {
-      expect(() => render(<InstructorsSection />)).not.toThrow();
+      expect(() => renderWithCms(<InstructorsSection />)).not.toThrow();
       await waitFor(() => expect(screen.getByText(DEFAULT_TITLE)).toBeInTheDocument());
     });
   });
@@ -187,12 +198,12 @@ describe('InstructorsSection', () => {
     });
 
     it('shows CMS instructor name', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText('CMS Instructor One')).toBeInTheDocument());
     });
 
     it('falls back to default heading when copy row is absent', async () => {
-      render(<InstructorsSection />);
+      renderWithCms(<InstructorsSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_TITLE)).toBeInTheDocument());
     });
   });

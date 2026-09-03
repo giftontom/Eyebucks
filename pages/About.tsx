@@ -3,7 +3,32 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
+import { useSiteSection } from '../context/SiteContentContext';
+
+/** Verbatim current copy; used while the `about_page` CMS section is empty. */
+const DEFAULT_ABOUT = {
+  pill: 'Our Mission',
+  heading: 'About Eyebuckz',
+  body:
+    'Eyebuckz is a filmmaker-built learning platform for creators who are serious about their craft. ' +
+    'We bridge the gap between free YouTube tutorials and expensive film school — giving you ' +
+    'structured, practical education with real industry workflows.',
+};
+
 export const About: React.FC = () => {
+  const rows = useSiteSection('about_page');
+  const copy = React.useMemo(() => {
+    const item = rows?.[0];
+    if (!item) { return DEFAULT_ABOUT; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v : fallback);
+    return {
+      pill: str(meta.pill, DEFAULT_ABOUT.pill),
+      heading: str(item.title, DEFAULT_ABOUT.heading),
+      body: str(item.body, DEFAULT_ABOUT.body),
+    };
+  }, [rows]);
+
   return (
     <>
     <Helmet>
@@ -17,14 +42,15 @@ export const About: React.FC = () => {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
           <div className="inline-block px-4 py-1.5 bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-full font-bold tracking-wider uppercase text-xs mb-6">
-            Our Mission
+            {copy.pill}
           </div>
-          <h1 className="text-5xl font-black t-text mb-6 leading-tight">About Eyebuckz</h1>
-          <p className="text-xl t-text-2 leading-relaxed">
-            Eyebuckz is a filmmaker-built learning platform for creators who are serious about their craft.
-            We bridge the gap between free YouTube tutorials and expensive film school — giving you
-            structured, practical education with real industry workflows.
-          </p>
+          <h1 className="text-5xl font-black t-text mb-6 leading-tight">{copy.heading}</h1>
+          {/* Blank lines in the CMS body become paragraphs. */}
+          {copy.body.split(/\n{2,}/).map((para, i) => (
+            <p key={i} className={`text-xl t-text-2 leading-relaxed${i > 0 ? ' mt-4' : ''}`}>
+              {para}
+            </p>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">

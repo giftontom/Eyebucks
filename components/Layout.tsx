@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../context/AuthContext';
+import { useSiteSection } from '../context/SiteContentContext';
 import { useTheme } from '../context/ThemeContext';
 
 import { AnnouncementBanner } from './AnnouncementBanner';
@@ -11,7 +12,38 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { JsonLd } from './JsonLd';
 import { LanguageToggle } from './LanguageToggle';
 import { MobileBottomNav, shouldShowBottomNav } from './MobileBottomNav';
+import { ViewportProbe } from './ViewportProbe';
 import { NotificationBell } from './NotificationBell';
+
+/**
+ * Footer link columns, editable via the `footer_links` CMS section (one row per
+ * link; rows sharing a Column name cluster under that heading, in Order Index
+ * order). These are the verbatim previous hardcoded links, used while the
+ * section has no rows.
+ */
+const DEFAULT_FOOTER_COLUMNS: Array<{ heading: string; links: Array<{ label: string; url: string }> }> = [
+  { heading: 'Courses', links: [
+    { label: 'Filmmaking', url: '/courses' },
+    { label: 'Video Editing', url: '/courses' },
+    { label: 'Photography', url: '/courses' },
+    { label: 'Business', url: '/courses' },
+  ] },
+  { heading: 'Company', links: [
+    { label: 'About Us', url: '/about' },
+    { label: 'YouTube', url: 'https://youtube.com/@eyebuckz' },
+  ] },
+  { heading: 'Support', links: [
+    { label: 'Contact Us', url: '/contact' },
+    { label: 'Privacy Policy', url: '/privacy' },
+    { label: 'Terms of Service', url: '/terms' },
+  ] },
+];
+
+/** In-app paths use the router; anything else opens in a new tab. */
+const FooterLink: React.FC<{ url: string; label: string }> = ({ url, label }) =>
+  url.startsWith('/')
+    ? <Link to={url} className="hover:t-text transition">{label}</Link>
+    : <a href={url} target="_blank" rel="noreferrer" className="hover:t-text transition">{label}</a>;
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,8 +75,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   // so Learn/Admin/Login don't get a dead gap at the bottom.
   const showBottomNav = shouldShowBottomNav(location.pathname);
 
+  const footerRows = useSiteSection('footer_links');
+  // Group CMS rows into columns by their `group` metadata, preserving row
+  // order within each column and first-appearance order across columns.
+  const footerColumns = React.useMemo(() => {
+    if (!footerRows || footerRows.length === 0) { return DEFAULT_FOOTER_COLUMNS; }
+    const cols: Array<{ heading: string; links: Array<{ label: string; url: string }> }> = [];
+    for (const row of footerRows) {
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const heading = typeof meta.group === 'string' && meta.group.trim() ? meta.group.trim() : 'Links';
+      const url = typeof meta.url === 'string' && meta.url.trim() ? meta.url.trim() : '/';
+      let col = cols.find(c => c.heading === heading);
+      if (!col) { col = { heading, links: [] }; cols.push(col); }
+      col.links.push({ label: row.title, url });
+    }
+    return cols;
+  }, [footerRows]);
+
   return (
     <div className="min-h-screen t-bg t-text flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900">
+      {/* Keeps every route structurally like the Storefront, which already
+          has a full-viewport fixed layer. See .viewport-anchor in index.css. */}
+      <div aria-hidden="true" className="viewport-anchor" />
       {/* Skip to main content — WCAG 2.4.1 */}
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand-600 focus:text-white focus:rounded-lg focus:outline-none focus:ring-2 focus:ring-white">
         Skip to main content
@@ -277,31 +329,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </div>
             </div>
 
+            {/* Columns come from the `footer_links` CMS section; the defaults
+                above render until it has rows. */}
             <div className="flex gap-12 md:gap-16 flex-wrap">
-                 <div>
-                    <h4 className="font-bold t-text mb-4">Courses</h4>
-                    <ul className="space-y-3 text-sm t-text-2">
-                        <li><Link to="/courses" className="hover:t-text transition">Filmmaking</Link></li>
-                        <li><Link to="/courses" className="hover:t-text transition">Video Editing</Link></li>
-                        <li><Link to="/courses" className="hover:t-text transition">Photography</Link></li>
-                        <li><Link to="/courses" className="hover:t-text transition">Business</Link></li>
-                    </ul>
-                 </div>
-                 <div>
-                    <h4 className="font-bold t-text mb-4">Company</h4>
-                    <ul className="space-y-3 text-sm t-text-2">
-                        <li><Link to="/about" className="hover:t-text transition">About Us</Link></li>
-                        <li><a href="https://youtube.com/@eyebuckz" target="_blank" rel="noreferrer" className="hover:t-text transition">YouTube</a></li>
-                    </ul>
-                 </div>
-                 <div>
-                    <h4 className="font-bold t-text mb-4">Support</h4>
-                    <ul className="space-y-3 text-sm t-text-2">
-                        <li><Link to="/contact" className="hover:t-text transition">Contact Us</Link></li>
-                        <li><Link to="/privacy" className="hover:t-text transition">Privacy Policy</Link></li>
-                        <li><Link to="/terms" className="hover:t-text transition">Terms of Service</Link></li>
-                    </ul>
-                 </div>
+                 {footerColumns.map((col) => (
+                   <div key={col.heading}>
+                      <h4 className="font-bold t-text mb-4">{col.heading}</h4>
+                      <ul className="space-y-3 text-sm t-text-2">
+                          {col.links.map((l) => (
+                            <li key={`${col.heading}-${l.label}`}><FooterLink url={l.url} label={l.label} /></li>
+                          ))}
+                      </ul>
+                   </div>
+                 ))}
             </div>
           </div>
 
@@ -316,6 +356,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </footer>
 
       <MobileBottomNav />
+      <ViewportProbe />
       <BackToTop bottomNavVisible={showBottomNav} />
     </div>
   );

@@ -95,6 +95,7 @@ function mapCourse(row: CourseQueryRow): Course {
     title: row.title,
     description: row.description,
     price: row.price,
+    comparePrice: row.compare_price ?? null,
     thumbnail: row.thumbnail || '',
     heroVideoId: row.hero_video_id,
     type: row.type,

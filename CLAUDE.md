@@ -82,7 +82,8 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 - **Auth:** Supabase Auth with Google OAuth. `context/AuthContext.tsx` manages session state. Auth trigger auto-creates user profile on signup.
 - **Data access:** All queries go through `services/api/*.api.ts` modules using `@supabase/supabase-js`. Security is enforced by RLS policies at the database level, not in frontend code.
-- **Edge Functions:** Deno runtime in `supabase/functions/`. Used for server-side secrets (Razorpay, Bunny.net, Resend). Most require JWT auth; `checkout-webhook` does not (Razorpay calls it). Shared utilities in `supabase/functions/_shared/`.
+- **Edge Functions:** Deno runtime in `supabase/functions/`. Used for server-side secrets (Razorpay, Bunny.net, Resend, Cloudflare R2). Most require JWT auth; `checkout-webhook` does not (Razorpay calls it). Shared utilities in `supabase/functions/_shared/`.
+- **CMS reads:** `context/SiteContentContext.tsx` loads every `site_content` row in ONE request and hydrates synchronously from a localStorage copy, so a returning visitor's first paint already has real copy. Sections call `useSiteSection(key)`; do NOT reintroduce per-section `siteContentApi.getBySection` in components.
 - **Types:** `types/index.ts` (business types), `types/api.ts` (request/response), `types/supabase.ts` (auto-generated DB types).
 - **Admin pages:** Split into sub-pages under `pages/admin/` with shared `AdminContext` and `AdminLayout`.
 
@@ -94,7 +95,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 5. Retries profile load with exponential backoff: 200ms → 400ms → 800ms → 1.6s → 3s
 
 ### Video Pipeline (detailed)
-1. `useVideoUrl(videoId, moduleId, fallbackUrl)` calls `video-signed-url` Edge Function immediately (does NOT pre-serve unsigned CDN URL — Bunny token auth is enabled, unsigned URLs return 403)
+1. `useVideoUrl(videoId, lessonId, fallbackUrl)` calls `video-signed-url` Edge Function immediately (does NOT pre-serve unsigned CDN URL — Bunny token auth is enabled, unsigned URLs return 403)
 2. Edge Function generates SHA256 path-based Bunny token: `SHA256(key + "/{videoId}/" + expires + "token_path=/{videoId}/")`; token embedded in URL path so HLS.js sub-requests (sub-manifests, segments) inherit auth automatically
 3. On success: sets signed URL, schedules auto-refresh 5min before 1hr expiry
 4. On fail: falls back to CDN URL (silent if CDN URL works; shows error only if both fail)
@@ -113,7 +114,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 1. `useModuleProgress` auto-saves every 30s while playing (`AUTO_SAVE_INTERVAL = 30000`)
 2. First save of a session increments `view_count` via `increment_view_count` RPC
 3. At 95% watch time (`COMPLETION_THRESHOLD = 0.95`): calls `progress-complete` Edge Function
-4. Edge Function calls `complete_module()` RPC (atomic) → marks module complete
+4. Edge Function calls `complete_lesson()` RPC (atomic) → marks lesson complete
 5. If entire course complete: triggers `certificate-generate` → creates certificate + sends email
 6. Milestones at 25/50/75% course completion → `milestone` notifications
 
@@ -121,20 +122,21 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 ## Database Schema
 
-### 21 Tables
+### 22 Tables
 
 | Table | Purpose |
 |-------|---------|
 | `users` | User profiles synced from auth.users via trigger; has `role` ENUM, `phone_e164`, `google_id`, `preferred_language` (storefront language pref) |
 | `courses` | Course catalog; `slug` UNIQUE; `price` in paise; `language` (`course_language` ENUM, EN/ML) + optional `course_group_id` link siblings; soft-delete via `deleted_at` |
-| `modules` | Course chapters; `video_id` is Bunny GUID; `order_index`; `is_free_preview` |
-| `enrollments` | User-course access; `status` ENUM; `expires_at` for time-limited access |
-| `progress` | Per-module watch progress; `timestamp`, `completed`, `watch_time`, `view_count` |
+| `modules` | Course chapters — a grouping level only: `course_id`, `title`, `order_index`. Videos moved to `lessons` in migration 034 |
+| `lessons` | The actual video units inside a module; `module_id`, `video_id` (Bunny GUID), `video_url`, `duration_seconds`, `is_free_preview`, `order_index` |
+| `enrollments` | User-course access; `status` ENUM; `expires_at` for time-limited access; `completed_lessons[]`, `current_lesson`. Grant columns (`course_id`, `status`, `expires_at`, `amount`…) are trigger-guarded against non-admin UPDATE — migration 051 |
+| `progress` | Per-lesson watch progress; `lesson_id`, `timestamp`, `completed`, `watch_time`, `view_count` |
 | `payments` | Razorpay transaction records; `razorpay_order_id`, `razorpay_payment_id`; `course_id` nullable (XOR with `asset_id`) |
 | `certificates` | Course completion certificates; `certificate_number`, `download_url`, `pdf_data` |
 | `reviews` | Course ratings + comments; `helpful` upvote count |
 | `notifications` | User notification inbox; `type` ENUM, `link`, `read` boolean |
-| `site_content` | CMS blocks; `section` CHECK: 18 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, social_proof, featured_copy, how_it_works, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing |
+| `site_content` | CMS blocks; `section` CHECK: 23 keys — faq, testimonial, showcase, banner, settings, creators, instructors, value_cards, hero, hero_slides, social_proof, featured_copy, how_it_works, how_it_works_steps, value_props_copy, instructors_copy, community_copy, creators_copy, pricing_copy, closing, footer_links, course_includes, about_page |
 | `bundle_courses` | Junction: BUNDLE-type courses → individual courses; `order_index` |
 | `bundle_assets` | Junction: BUNDLE-type courses → digital assets; `order_index` (migration 043) |
 | `upgrade_pricing_config` | Single-row runtime knobs for module→bundle upgrade pricing: `enabled`, `credit_pct`, `window_days`, `cross_sell_pct` (migration 044) |
@@ -144,7 +146,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `wishlists` | User favorites; UNIQUE constraint on `(user_id, course_id)` |
 | `login_attempts` | Auth audit trail; `ip_address`, `user_agent`, `success`, `fail_reason` |
 | `audit_logs` | Admin action log; `action`, `entity_type`, `entity_id`, `old_value`, `new_value` |
-| `digital_assets` | Downloadable product catalog; `slug`, `price` (paise), `file_type` ENUM, `license` ENUM, `storage_path` (private — server-only), `status` reuses `course_status`; soft-delete via `deleted_at` |
+| `digital_assets` | Downloadable product catalog; `slug`, `price` (paise), `file_type` ENUM, `license` ENUM, `storage_path` (Cloudflare R2 object key — server-only, never sent to clients), `external_url` (link-delivery alternative), `status` reuses `course_status`; soft-delete via `deleted_at` |
 | `asset_purchases` | Digital asset entitlement; `user_id`, `asset_id`, `status` reuses `enrollment_status`; UNIQUE `(user_id, asset_id)`; no client INSERT/UPDATE — service-role only |
 
 ### 9 ENUMs
@@ -158,12 +160,12 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 - `asset_file_type`: `LUT` | `PRESET` | `SFX` | `MUSIC` | `OVERLAY` | `PROJECT` | `PDF` | `TEMPLATE` | `OTHER`
 - `asset_license`: `PERSONAL` | `COMMERCIAL` | `EXTENDED`
 
-### 19 RPC Functions
+### 21 RPC Functions
 | RPC | Purpose |
 |-----|---------|
 | `apply_coupon(code, course_id, user_id)` | Atomic coupon validation + redemption → coupon_use_id, discount_pct |
 | `apply_asset_coupon(p_code, p_user_id, p_asset_id)` | Atomic coupon validation + redemption for digital assets → coupon_use_id, discount_pct (SECURITY DEFINER; REVOKE PUBLIC) |
-| `complete_module(user_id, module_id, course_id)` | Marks module done, checks course completion → JSONB status |
+| `complete_lesson(user_id, lesson_id, course_id)` | Marks lesson done, checks course completion → JSONB status (renamed from `complete_module`) |
 | `expire_enrollments()` | Auto-expire past-due enrollments (run by pg_cron) → INTEGER count |
 | `generate_receipt_number()` | Unique receipt string for payments |
 | `get_admin_stats()` | KPI dashboard data → JSONB |
@@ -173,11 +175,15 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `get_progress_stats(user_id, course_id)` | User's progress for a course → JSONB |
 | `get_recent_activity(limit)` | Recent admin activity feed → JSONB |
 | `get_sales_data(days)` | Revenue time series → Array {date, amount, count} |
-| `increment_view_count(user_id, course_id, module_id, timestamp)` | Increments view_count on first play of session |
+| `increment_view_count(user_id, course_id, lesson_id, timestamp)` | Increments view_count on first play of session |
 | `is_admin()` | BOOLEAN check (SECURITY DEFINER, used in all RLS policies) |
 | `reorder_modules(course_id, module_ids[])` | Updates order_index for drag-drop reorder |
-| `save_progress_timestamp(user_id, course_id, module_id, timestamp)` | Saves video position (auto-save) |
+| `reorder_lessons(module_id, lesson_ids[])` | Same, for lessons within a module |
+| `get_review_summary(course_id)` | Rating total/average/distribution in one call (migration 023) |
+| `verify_certificate(cert_number)` | Public certificate lookup for `/verify` |
+| `save_progress_timestamp(user_id, course_id, lesson_id, timestamp)` | Saves video position (auto-save) |
 | `set_bundle_courses(bundle_id, course_ids[])` | Replaces bundle_courses junction rows atomically |
+| `set_bundle_assets(bundle_id, asset_ids[])` | Same, for digital assets in a bundle |
 
 ### RLS Patterns
 - **User-scoped:** `USING (user_id = auth.uid())`
@@ -199,7 +205,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 046** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 052** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 
@@ -227,6 +233,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `Profile.tsx` | `/profile` | User profile + certificate list (protected) |
 | `Notifications.tsx` | `/notifications` | Notification inbox — "Alerts" tab in mobile nav (protected) |
 | `PurchaseSuccess.tsx` | `/success` | Post-payment confirmation (protected) |
+| `VerifyCertificate.tsx` | `/verify` and `/verify/:certificateNumber` | Public certificate authenticity check via the `verify_certificate` RPC |
 
 ### Admin Pages (`pages/admin/*.tsx`)
 | Page | Route | Purpose |
@@ -238,10 +245,10 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | `UserDetailPage.tsx` | `/admin/users/:id` | User profile, enrollments, manual enroll |
 | `PaymentsPage.tsx` | `/admin/payments` | Payment history, refund processing |
 | `CertificatesPage.tsx` | `/admin/certificates` | Issue/revoke certificates |
-| `ContentPage.tsx` | `/admin/content` | CMS editor — typed per-section sub-forms, image upload, JSON escape hatch; covers all 18 CMS section keys |
+| `ContentPage.tsx` | `/admin/content` | CMS editor — typed per-section sub-forms, image upload, JSON escape hatch; covers all 20 CMS section keys, each labelled with where it renders on the site |
 | `CouponsPage.tsx` | `/admin/coupons` | Create/deactivate coupon codes |
 | `ReviewsPage.tsx` | `/admin/reviews` | Moderate + delete course reviews |
-| `AuditLogPage.tsx` | `/admin/audit` | Admin action log (created_at, action, entity, diff) |
+| `AuditLogPage.tsx` | `/admin/audit-log` | Admin action log (created_at, action, entity, diff) |
 | `SettingsPage.tsx` | `/admin/settings` | Site-wide settings (maintenance mode, featured course, etc.) |
 | `DigitalAssetsPage.tsx` | `/admin/digital-assets` | Digital asset list — publish/draft toggle, soft-delete |
 | `DigitalAssetEditorPage.tsx` | `/admin/digital-assets/new` and `/:assetId` | Create/edit digital asset — metadata, file upload via `AssetUploader` |
@@ -296,7 +303,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | Component | Notes |
 |-----------|-------|
 | `AssetCard` | Product card for a digital asset (thumbnail, title, file type badge, price, license); used in `AssetsCatalogSection` and `/assets` shop |
-| `AssetUploader` | Signed-URL direct upload for digital asset files; calls `admin-asset-upload` Edge Function for a Supabase Storage signed upload URL; max 500MB; shows progress |
+| `AssetUploader` | Presigned direct upload for digital asset files; calls `admin-asset-upload` for a Cloudflare R2 PUT URL; max 5GB (R2 single-PUT limit); shows progress |
 | `OwnedAssetsTab` | "Library" tab rendered inside Dashboard; lists purchased/claimed assets with a download CTA that calls `asset-download-url` Edge Function |
 
 ### User Actions
@@ -316,7 +323,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 
 ## Custom Hooks
 
-All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
+All hooks live in `hooks/` and are re-exported from `hooks/index.ts` — except `useSiteSection`, which is exported from `context/SiteContentContext.tsx` because it reads that provider's batched CMS map.
 
 | Hook | Returns | Purpose |
 |------|---------|---------|
@@ -329,7 +336,14 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 | `useVideoPlayer(videoRef)` | `{isPlaying, currentTime, duration, volume, playbackRate, togglePlay, seek, ...}` | Video UI state abstraction over VideoPlayer ref |
 | `useVideoUrl(videoId, lessonId, fallbackUrl, purpose?)` | `{videoUrl, hlsUrl, isLoading, error, refreshUrl}` | Fetches a signed URL from `video-signed-url`; auto-refresh 5min before expiry. `purpose:'trailer'` uses the anonymous public-trailer path (best-effort → poster on failure) |
 | `useHlsAttach(videoRef, hlsUrl)` | `void` | Attaches an HLS source to a plain `<video>` (Safari native; else lazy-imports hls.js); used for the CourseDetails trailer hero |
+| `useSiteSection(sectionKey)` | `SiteContentItem[] \| null` | CMS rows for one section, from `SiteContentProvider`'s single batched fetch. `null` = not loaded yet → use your hardcoded defaults. Derive copy with `useMemo`, never mirror into state in an effect (that repaints the fallback first — the flash this replaced) |
 | `useWishlist(courseId?)` | `{isSaved, toggle, wishlistIds, isLoading}` | Wishlist state; optimistic toggle; loads full list on mount |
+| `useInViewActive(...)` | — | Marks elements active while in view (IntersectionObserver + MutationObserver for async CMS cards); no-ops under reduced motion or above `maxWidth` |
+| `useOrientation()` | `OrientationState & {...}` | Portrait/landscape state — the Learn page hides surrounding chrome in landscape to maximise the player |
+| `usePrefersReducedMotion()` | `boolean` | Live `prefers-reduced-motion` subscription so components can skip entrance animations |
+| `useSceneGrade(...)` | — | Colour-grades a section while it occupies the viewport; colour-only, no motion (WCAG C39-safe) |
+| `useScrollParallax(...)` | — | Scroll-linked parallax offset |
+| `useScrollProgress(...)` | — | Scroll-pinned progress; `enabled=false` detaches and reports 0 once (used to disable pinning on desktop or under reduced motion) |
 
 ---
 
@@ -355,28 +369,29 @@ All hooks live in `hooks/` and are re-exported from `hooks/index.ts`.
 
 ---
 
-## Edge Functions (16 total in `supabase/functions/`)
+## Edge Functions (17 total in `supabase/functions/`)
 
 | Function | Auth | Purpose |
 |----------|------|---------|
-| `admin-asset-upload` | JWT + admin | Returns a Supabase Storage signed upload URL for direct large-file upload to the private `digital-assets` bucket |
+| `admin-asset-upload` | JWT + admin | Returns a presigned **Cloudflare R2** PUT URL for direct large-file upload (S3-compatible, via `_shared/r2.ts`) |
 | `admin-image-upload` | JWT + admin | Upload CMS images (≤5MB) or short marketing videos (≤15MB, mp4/webm) to Bunny Storage; returns Pull-Zone CDN URL |
+| `admin-video-list` | JWT + admin | Browse the Bunny Stream library so the course editor can reuse an already-uploaded video; read-only, paginated, optional title search |
 | `admin-video-upload` | JWT + admin | Generate Bunny TUS upload credentials |
 | `asset-claim-free` | JWT | Grants a price-0 digital asset to the authenticated user without payment |
-| `asset-download-url` | JWT | Entitlement-gated short-lived (~5 min) Supabase Storage signed download URL for a purchased asset |
+| `asset-download-url` | JWT | Entitlement-gated short-lived (~5 min) presigned **R2** GET URL for a purchased asset |
 | `certificate-generate` | JWT | Generate PDF certificate + email |
 | `checkout-create-order` | JWT | Create Razorpay order — product-aware: accepts `courseId` or `assetId` discriminator |
 | `checkout-verify` | JWT | Verify Razorpay payment signature + create enrollment or asset purchase — product-aware |
 | `checkout-webhook` | **No JWT** (HMAC) | Razorpay webhook async fallback — product-aware; consumes upgrade credit before granting |
 | `course-claim-free` | JWT | Grants a ₹0 course with no payment — genuinely free, or upgrade credit fully covers the bundle (migration 044) |
 | `coupon-apply` | JWT | Atomic coupon validation — product-aware: calls `apply_coupon` RPC (courses) or `apply_asset_coupon` RPC (assets) |
-| `progress-complete` | JWT | Mark module complete via `complete_module` RPC; trigger certificate |
+| `progress-complete` | JWT | Mark lesson complete via `complete_lesson` RPC; trigger certificate |
 | `refund-process` | JWT + admin | Initiate Razorpay refund + update records |
 | `session-enforce` | JWT | Enforce session validity on login (3s timeout, lenient) |
 | `video-cleanup` | JWT + admin | Delete video from Bunny after course module removal |
 | `video-signed-url` | JWT (+ anon `purpose:'trailer'`) | Generate SHA256 Bunny CDN signed URL (1hr expiry); lesson path is JWT+entitlement-gated; anonymous `purpose:'trailer'` signs only a PUBLISHED course's `hero_video_id` (refuses any GUID that is also a paid lesson video) — deploy `--no-verify-jwt` |
 
-Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `certificates.ts`, `email.ts`, `emailTemplates.ts` (incl. `assetDeliveryEmail`), `hmac.ts`, `supabaseAdmin.ts`
+Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `response.ts`, `certificates.ts`, `email.ts`, `emailTemplates.ts` (incl. `assetDeliveryEmail`), `enrollment.ts`, `hmac.ts`, `r2.ts` (Cloudflare R2 S3 client — needs `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`), `supabaseAdmin.ts`
 
 ---
 
@@ -384,13 +399,13 @@ Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `respon
 
 **User:** `Role ('USER'|'ADMIN')`, `User {id, name, email, avatar, phone_e164, role, phoneVerified, emailVerified, google_id, created_at, last_login_at}`
 
-**Course:** `CourseType ('BUNDLE'|'MODULE')`, `CourseStatus ('PUBLISHED'|'DRAFT')`, `Course {id, slug, title, description, price(paise), thumbnail, heroVideoId, type, status, rating, totalStudents, features[], chapters?, reviews?, bundledCourses?}`, `CourseWithModules extends Course`
+**Course:** `CourseType ('BUNDLE'|'MODULE')`, `CourseStatus ('PUBLISHED'|'DRAFT')`, `Course {id, slug, title, description, price(paise), comparePrice(paise|null, display-only MRP), thumbnail, heroVideoId, type, status, rating, totalStudents, features[], chapters?, reviews?, bundledCourses?}`, `CourseWithModules extends Course`
 
-**Module:** `Module {id, courseId, title, duration, durationSeconds, videoUrl, videoId(BunnyGUID), isFreePreview, orderIndex}`
+**Module / Lesson:** `Module {id, courseId, title, orderIndex, lessons?}` — a chapter, no video of its own. `Lesson {id, moduleId, title, duration, durationSeconds, videoUrl, videoId?(BunnyGUID), isFreePreview, orderIndex, hasAccess?}` — the video-bearing leaf; pass `videoId` to `useVideoUrl`
 
-**Enrollment:** `EnrollmentStatus ('ACTIVE'|'EXPIRED'|'REVOKED'|'PENDING')`, `Enrollment {id, userId, courseId, status, paymentId, orderId, amount, expiresAt, completedModules[], currentModule, overallPercent, totalWatchTime}`, `EnrollmentWithCourse extends Enrollment`
+**Enrollment:** `EnrollmentStatus ('ACTIVE'|'EXPIRED'|'REVOKED'|'PENDING')`, `Enrollment {id, userId, courseId, enrolledAt, lastAccessedAt, status, paymentId, orderId, amount, expiresAt, completedLessons[], currentLesson, overallPercent, totalWatchTime}`, `EnrollmentWithCourse extends Enrollment`
 
-**Progress:** `Progress {userId, courseId, moduleId, timestamp, completed, completedAt, watchTime, viewCount}`, `ProgressStats {overallPercent, completedModules, totalModules, totalWatchTime, currentModule}`
+**Progress:** `Progress {id, userId, courseId, lessonId, timestamp, completed, completedAt, watchTime, viewCount, lastUpdatedAt}`, `ProgressStats {overallPercent, completedModules, totalModules, totalWatchTime, currentModule}` — ⚠️ deliberately keeps the module-era field names because it mirrors the `get_progress_stats` RPC payload, but the values are **lesson** counts and `currentModule` holds a lesson id. Don't rename without changing the RPC.
 
 **Payment:** `PaymentStatus ('pending'|'captured'|'refunded'|'failed')`, `PaymentOrder {orderId, amount, currency, key, courseTitle}`, `PaymentVerification {success, verified, enrollmentId}`
 
@@ -400,7 +415,7 @@ Shared utilities in `supabase/functions/_shared/`: `cors.ts`, `auth.ts`, `respon
 
 **Other:** `SiteContentItem {id, section, title, body, metadata, orderIndex, isActive}`, `Coupon {code, discount_pct, max_uses, use_count, expires_at, is_active}`, `WishlistEntry {id, courseId, createdAt}`, `Review {id, userId, rating, comment, helpful}`, `ReviewSummary {total, averageRating, distribution{5,4,3,2,1}}`
 
-**Digital Assets:** `AssetFileType ('LUT'|'PRESET'|'SFX'|'MUSIC'|'OVERLAY'|'PROJECT'|'PDF'|'TEMPLATE'|'OTHER')`, `AssetLicense ('PERSONAL'|'COMMERCIAL'|'EXTENDED')`, `DigitalAsset {id, slug, title, description, price(paise), comparePrice, fileType, license, thumbnail, previewUrl, version, status, downloadCount, deletedAt, timestamps}` (note: `storagePath` is NOT included — server-only), `AdminDigitalAsset extends DigitalAsset` (includes `storagePath`, `fileSizebytes`, `fileExt`), `AssetPurchase {id, userId, assetId, status, paymentId, orderId, amount, downloadCount, lastDownloadedAt, purchasedAt}`, `AssetPurchaseWithAsset extends AssetPurchase`
+**Digital Assets:** `AssetFileType ('LUT'|'PRESET'|'SFX'|'MUSIC'|'OVERLAY'|'PROJECT'|'PDF'|'TEMPLATE'|'OTHER')`, `AssetLicense ('PERSONAL'|'COMMERCIAL'|'EXTENDED')`, `DigitalAsset {id, slug, title, description, price(paise), comparePrice, fileType, license, thumbnail, previewUrl, version, status, downloadCount, deletedAt, timestamps}` (note: `storagePath` is NOT included — server-only), `AdminDigitalAsset extends DigitalAsset` (includes `storagePath`, `fileSizebytes`, `fileExt`, `externalUrl` — admin-only, like storagePath), `AssetPurchase {id, userId, assetId, status, paymentId, orderId, amount, downloadCount, lastDownloadedAt, purchasedAt}`, `AssetPurchaseWithAsset extends AssetPurchase`
 
 ---
 
@@ -495,6 +510,8 @@ vi.mock('../../../services/api', () => ({ usersApi: mockApi }));
 5. ~~**Dev credentials in production bundle**~~ — **RESOLVED** (March 2026): `loginDev()` gated behind `import.meta.env.DEV`; tree-shaken from production builds
 6. ~~**No column-level RLS on `role`**~~ — **RESOLVED** (March 2026): `prevent_role_change` BEFORE UPDATE trigger added in migration 022
 7. ~~**PostgREST filter injection**~~ — **RESOLVED** (March 2026): `escapeOrFilter()` helper added to `admin.api.ts`; all `.or()` interpolations now sanitized
+8. ~~**Enrollment UPDATE policy allowed a paywall bypass**~~ — **RESOLVED** (September 2026, migration 051): `enrollments_update` had no `WITH CHECK`, so Postgres reused `USING (user_id = auth.uid())` — the only rule was that the row stayed yours, leaving `course_id`, `status` and `expires_at` writable. A user could repoint an enrollment at any paid course, make time-limited access permanent, or undo a revocation. Fixed with a `prevent_enrollment_escalation` BEFORE UPDATE trigger (same idiom as 022); keyed off `auth.uid() IS NULL` so service_role Edge Functions and pg_cron are unaffected.
+   - ⚠️ **When adding a column to `enrollments`, decide whether it is a grant field** and add it to that trigger's list if so. RLS cannot express per-column rules, so the trigger is the only thing guarding them.
 
 ### Tech Debt
 8. **`types/supabase.ts` has stale `sessions`/`refresh_tokens` tables** — dropped during auth migration; migrations 022+023 are applied but types not yet regenerated (requires Docker); run `/gen-db-types` when Docker is available
@@ -532,6 +549,7 @@ npm run build          # Production build
 npm test               # Run tests (Vitest)
 npm run test:coverage  # Coverage report (50% threshold)
 npm run lint           # ESLint
+npm run verify:migrations   # Replay all migrations against a throwaway local Postgres
 npm run type-check     # TypeScript check
 supabase db reset      # Reset local DB + migrations + seed
 supabase functions deploy  # Deploy Edge Functions
@@ -550,8 +568,12 @@ supabase functions deploy  # Deploy Edge Functions
 - `index.css` — Tailwind v4 entry (`@import "tailwindcss"`) + `@theme {}` token block
 - `services/supabase.ts` — Supabase client singleton
 - `context/AuthContext.tsx` — Auth state management (Google OAuth + dev mode)
+- `context/SiteContentContext.tsx` — batched CMS loader + `useSiteSection`; kills the flash of hardcoded fallback copy
+- `scripts/verify-migrations.sh` — replays migrations against a throwaway local Postgres (`npm run verify:migrations`)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-045** (file gaps at 030/031, applied from another branch); next = 046. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+- `supabase/migrations/` — **SQL migrations 001-051** (file gaps at 030/031, applied from another branch); next = 052. 051 = enrollment grant-column guard (closes a paywall bypass); 050 = about_page CMS section (rescues About copy stranded in a footer_links body); 049 = footer_links + course_includes CMS sections; 048 = digital_assets.external_url (link delivery); 047 = courses.compare_price (offer vs actual price); 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+  - ⚠️ **Never run `supabase db push` on this project.** Remote history holds 030/031 with no local files AND is missing 041-045, which are applied. `db push` would replay them. Apply migrations as raw SQL — see `docs/operations/AUG_INTEGRATION_GO_LIVE.md`.
+  - Verify migrations before applying: `npm run verify:migrations 046 047 048` (needs `brew install postgresql@16`; no Docker).
 - `supabase/functions/` — **16 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)

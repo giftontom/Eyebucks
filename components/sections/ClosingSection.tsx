@@ -1,10 +1,10 @@
 import { Plus, ArrowRight, Mail, CheckCircle2 } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { FadeIn, STAGGER_MS } from '../FadeIn';
-import { siteContentApi } from '../../services/api';
+import { useSiteSection } from '../../context/SiteContentContext';
 import { logger } from '../../utils/logger';
+import { FadeIn, STAGGER_MS } from '../FadeIn';
 
 interface FAQItem {
   q: string;
@@ -37,35 +37,32 @@ const DEFAULT_COPY = {
 export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
   const navigate = useNavigate();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [copy, setCopy] = useState(DEFAULT_COPY);
+  const closingRows = useSiteSection('closing');
 
   // CMS override for CTA + email copy only — singleton row [0], per-field
-  // fallback to DEFAULT_COPY. Non-critical: failures keep the defaults.
-  useEffect(() => {
-    siteContentApi.getBySection('closing')
-      .then(items => {
-        const item = items[0];
-        if (!item) {return;}
-        const meta = (item.metadata || {}) as Record<string, unknown>;
-        const str = (v: unknown, fallback: string) => (typeof v === 'string' && v ? v : fallback);
-        setCopy({
-          eyebrow: str(meta.eyebrow, DEFAULT_COPY.eyebrow),
-          title: item.title || DEFAULT_COPY.title,
-          ctaHeading: str(meta.ctaHeading, DEFAULT_COPY.ctaHeading),
-          ctaBody: str(meta.ctaBody, DEFAULT_COPY.ctaBody),
-          ctaLabel: str(meta.ctaLabel, DEFAULT_COPY.ctaLabel),
-          guarantee1: str(meta.guarantee1, DEFAULT_COPY.guarantee1),
-          guarantee2: str(meta.guarantee2, DEFAULT_COPY.guarantee2),
-          emailHeading: str(meta.emailHeading, DEFAULT_COPY.emailHeading),
-          emailSubtext: str(meta.emailSubtext, DEFAULT_COPY.emailSubtext),
-          emailPlaceholder: str(meta.emailPlaceholder, DEFAULT_COPY.emailPlaceholder),
-          subscribeLabel: str(meta.subscribeLabel, DEFAULT_COPY.subscribeLabel),
-          emailSuccessHeading: str(meta.emailSuccessHeading, DEFAULT_COPY.emailSuccessHeading),
-          emailSuccessSubtext: str(meta.emailSuccessSubtext, DEFAULT_COPY.emailSuccessSubtext),
-        });
-      })
-      .catch(err => logger.warn('[ClosingSection] CMS load failed:', err));
-  }, []);
+  // fallback to DEFAULT_COPY. Derived in render so the defaults are never
+  // painted first when the CMS payload is already known.
+  const copy = useMemo(() => {
+    const item = closingRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata || {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) => (typeof v === 'string' && v ? v : fallback);
+    return {
+      eyebrow: str(meta.eyebrow, DEFAULT_COPY.eyebrow),
+      title: item.title || DEFAULT_COPY.title,
+      ctaHeading: str(meta.ctaHeading, DEFAULT_COPY.ctaHeading),
+      ctaBody: str(meta.ctaBody, DEFAULT_COPY.ctaBody),
+      ctaLabel: str(meta.ctaLabel, DEFAULT_COPY.ctaLabel),
+      guarantee1: str(meta.guarantee1, DEFAULT_COPY.guarantee1),
+      guarantee2: str(meta.guarantee2, DEFAULT_COPY.guarantee2),
+      emailHeading: str(meta.emailHeading, DEFAULT_COPY.emailHeading),
+      emailSubtext: str(meta.emailSubtext, DEFAULT_COPY.emailSubtext),
+      emailPlaceholder: str(meta.emailPlaceholder, DEFAULT_COPY.emailPlaceholder),
+      subscribeLabel: str(meta.subscribeLabel, DEFAULT_COPY.subscribeLabel),
+      emailSuccessHeading: str(meta.emailSuccessHeading, DEFAULT_COPY.emailSuccessHeading),
+      emailSuccessSubtext: str(meta.emailSuccessSubtext, DEFAULT_COPY.emailSuccessSubtext),
+    };
+  }, [closingRows]);
 
   // Email capture state
   const [email, setEmail] = useState('');
@@ -95,7 +92,7 @@ export const ClosingSection: React.FC<ClosingSectionProps> = ({ faqs }) => {
   }, [email]);
 
   return (
-    <section className="py-20 md:py-28 t-bg relative overflow-hidden">
+    <section id="closing" className="py-20 md:py-28 t-bg relative overflow-hidden">
       {/* Subtle ambient glow */}
       <div className="absolute top-1/2 right-1/4 w-[400px] h-[400px] bg-brand-500/10 rounded-full blur-[120px] animate-glow-pulse pointer-events-none" />
 

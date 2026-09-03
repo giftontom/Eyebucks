@@ -1,6 +1,39 @@
 import { ChevronRight } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+/**
+ * Labels published by pages for URL segments the trail cannot name on its own.
+ *
+ * The trail is derived purely from the pathname, so a dynamic segment like a
+ * course slug rendered as "capitalise the segment" — the breadcrumb read
+ * "Home > Course > C4-editing" while the page itself was titled "Part 1 - From
+ * Zero to Influencer". Pages that load the real name call
+ * `useBreadcrumbLabel(slug, title)` and the trail re-renders with it.
+ */
+const dynamicLabels = new Map<string, string>();
+const listeners = new Set<() => void>();
+let labelsVersion = 0;
+
+const notify = () => { labelsVersion++; listeners.forEach((l) => l()); };
+const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+
+/**
+ * Publish a human label for a URL segment while the calling page is mounted.
+ * Pass the raw segment exactly as it appears in the path (slug or id).
+ * No-ops until `label` is truthy, so callers can pass the not-yet-loaded title.
+ */
+export function useBreadcrumbLabel(segment: string | undefined, label: string | undefined): void {
+  useEffect(() => {
+    if (!segment || !label) { return; }
+    dynamicLabels.set(segment, label);
+    notify();
+    return () => {
+      dynamicLabels.delete(segment);
+      notify();
+    };
+  }, [segment, label]);
+}
 
 interface BreadcrumbItem {
   label: string;
@@ -30,17 +63,25 @@ const STATIC_LABELS: Record<string, string> = {
   'course': 'Course',
   'learn': 'Continue Learning',
   'checkout': 'Checkout',
+  'assets': 'Digital Assets',
+  'asset': 'Asset',
 };
 
 function segmentLabel(segment: string): string {
   // UUID pattern: show as generic label
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(segment)) return '';
-  return STATIC_LABELS[segment] || segment.charAt(0).toUpperCase() + segment.slice(1);
+  return (
+    STATIC_LABELS[segment] ||
+    dynamicLabels.get(segment) ||
+    segment.charAt(0).toUpperCase() + segment.slice(1)
+  );
 }
 
 /** Builds a breadcrumb trail from the current route. Renders nothing on the home page. */
 export const Breadcrumbs: React.FC = () => {
   const location = useLocation();
+  // Re-render when a page publishes/retracts a dynamic segment label.
+  useSyncExternalStore(subscribe, () => labelsVersion);
   const segments = location.pathname.split('/').filter(Boolean);
 
   if (segments.length === 0) return null;

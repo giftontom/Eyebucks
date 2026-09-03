@@ -20,7 +20,7 @@ export const BackToTop: React.FC<{ bottomNavVisible?: boolean }> = ({ bottomNavV
     <button
       onClick={scrollToTop}
       aria-label="Back to top"
-      className={`fixed ${bottomNavVisible ? 'bottom-above-nav' : 'bottom-6'} md:bottom-8 right-4 z-40 w-11 h-11 rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 flex items-center justify-center transition-all duration-300 hover:bg-brand-500 hover:scale-110 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 outline-none ${
+      className={`fixed ${bottomNavVisible ? 'bottom-above-nav' : 'bottom-6'} lg:bottom-8 right-4 z-40 w-11 h-11 rounded-full bg-brand-600 text-white shadow-lg shadow-brand-600/30 flex items-center justify-center transition-all duration-300 hover:bg-brand-500 hover:scale-110 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 outline-none ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
       }`}
     >

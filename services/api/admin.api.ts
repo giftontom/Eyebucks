@@ -248,6 +248,7 @@ export const adminApi = {
       title: c.title,
       description: c.description,
       price: c.price,
+      comparePrice: c.compare_price ?? null,
       thumbnail: c.thumbnail,
       heroVideoId: c.hero_video_id,
       type: c.type,
@@ -276,6 +277,8 @@ export const adminApi = {
     slug: string;
     description: string;
     price: number;
+    /** Optional strike-through MRP in paise; must exceed `price` (DB CHECK). */
+    comparePrice?: number | null;
     thumbnail?: string;
     type: string;
     features?: string[];
@@ -290,6 +293,7 @@ export const adminApi = {
         slug: courseData.slug,
         description: courseData.description,
         price: courseData.price,
+        compare_price: courseData.comparePrice ?? null,
         thumbnail: courseData.thumbnail || '',
         type: courseData.type as 'BUNDLE' | 'MODULE',
         features: courseData.features || [],
@@ -307,6 +311,7 @@ export const adminApi = {
 
   async updateCourse(courseId: string, courseData: {
     title?: string; slug?: string; description?: string; price?: number;
+    comparePrice?: number | null;
     thumbnail?: string; type?: string; features?: string[];
     heroVideoId?: string | null; status?: string;
     language?: CourseLanguage; courseGroupId?: string | null;
@@ -320,6 +325,7 @@ export const adminApi = {
     if (courseData.slug !== undefined) {update.slug = courseData.slug;}
     if (courseData.description !== undefined) {update.description = courseData.description;}
     if (courseData.price !== undefined) {update.price = courseData.price;}
+    if (courseData.comparePrice !== undefined) {update.compare_price = courseData.comparePrice;}
     if (courseData.thumbnail !== undefined) {update.thumbnail = courseData.thumbnail;}
     if (courseData.type !== undefined) {update.type = courseData.type as 'BUNDLE' | 'MODULE';}
     if (courseData.features !== undefined) {update.features = courseData.features;}
@@ -568,7 +574,9 @@ export const adminApi = {
       updateFields.duration_seconds = parseDurationSeconds(lessonData.duration);
     }
     if (lessonData.videoUrl !== undefined) {updateFields.video_url = lessonData.videoUrl;}
-    if (lessonData.videoId !== undefined) {updateFields.video_id = lessonData.videoId;}
+    // '' → null so an empty form field never masquerades as a real GUID
+    // (video_id feeds orphan detection and delete-safety reference checks).
+    if (lessonData.videoId !== undefined) {updateFields.video_id = lessonData.videoId || null;}
     if (lessonData.isFreePreview !== undefined) {updateFields.is_free_preview = lessonData.isFreePreview;}
     if (lessonData.orderIndex !== undefined) {updateFields.order_index = lessonData.orderIndex;}
 
@@ -1048,7 +1056,45 @@ export const adminApi = {
     if (!data?.success) {throw new Error(data?.error || 'Video cleanup failed');}
     return data;
   },
+
+  // ============================================
+  // VIDEO LIBRARY (browse existing Bunny videos)
+  // ============================================
+
+  async listLibraryVideos(params?: { page?: number; itemsPerPage?: number; search?: string }): Promise<{
+    success: boolean;
+    page: number;
+    itemsPerPage: number;
+    totalItems: number;
+    videos: LibraryVideo[];
+  }> {
+    const { data, error } = await supabase.functions.invoke('admin-video-list', {
+      body: {
+        page: params?.page ?? 1,
+        itemsPerPage: params?.itemsPerPage ?? 24,
+        search: params?.search || undefined,
+      },
+    });
+
+    if (error) {
+      throw new Error(await extractEdgeFnError(error, 'Failed to list videos'));
+    }
+
+    if (!data?.success) {throw new Error(data?.error || 'Failed to list videos');}
+    return data;
+  },
 };
+
+export interface LibraryVideo {
+  guid: string;
+  title: string;
+  dateUploaded: string;
+  status: number;
+  lengthSeconds: number;
+  thumbnailUrl: string;
+  hlsUrl: string;
+  isPlayable: boolean;
+}
 
 export interface AdminReview {
   id: string;
