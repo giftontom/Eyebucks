@@ -335,7 +335,7 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     section: 'about_page',
     label: 'About Page',
     group: 'Landing copy',
-    where: 'The /about page → the eyebrow, headline and intro paragraph at the top. This is the PAGE CONTENT — the "About Us" row under Footer Links is only the menu link that points here.',
+    where: 'The /about page → the eyebrow, headline and intro paragraph at the top, the three feature cards below, and the "What We Offer" bullet list. This is the PAGE CONTENT — the "About Us" row under Footer Links is only the menu link that points here.',
     singleton: true,
     titleLabel: 'Headline',
     titlePlaceholder: 'About Eyebuckz',
@@ -343,6 +343,15 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
     bodyMultiline: true,
     fields: [
       { key: 'pill', label: 'Eyebrow', type: 'text', placeholder: 'Our Mission' },
+      // The three cards. Icons stay fixed by position (check / people / award),
+      // like the community stat tiles — only the copy is editable.
+      { key: 'card1Title', label: 'Card 1 title', type: 'text', placeholder: 'Practical Learning' },
+      { key: 'card1Body', label: 'Card 1 body', type: 'text', placeholder: 'Every course includes raw footage…' },
+      { key: 'card2Title', label: 'Card 2 title', type: 'text', placeholder: '10,000+ Creators' },
+      { key: 'card2Body', label: 'Card 2 body', type: 'text', placeholder: 'A growing community of filmmakers…' },
+      { key: 'card3Title', label: 'Card 3 title', type: 'text', placeholder: 'Certified Learning' },
+      { key: 'card3Body', label: 'Card 3 body', type: 'text', placeholder: 'Earn a verified certificate…' },
+      { key: 'offerItems', label: '"What We Offer" bullets', type: 'string-array', help: 'One bullet per line. Leave empty to show the built-in list.' },
     ],
   },
   footer_links: {
