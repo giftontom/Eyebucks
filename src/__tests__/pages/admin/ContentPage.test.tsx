@@ -96,10 +96,52 @@ describe('ContentPage', () => {
     expect(mockAdminApi.getSiteContent).toHaveBeenCalled();
   });
 
-  it('shows "No content found" when list is empty', async () => {
+  // An empty CMS used to render a single "No content found" line, which hid the
+  // fact that the site was still rendering built-in copy for every section and
+  // gave the admin nowhere to start. Every known section is now listed instead.
+  it('lists every known section even when no rows exist at all', async () => {
     mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
     render(<ContentPage />);
-    await waitFor(() => expect(screen.getByText(/no content found/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    expect(screen.queryByText(/no content found/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/using built-in text/i).length).toBeGreaterThan(5);
+  });
+
+  it('offers an add-content shortcut on a section that has no rows', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: /add content/i }).length).toBeGreaterThan(0);
+  });
+
+  // `showcase` is deprecated: CREATE_SECTIONS hides it from the New Content
+  // dropdown, so listing it with an "Add content" button would invite rows the
+  // rest of the UI refuses to create.
+  it('does not list a retired section that has no rows', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    expect(screen.queryByText('Showcase')).not.toBeInTheDocument();
+  });
+
+  it('still lists a retired section when it has rows, so legacy content stays editable', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({
+      items: [{
+        id: 'sc1', section: 'showcase', title: 'Legacy showcase row', body: 'b',
+        metadata: {}, orderIndex: 0, isActive: true,
+        createdAt: '2026-01-01', updatedAt: '2026-01-01',
+      }],
+    });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Legacy showcase row')).toBeInTheDocument());
+  });
+
+  it('orders sections down the page, hero before pricing', async () => {
+    mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+    render(<ContentPage />);
+    await waitFor(() => expect(screen.getByText('Site Content Manager')).toBeInTheDocument());
+    const text = document.body.textContent ?? '';
+    expect(text.indexOf('Hero')).toBeLessThan(text.indexOf('Pricing'));
   });
 
   it('shows "Site Content Manager" heading', async () => {
@@ -378,6 +420,52 @@ describe('ContentPage', () => {
       await waitFor(() =>
         expect(mockShowToast).toHaveBeenCalledWith('Question required', 'error'),
       );
+    });
+  });
+
+  /**
+   * How the About page copy was lost: a footer_links row was created while the
+   * editor still showed a generic Section/Title/Body form, so an admin pasted
+   * the About text into its Body. Once footer_links got its real form — link
+   * label, column, URL, no body — that text had no field to render in and
+   * became invisible and unrecoverable through the UI.
+   */
+  describe('stranded body text', () => {
+    const strandedRow = {
+      id: 'fl1',
+      section: 'footer_links',
+      title: 'About Us',
+      body: 'Eyebuckz is a filmmaker-built learning platform.',
+      metadata: { group: 'Company', url: '/about' },
+      orderIndex: 0,
+      isActive: true,
+    };
+
+    it('surfaces body text on a section that has no body field', async () => {
+      mockAdminApi.getSiteContent.mockResolvedValue({ items: [strandedRow] });
+      render(<ContentPage />);
+      await waitFor(() => expect(screen.getByText('About Us')).toBeInTheDocument());
+      fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]);
+
+      const dialog = within(screen.getByRole('dialog'));
+      expect(dialog.getByText(/unused text on this row/i)).toBeInTheDocument();
+      expect(
+        dialog.getByDisplayValue(/filmmaker-built learning platform/i),
+      ).toBeInTheDocument();
+      expect(dialog.getByText(/not visible to visitors/i)).toBeInTheDocument();
+    });
+
+    it('does not show the unused-text box when the row has no body', async () => {
+      mockAdminApi.getSiteContent.mockResolvedValue({
+        items: [{ ...strandedRow, body: '   ' }],
+      });
+      render(<ContentPage />);
+      await waitFor(() => expect(screen.getByText('About Us')).toBeInTheDocument());
+      fireEvent.click(screen.getAllByRole('button', { name: /edit/i })[0]);
+
+      expect(
+        within(screen.getByRole('dialog')).queryByText(/unused text on this row/i),
+      ).not.toBeInTheDocument();
     });
   });
 });

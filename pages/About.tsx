@@ -3,7 +3,57 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
+import { useSiteSection } from '../context/SiteContentContext';
+
+/** Verbatim current copy; used while the `about_page` CMS section is empty. */
+const DEFAULT_ABOUT = {
+  pill: 'Our Mission',
+  heading: 'About Eyebuckz',
+  body:
+    'Eyebuckz is a filmmaker-built learning platform for creators who are serious about their craft. ' +
+    'We bridge the gap between free YouTube tutorials and expensive film school — giving you ' +
+    'structured, practical education with real industry workflows.',
+  cards: [
+    { title: 'Practical Learning', body: 'Every course includes raw footage, project files, and real-world assignments — not just theory.' },
+    { title: '10,000+ Creators', body: 'A growing community of filmmakers, colorists, and content creators from 50+ countries.' },
+    { title: 'Certified Learning', body: 'Earn a verified certificate upon completion. Add it to your portfolio or LinkedIn.' },
+  ],
+  offerItems: [
+    'Professional cinematography and color grading masterclasses',
+    '100GB+ of 6K RAW footage from RED and Arri Alexa cameras',
+    'Business templates, client contracts, and monetization strategies',
+    'Lifetime access to all purchased courses',
+  ],
+};
+
+// Card icons are fixed by position (like the community stat tiles); only the
+// text is editable from the CMS.
+const CARD_ICONS = [CheckCircle2, Users, Award];
+
 export const About: React.FC = () => {
+  const rows = useSiteSection('about_page');
+  const copy = React.useMemo(() => {
+    const item = rows?.[0];
+    if (!item) { return DEFAULT_ABOUT; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v : fallback);
+    const cards = DEFAULT_ABOUT.cards.map((d, i) => ({
+      title: str(meta[`card${i + 1}Title`], d.title),
+      body: str(meta[`card${i + 1}Body`], d.body),
+    }));
+    // Blank lines are dropped so an admin can't accidentally publish an empty bullet.
+    const rawOffer = Array.isArray(meta.offerItems)
+      ? (meta.offerItems as unknown[]).map(String).map(s => s.trim()).filter(Boolean)
+      : [];
+    return {
+      pill: str(meta.pill, DEFAULT_ABOUT.pill),
+      heading: str(item.title, DEFAULT_ABOUT.heading),
+      body: str(item.body, DEFAULT_ABOUT.body),
+      cards,
+      offerItems: rawOffer.length > 0 ? rawOffer : DEFAULT_ABOUT.offerItems,
+    };
+  }, [rows]);
+
   return (
     <>
     <Helmet>
@@ -17,41 +67,36 @@ export const About: React.FC = () => {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
           <div className="inline-block px-4 py-1.5 bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-full font-bold tracking-wider uppercase text-xs mb-6">
-            Our Mission
+            {copy.pill}
           </div>
-          <h1 className="text-5xl font-black t-text mb-6 leading-tight">About Eyebuckz</h1>
-          <p className="text-xl t-text-2 leading-relaxed">
-            Eyebuckz is a filmmaker-built learning platform for creators who are serious about their craft.
-            We bridge the gap between free YouTube tutorials and expensive film school — giving you
-            structured, practical education with real industry workflows.
-          </p>
+          <h1 className="text-5xl font-black t-text mb-6 leading-tight">{copy.heading}</h1>
+          {/* Blank lines in the CMS body become paragraphs. */}
+          {copy.body.split(/\n{2,}/).map((para, i) => (
+            <p key={i} className={`text-xl t-text-2 leading-relaxed${i > 0 ? ' mt-4' : ''}`}>
+              {para}
+            </p>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          <div className="t-card t-border border rounded-2xl p-6 text-center shadow-sm">
-            <CheckCircle2 size={32} className="text-brand-400 mx-auto mb-3" />
-            <h3 className="font-bold t-text mb-2">Practical Learning</h3>
-            <p className="text-sm t-text-2">Every course includes raw footage, project files, and real-world assignments — not just theory.</p>
-          </div>
-          <div className="t-card t-border border rounded-2xl p-6 text-center shadow-sm">
-            <Users size={32} className="text-brand-400 mx-auto mb-3" />
-            <h3 className="font-bold t-text mb-2">10,000+ Creators</h3>
-            <p className="text-sm t-text-2">A growing community of filmmakers, colorists, and content creators from 50+ countries.</p>
-          </div>
-          <div className="t-card t-border border rounded-2xl p-6 text-center shadow-sm">
-            <Award size={32} className="text-brand-400 mx-auto mb-3" />
-            <h3 className="font-bold t-text mb-2">Certified Learning</h3>
-            <p className="text-sm t-text-2">Earn a verified certificate upon completion. Add it to your portfolio or LinkedIn.</p>
-          </div>
+          {copy.cards.map((card, i) => {
+            const Icon = CARD_ICONS[i] ?? CheckCircle2;
+            return (
+              <div key={i} className="t-card t-border border rounded-2xl p-6 text-center shadow-sm">
+                <Icon size={32} className="text-brand-400 mx-auto mb-3" />
+                <h3 className="font-bold t-text mb-2">{card.title}</h3>
+                <p className="text-sm t-text-2">{card.body}</p>
+              </div>
+            );
+          })}
         </div>
 
         <div className="t-card t-border border rounded-2xl p-8 mb-12 shadow-sm">
           <h2 className="text-2xl font-bold t-text mb-4">What We Offer</h2>
           <ul className="space-y-3 t-text-2">
-            <li className="flex items-start gap-3"><CheckCircle2 size={18} className="text-brand-400 mt-0.5 flex-shrink-0" /> Professional cinematography and color grading masterclasses</li>
-            <li className="flex items-start gap-3"><CheckCircle2 size={18} className="text-brand-400 mt-0.5 flex-shrink-0" /> 100GB+ of 6K RAW footage from RED and Arri Alexa cameras</li>
-            <li className="flex items-start gap-3"><CheckCircle2 size={18} className="text-brand-400 mt-0.5 flex-shrink-0" /> Business templates, client contracts, and monetization strategies</li>
-            <li className="flex items-start gap-3"><CheckCircle2 size={18} className="text-brand-400 mt-0.5 flex-shrink-0" /> Lifetime access to all purchased courses</li>
+            {copy.offerItems.map((item, i) => (
+              <li key={i} className="flex items-start gap-3"><CheckCircle2 size={18} className="text-brand-400 mt-0.5 flex-shrink-0" /> {item}</li>
+            ))}
           </ul>
         </div>
 

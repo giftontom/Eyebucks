@@ -70,6 +70,7 @@ export const enrollmentsApi = {
         id: row.courses.id,
         slug: row.courses.slug,
         title: row.courses.title,
+        comparePrice: row.courses.compare_price ?? null,
         description: row.courses.description,
         price: row.courses.price,
         thumbnail: row.courses.thumbnail || '',

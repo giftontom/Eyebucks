@@ -425,6 +425,82 @@ describe('adminApi', () => {
       expect(result.success).toBe(true);
       expect(result.lesson.title).toBe('Updated Lesson');
     });
+
+    it('should normalize empty videoId to null so video_id is never an empty string', async () => {
+      const updatedLesson = {
+        id: 'l1', module_id: 'm1', title: 'Lesson', duration: '6:00',
+        duration_seconds: 360, video_url: 'https://cdn/vid.m3u8', video_id: null,
+        is_free_preview: false, order_index: 1, created_at: '2024-01-01', updated_at: '2024-01-01',
+      };
+      const updateMock = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: updatedLesson, error: null }),
+            }),
+          }),
+        }),
+      });
+      mockSupabase.from.mockReturnValue({ update: updateMock });
+
+      await adminApi.updateLesson('m1', 'l1', { videoId: '' });
+      expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ video_id: null }));
+    });
+  });
+
+  describe('listLibraryVideos', () => {
+    const libraryResponse = {
+      success: true,
+      page: 1,
+      itemsPerPage: 24,
+      totalItems: 2,
+      videos: [
+        {
+          guid: 'aaaa1111-2222-3333-4444-555566667777', title: 'Intro', dateUploaded: '2026-01-01',
+          status: 4, lengthSeconds: 90, thumbnailUrl: 'https://cdn/aaaa/thumbnail.jpg',
+          hlsUrl: 'https://cdn/aaaa/playlist.m3u8', isPlayable: true,
+        },
+        {
+          guid: 'bbbb1111-2222-3333-4444-555566667777', title: 'Draft', dateUploaded: '2026-01-02',
+          status: 3, lengthSeconds: 0, thumbnailUrl: 'https://cdn/bbbb/thumbnail.jpg',
+          hlsUrl: 'https://cdn/bbbb/playlist.m3u8', isPlayable: false,
+        },
+      ],
+    };
+
+    it('should invoke admin-video-list with defaults and pass the response through', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({ data: libraryResponse, error: null });
+
+      const result = await adminApi.listLibraryVideos();
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-video-list', {
+        body: { page: 1, itemsPerPage: 24, search: undefined },
+      });
+      expect(result.totalItems).toBe(2);
+      expect(result.videos).toHaveLength(2);
+      expect(result.videos[0].isPlayable).toBe(true);
+    });
+
+    it('should forward page and search params', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({ data: libraryResponse, error: null });
+
+      await adminApi.listLibraryVideos({ page: 3, itemsPerPage: 12, search: 'intro' });
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-video-list', {
+        body: { page: 3, itemsPerPage: 12, search: 'intro' },
+      });
+    });
+
+    it('should throw on invoke error', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({ data: null, error: new Error('network') });
+      await expect(adminApi.listLibraryVideos()).rejects.toThrow();
+    });
+
+    it('should throw when the function reports failure', async () => {
+      mockSupabase.functions.invoke.mockResolvedValue({
+        data: { success: false, error: 'Video service not configured' },
+        error: null,
+      });
+      await expect(adminApi.listLibraryVideos()).rejects.toThrow('Video service not configured');
+    });
   });
 
   describe('deleteLesson', () => {

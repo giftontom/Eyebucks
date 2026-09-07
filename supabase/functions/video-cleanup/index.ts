@@ -17,6 +17,10 @@ const BUNNY_API_BASE = 'https://video.bunnycdn.com';
 // is legitimately unreferenced for a short window.
 const MIN_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000; // 24h
 
+const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Matches GUIDs embedded anywhere in a string (e.g. inside a lesson's video_url).
+const GUID_ANYWHERE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 interface BunnyVideo {
   guid: string;
   title: string;
@@ -57,6 +61,40 @@ serve(async (req) => {
     // Mode 2: Single video delete
     if (body.deleteVideoId) {
       const { deleteVideoId } = body;
+
+      if (typeof deleteVideoId !== 'string' || !GUID_PATTERN.test(deleteVideoId)) {
+        return errorResponse('Invalid video id', corsHeaders, 400);
+      }
+
+      // Videos can be shared across lessons and course trailers (library reuse),
+      // so only delete from Bunny when nothing in the DB still points at it.
+      // Callers delete their own DB row first, so any remaining reference
+      // belongs to someone else.
+      const [lessonRefs, heroRefs, urlRefs] = await Promise.all([
+        adminClient.from('lessons').select('id', { count: 'exact', head: true })
+          .eq('video_id', deleteVideoId),
+        adminClient.from('courses').select('id', { count: 'exact', head: true })
+          .eq('hero_video_id', deleteVideoId),
+        // Legacy "Enter URL" lessons store only video_url with the GUID embedded.
+        adminClient.from('lessons').select('id', { count: 'exact', head: true })
+          .like('video_url', `%${deleteVideoId}%`),
+      ]);
+
+      if (lessonRefs.error || heroRefs.error || urlRefs.error) {
+        console.error('[VideoCleanup] Reference check error:',
+          lessonRefs.error || heroRefs.error || urlRefs.error);
+        return errorResponse('Reference check failed; video not deleted', corsHeaders, 500);
+      }
+
+      const totalRefs = (lessonRefs.count ?? 0) + (heroRefs.count ?? 0) + (urlRefs.count ?? 0);
+      if (totalRefs > 0) {
+        return jsonResponse({
+          success: true,
+          deleted: null,
+          skipped: 'still-referenced',
+          references: totalRefs,
+        }, corsHeaders);
+      }
 
       const deleteRes = await fetch(
         `${BUNNY_API_BASE}/library/${libraryId}/videos/${deleteVideoId}`,
@@ -123,7 +161,7 @@ serve(async (req) => {
     // Query all referenced video IDs from DB (videos now live on lessons, not modules)
     const { data: lessonVideoIds, error: lessonError } = await adminClient
       .from('lessons')
-      .select('video_id');
+      .select('video_id, video_url');
 
     if (lessonError) {
       console.error('[VideoCleanup] Lesson query error:', lessonError);
@@ -143,6 +181,9 @@ serve(async (req) => {
     const referencedIds = new Set<string>();
     for (const row of lessonVideoIds || []) {
       if (row.video_id) {referencedIds.add(row.video_id);}
+      // Legacy "Enter URL" lessons have video_id NULL but the GUID inside the URL.
+      const embedded = row.video_url?.match(GUID_ANYWHERE);
+      if (embedded) {referencedIds.add(embedded[0].toLowerCase());}
     }
     for (const row of courseHeroIds || []) {
       if (row.hero_video_id) {referencedIds.add(row.hero_video_id);}

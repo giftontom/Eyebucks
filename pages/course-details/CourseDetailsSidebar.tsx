@@ -2,7 +2,7 @@ import { BookOpen, Layers, Lock, User, Zap, Star } from 'lucide-react';
 import React from 'react';
 
 import { Button, ShareButton, TrustBadges, WishlistButton } from '../../components';
-import { formatPrice } from '../../utils/format';
+import { formatPrice, showsComparePrice } from '../../utils/format';
 import { CourseType } from '../../types';
 
 import type { Course } from '../../types';
@@ -39,7 +39,12 @@ export const CourseDetailsSidebar: React.FC<Props> = ({ course, hasAccess, ctaCo
       </div>
     ) : !hasAccess && (
       <>
-        <h3 className="text-4xl font-bold t-text mb-2">{formatPrice(course.price)}</h3>
+        <div className="flex items-baseline gap-2.5 mb-2">
+          <h3 className="text-4xl font-bold t-text">{formatPrice(course.price)}</h3>
+          {showsComparePrice(course.price, course.comparePrice) && (
+            <span className="text-lg t-text-3 line-through">{formatPrice(course.comparePrice)}</span>
+          )}
+        </div>
         <p className="t-text-2 text-sm mb-8">One-time payment. Lifetime access.</p>
       </>
     )}

@@ -7,7 +7,7 @@ interface SettingField {
   key: string;
   label: string;
   description: string;
-  type: 'text' | 'boolean' | 'email';
+  type: 'text' | 'boolean' | 'email' | 'url' | 'textarea';
   value: string;
 }
 
@@ -33,11 +33,37 @@ const DEFAULT_SETTINGS: SettingField[] = [
     type: 'email',
     value: 'support@eyebuckz.com',
   },
+  // NOTE: the announcement banner is NOT a setting — it lives in the CMS as the
+  // `banner` section (Admin → Content → Announcement Banner), which supports
+  // colours, a link and dismissal. A plain `announcement_banner` setting used to
+  // sit here but nothing rendered it, so it silently did nothing; it was removed
+  // to end the "I set the banner but it didn't show" confusion.
   {
-    key: 'announcement_banner',
-    label: 'Announcement Banner',
-    description: 'Text shown in a banner at the top of every page. Leave empty to hide.',
-    type: 'text',
+    key: 'footer_tagline',
+    label: 'Footer Tagline',
+    description: 'The short blurb under the logo in the site footer.',
+    type: 'textarea',
+    value: '',
+  },
+  {
+    key: 'footer_youtube_url',
+    label: 'Footer — YouTube URL',
+    description: 'Destination for the YouTube icon in the footer.',
+    type: 'url',
+    value: '',
+  },
+  {
+    key: 'footer_instagram_url',
+    label: 'Footer — Instagram URL',
+    description: 'Destination for the Instagram icon in the footer.',
+    type: 'url',
+    value: '',
+  },
+  {
+    key: 'footer_whatsapp_url',
+    label: 'Footer — WhatsApp URL',
+    description: 'Destination for the WhatsApp icon in the footer (e.g. https://wa.me/91…).',
+    type: 'url',
     value: '',
   },
 ];
@@ -161,13 +187,21 @@ export const SettingsPage: React.FC = () => {
                   </button>
                   <span className="text-sm t-text-2">{field.value === 'true' ? 'Enabled' : 'Disabled'}</span>
                 </div>
+              ) : field.type === 'textarea' ? (
+                <textarea
+                  value={field.value}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm t-bg t-border border rounded-lg t-text focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Leave empty to use the built-in text"
+                />
               ) : (
                 <input
-                  type={field.type === 'email' ? 'email' : 'text'}
+                  type={field.type === 'email' ? 'email' : field.type === 'url' ? 'url' : 'text'}
                   value={field.value}
                   onChange={(e) => handleChange(field.key, e.target.value)}
                   className="w-full px-3 py-2 text-sm t-bg t-border border rounded-lg t-text focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  placeholder={field.type === 'email' ? 'email@example.com' : 'Leave empty to disable'}
+                  placeholder={field.type === 'email' ? 'email@example.com' : field.type === 'url' ? 'https://…' : 'Leave empty to disable'}
                 />
               )}
             </label>

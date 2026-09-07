@@ -29,6 +29,7 @@ export const CourseEditorPage: React.FC = () => {
     slug: '',
     description: '',
     price: '',
+    comparePrice: '',
     thumbnail: '',
     type: 'MODULE' as CourseType,
     language: 'EN' as CourseLanguage,
@@ -67,6 +68,7 @@ export const CourseEditorPage: React.FC = () => {
           slug: course.slug,
           description: course.description,
           price: String(course.price / 100),
+          comparePrice: course.comparePrice !== null ? String(course.comparePrice / 100) : '',
           thumbnail: course.thumbnail || '',
           type: course.type as CourseType,
           language: (course.language ?? 'EN') as CourseLanguage,
@@ -112,6 +114,10 @@ export const CourseEditorPage: React.FC = () => {
       showToast('Price must be a positive number', 'error');
       return;
     }
+    if (formData.comparePrice && Number(formData.comparePrice) <= Number(formData.price)) {
+      showToast('Actual price must be higher than the offer price', 'error');
+      return;
+    }
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(formData.slug)) {
       showToast('Slug must be lowercase letters, numbers, and hyphens only (e.g. "my-course")', 'error');
       return;
@@ -139,6 +145,11 @@ export const CourseEditorPage: React.FC = () => {
         slug: formData.slug,
         description: formData.description,
         price: Math.round(Number(formData.price) * 100),
+        // null (not undefined) so clearing it actually persists — updateCourse
+        // only writes fields that are !== undefined.
+        comparePrice: formData.comparePrice
+          ? Math.round(Number(formData.comparePrice) * 100)
+          : null,
         thumbnail: formData.thumbnail || undefined,
         type: formData.type,
         language: formData.language,

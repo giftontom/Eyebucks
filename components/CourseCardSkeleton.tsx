@@ -4,13 +4,13 @@ const shimmer = 'bg-[var(--surface-hover)]';
 
 /**
  * Loading placeholder that mirrors the catalog `CourseCard` shape exactly
- * (aspect-[4/3] thumb → p-6 body → meta row → 2-line title → desc → price/CTA row)
+ * (aspect-video thumb → p-6 body → meta row → 2-line title → desc → price/CTA row)
  * so there is no layout shift when the real cards load.
  */
 export const CourseCardSkeleton: React.FC = () => {
   return (
     <div className="t-card t-border border rounded-3xl overflow-hidden animate-pulse" role="status" aria-busy="true" aria-label="Loading course card">
-      <div className={`relative aspect-[4/3] ${shimmer}`}></div>
+      <div className={`relative aspect-video ${shimmer}`}></div>
       <div className="p-6">
         {/* meta row */}
         <div className="flex items-center gap-3 mb-3">

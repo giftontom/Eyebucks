@@ -1,11 +1,12 @@
 import { Play, ArrowRight, Sparkles, CheckCircle2, Award } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useSiteSection } from '../../context/SiteContentContext';
 import { useScrollParallax } from '../../hooks/useScrollParallax';
-import { coursesApi, siteContentApi } from '../../services/api';
+import { coursesApi } from '../../services/api';
 import { logger } from '../../utils/logger';
 import { AnimatedCounter } from '../AnimatedCounter';
 import { HeroCarousel } from '../HeroCarousel';
@@ -28,9 +29,8 @@ export const HeroSection: React.FC = () => {
   const { user } = useAuth();
   const { language } = useLanguage();
   const [courseCount, setCourseCount] = useState(15);
-  const [copy, setCopy] = useState(DEFAULT_COPY);
-  // CMS-managed carousel slides; undefined → HeroCarousel uses its built-in defaults.
-  const [slides, setSlides] = useState<{ image: string; title: string; video?: string }[] | undefined>(undefined);
+  const heroRows = useSiteSection('hero');
+  const slideRows = useSiteSection('hero_slides');
 
   const sectionRef = useRef<HTMLElement>(null);
   const parallaxOffset = useScrollParallax(sectionRef, { maxOffset: 40, factor: 0.18 });
@@ -41,49 +41,46 @@ export const HeroSection: React.FC = () => {
       .catch(err => logger.warn('[HeroSection] Failed to load course count:', err));
   }, [language]);
 
-  useEffect(() => {
-    siteContentApi.getBySection('hero')
-      .then(items => {
-        const item = items[0];
-        if (!item) { return; }
-        const meta = (item.metadata ?? {}) as Record<string, unknown>;
-        const pick = (v: unknown, fallback: string) =>
-          typeof v === 'string' && v.trim() !== '' ? v : fallback;
-        setCopy({
-          pill: pick(meta.pill, DEFAULT_COPY.pill),
-          title: pick(item.title, DEFAULT_COPY.title),
-          headline2: pick(meta.headline2, DEFAULT_COPY.headline2),
-          body: pick(item.body, DEFAULT_COPY.body),
-          ctaPrimaryGuest: pick(meta.ctaPrimaryGuest, DEFAULT_COPY.ctaPrimaryGuest),
-          ctaPrimaryUser: pick(meta.ctaPrimaryUser, DEFAULT_COPY.ctaPrimaryUser),
-          ctaSecondary: pick(meta.ctaSecondary, DEFAULT_COPY.ctaSecondary),
-          statCoursesSuffix: pick(meta.statCoursesSuffix, DEFAULT_COPY.statCoursesSuffix),
-          stat2: pick(meta.stat2, DEFAULT_COPY.stat2),
-          stat3: pick(meta.stat3, DEFAULT_COPY.stat3),
-        });
-      })
-      .catch(err => logger.warn('[HeroSection] CMS load failed:', err));
-  }, []);
+  // Derived during render, not mirrored into state via an effect: an effect
+  // runs after the first paint, so the hardcoded DEFAULT_COPY would be visible
+  // for a frame (or, before SiteContentProvider batched these, for the whole
+  // network round-trip) before the real copy replaced it.
+  const copy = useMemo(() => {
+    const item = heroRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const pick = (v: unknown, fallback: string) =>
+      typeof v === 'string' && v.trim() !== '' ? v : fallback;
+    return {
+      pill: pick(meta.pill, DEFAULT_COPY.pill),
+      title: pick(item.title, DEFAULT_COPY.title),
+      headline2: pick(meta.headline2, DEFAULT_COPY.headline2),
+      body: pick(item.body, DEFAULT_COPY.body),
+      ctaPrimaryGuest: pick(meta.ctaPrimaryGuest, DEFAULT_COPY.ctaPrimaryGuest),
+      ctaPrimaryUser: pick(meta.ctaPrimaryUser, DEFAULT_COPY.ctaPrimaryUser),
+      ctaSecondary: pick(meta.ctaSecondary, DEFAULT_COPY.ctaSecondary),
+      statCoursesSuffix: pick(meta.statCoursesSuffix, DEFAULT_COPY.statCoursesSuffix),
+      stat2: pick(meta.stat2, DEFAULT_COPY.stat2),
+      stat3: pick(meta.stat3, DEFAULT_COPY.stat3),
+    };
+  }, [heroRows]);
 
   // Hero carousel slides (one CMS row per slide; metadata.image = poster,
   // optional metadata.video = short muted loop played over it).
-  useEffect(() => {
-    siteContentApi.getBySection('hero_slides')
-      .then(items => {
-        const mapped = items
-          .map((i): { image: string; title: string; video?: string } | null => {
-            const meta = (i.metadata as Record<string, unknown> | null) ?? {};
-            const img = meta.image;
-            if (typeof img !== 'string' || img.trim() === '') { return null; }
-            const vid = meta.video;
-            const video = typeof vid === 'string' && vid.trim() !== '' ? vid : undefined;
-            return { image: img, title: i.title, video };
-          })
-          .filter((s): s is { image: string; title: string; video?: string } => s !== null);
-        if (mapped.length > 0) { setSlides(mapped); }
+  // undefined → HeroCarousel falls back to its own built-in slides.
+  const slides = useMemo(() => {
+    const mapped = (slideRows ?? [])
+      .map((i): { image: string; title: string; video?: string } | null => {
+        const meta = (i.metadata as Record<string, unknown> | null) ?? {};
+        const img = meta.image;
+        if (typeof img !== 'string' || img.trim() === '') { return null; }
+        const vid = meta.video;
+        const video = typeof vid === 'string' && vid.trim() !== '' ? vid : undefined;
+        return { image: img, title: i.title, video };
       })
-      .catch(err => logger.warn('[HeroSection] slides CMS load failed:', err));
-  }, []);
+      .filter((s): s is { image: string; title: string; video?: string } => s !== null);
+    return mapped.length > 0 ? mapped : undefined;
+  }, [slideRows]);
 
   const scrollToFeatured = () => {
     const el = document.getElementById('featured-courses');
@@ -108,6 +105,7 @@ export const HeroSection: React.FC = () => {
 
   return (
     <section
+      id="hero"
       ref={sectionRef}
       onPointerMove={handleKeylight}
       className="hero-stage relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden t-bg pt-28 pb-16 px-4"

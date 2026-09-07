@@ -1,9 +1,10 @@
 import { Camera, TrendingUp, FileText, DollarSign, Instagram, Zap } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
+
+import { useSiteSection } from '../context/SiteContentContext';
 
 import { FadeIn } from './FadeIn';
-import { siteContentApi } from '../services/api';
-import { logger } from '../utils/logger';
+
 import type { SiteContentItem } from '../types';
 
 interface CreatorCard {
@@ -53,25 +54,21 @@ export const CreatorsSection: React.FC<Props> = ({ items = [] }) => {
       }))
     : DEFAULT_CARDS;
 
-  const [copy, setCopy] = useState<HeaderCopy>(DEFAULT_COPY);
+  const copyRows = useSiteSection('creators_copy');
 
-  useEffect(() => {
-    siteContentApi.getBySection('creators_copy')
-      .then(rows => {
-        const item = rows[0];
-        if (!item) return;
-        const metadata = (item.metadata as Record<string, string>) ?? {};
-        setCopy({
-          eyebrow: metadata.pill ?? DEFAULT_COPY.eyebrow,
-          heading: item.title ?? DEFAULT_COPY.heading,
-          subheading: item.body ?? DEFAULT_COPY.subheading,
-        });
-      })
-      .catch(err => logger.warn('[CreatorsSection] header CMS load failed:', err));
-  }, []);
+  const copy = useMemo<HeaderCopy>(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const metadata = (item.metadata as Record<string, string>) ?? {};
+    return {
+      eyebrow: metadata.pill ?? DEFAULT_COPY.eyebrow,
+      heading: item.title ?? DEFAULT_COPY.heading,
+      subheading: item.body ?? DEFAULT_COPY.subheading,
+    };
+  }, [copyRows]);
 
   return (
-    <section className="py-24 t-bg-alt overflow-hidden border-t t-border">
+    <section id="creators" className="py-24 t-bg-alt overflow-hidden border-t t-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn>
           <div className="text-center mb-16">
@@ -87,7 +84,21 @@ export const CreatorsSection: React.FC<Props> = ({ items = [] }) => {
           </div>
         </FadeIn>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Column count follows the row count (capped at 4). A fixed
+            lg:grid-cols-4 left an empty fourth column when the CMS held three
+            rows, so the whole card group sat visibly left of centre on
+            desktop — fine on mobile, where it is a single column. */}
+        <div
+          className={`grid grid-cols-1 gap-6 ${
+            cards.length === 1
+              ? 'max-w-sm mx-auto'
+              : cards.length === 2
+                ? 'sm:grid-cols-2 lg:max-w-4xl lg:mx-auto'
+                : cards.length === 3
+                  ? 'sm:grid-cols-2 lg:grid-cols-3'
+                  : 'sm:grid-cols-2 lg:grid-cols-4'
+          }`}
+        >
           {cards.map((card, i) => {
             const Icon = ICON_MAP[card.icon] ?? Zap;
             return (

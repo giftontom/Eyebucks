@@ -217,7 +217,7 @@ export const Dashboard: React.FC = () => {
               {savedCourses.map(course => (
                 <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden group relative">
                   <Link to={`/course/${course.id}`}>
-                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-40 object-cover" />
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full aspect-video object-cover" />
                     <div className="p-4">
                       <p className="font-bold t-text leading-tight group-hover:text-brand-400 transition">{course.title}</p>
                       <p className="text-xs t-text-3 mt-1 capitalize">{course.type?.toLowerCase().replace('_', ' ')}</p>
@@ -287,7 +287,7 @@ export const Dashboard: React.FC = () => {
               const statusColor = course.progress >= 100 ? 'text-[var(--status-success-text)]' : course.progress > 0 ? 'text-brand-400' : 't-text-3';
               return (
                 <div key={course.id} className="t-card t-border border rounded-2xl overflow-hidden hover:bg-[var(--surface-hover)] transition group duration-300">
-                  <Link to={`/learn/${course.id}`} className="relative block h-48 overflow-hidden">
+                  <Link to={`/learn/${course.id}`} className="relative block aspect-video overflow-hidden">
                     <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                     {course.type === CourseType.BUNDLE && (
@@ -351,7 +351,7 @@ export const Dashboard: React.FC = () => {
                     to={`/course/${course.id}`}
                     className="t-card t-border border rounded-xl overflow-hidden hover:bg-[var(--surface-hover)] transition group"
                   >
-                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full aspect-video object-cover" />
                     <div className="p-4">
                       <p className="font-semibold t-text text-sm leading-tight mb-1 group-hover:text-brand-400 transition">{course.title}</p>
                       <p className="text-xs t-text-3">{formatPrice(course.price)}</p>
@@ -379,7 +379,7 @@ export const Dashboard: React.FC = () => {
                     to={`/course/${course.id}`}
                     className="t-card t-border border rounded-xl overflow-hidden hover:bg-[var(--surface-hover)] transition group"
                   >
-                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover" />
+                    <Thumbnail src={course.thumbnail} alt={course.title} className="w-full aspect-video object-cover" />
                     <div className="p-4">
                       <p className="font-semibold t-text text-sm leading-tight mb-1 group-hover:text-brand-400 transition">{course.title}</p>
                       <p className="text-xs t-text-3">{formatPrice(course.price)}</p>

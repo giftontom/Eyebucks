@@ -1,4 +1,4 @@
-import { Plus, Layers, Code2, FormInput } from 'lucide-react';
+import { Plus, Layers, Code2, FormInput, ExternalLink, MapPin, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 import { ImageUpload, VideoField } from '../../components';
@@ -12,7 +12,9 @@ import {
   SECTION_SCHEMAS,
   CREATE_SECTIONS,
   GROUP_ORDER,
+  PAGE_ORDER,
   defaultMetaFor,
+  siteLinkFor,
   type FieldDef,
 } from './content/sectionSchemas';
 
@@ -70,6 +72,61 @@ const FieldInput: React.FC<{
           </select>
         </div>
       );
+    case 'stat-list': {
+      // Shape kept identical to what CommunityProofSection reads:
+      // [{ value: number, suffix: string, label: string }]. Icons are positional
+      // in the component, so rows are edited in place rather than added/removed.
+      const rows = Array.isArray(value)
+        ? (value as Array<Record<string, unknown>>)
+        : [];
+      const setRow = (i: number, patch: Record<string, unknown>) => {
+        const next = rows.map((r, j) => (j === i ? { ...r, ...patch } : r));
+        onChange(next);
+      };
+      return (
+        <div>
+          <label className="block text-sm font-medium t-text-2 mb-2">{field.label}</label>
+          {rows.length === 0 ? (
+            <p className="text-xs t-text-3">
+              Not set — the site is showing its built-in numbers. Save this row once to start
+              editing them.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {rows.map((r, i) => (
+                <div key={i} className="grid grid-cols-[5rem_4rem_1fr] gap-2">
+                  <input
+                    type="number"
+                    aria-label={`Stat ${i + 1} value`}
+                    className={inputCls}
+                    value={String(r.value ?? '')}
+                    onChange={(e) => setRow(i, { value: e.target.value === '' ? '' : Number(e.target.value) })}
+                    placeholder="2500"
+                  />
+                  <input
+                    type="text"
+                    aria-label={`Stat ${i + 1} suffix`}
+                    className={inputCls}
+                    value={String(r.suffix ?? '')}
+                    onChange={(e) => setRow(i, { suffix: e.target.value })}
+                    placeholder="+"
+                  />
+                  <input
+                    type="text"
+                    aria-label={`Stat ${i + 1} label`}
+                    className={inputCls}
+                    value={String(r.label ?? '')}
+                    onChange={(e) => setRow(i, { label: e.target.value })}
+                    placeholder="Active Members"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {field.help && <p className="text-xs t-text-3 mt-1">{field.help}</p>}
+        </div>
+      );
+    }
     case 'string-array': {
       const lines = Array.isArray(value) ? (value as unknown[]).map(String).join('\n') : '';
       return (
@@ -157,6 +214,14 @@ export const ContentPage: React.FC = () => {
 
   const schema = SECTION_SCHEMAS[form.section];
 
+  // Creating a *second* row in a singleton section is the classic "I edited the
+  // CMS but the site didn't change" trap: the storefront reads items[0] ordered
+  // by order_index, so a duplicate at the same order wins or loses at random.
+  const singletonRows = schema?.singleton
+    ? siteContent.filter((c) => c.section === form.section)
+    : [];
+  const singletonConflict = !editingId && singletonRows.length > 0;
+
   const fetchContent = async () => {
     try {
       setLoading(true);
@@ -173,10 +238,17 @@ export const ContentPage: React.FC = () => {
 
   useEffect(() => { fetchContent(); }, []);
 
-  const openCreate = () => {
+  /**
+   * Open the create modal, optionally pre-picked to a section.
+   *
+   * The "Add content" button on an empty section passes its own key so the
+   * admin does not have to re-find it in the dropdown they already failed to
+   * find it in.
+   */
+  const openCreate = (section = 'faq') => {
     setEditingId(null);
-    setForm({ section: 'faq', title: '', body: '', orderIndex: 0, isActive: true });
-    setMeta(defaultMetaFor('faq'));
+    setForm({ section, title: '', body: '', orderIndex: 0, isActive: true });
+    setMeta(defaultMetaFor(section));
     setAdvancedMode(false);
     setAdvancedJson('{}');
     setShowModal(true);
@@ -314,9 +386,14 @@ export const ContentPage: React.FC = () => {
 
   // Sections to render in the list: registry order (by group) + any legacy
   // sections present in data but not in the registry (so they stay manageable).
-  const registrySections = GROUP_ORDER.flatMap((g) =>
-    Object.values(SECTION_SCHEMAS).filter((s) => s.group === g).map((s) => s.section),
-  );
+  // Walk the page top to bottom. Anything in the registry that PAGE_ORDER
+  // forgot still gets listed (after the ordered ones) rather than disappearing.
+  const registrySections = [
+    ...PAGE_ORDER.filter((s) => SECTION_SCHEMAS[s]),
+    ...Object.values(SECTION_SCHEMAS)
+      .map((s) => s.section)
+      .filter((s) => !PAGE_ORDER.includes(s)),
+  ];
   // 'settings' rows are owned by the Settings page, not the content editor — hide them.
   const extraSections = Array.from(new Set(siteContent.map((c) => c.section))).filter(
     (s) => !registrySections.includes(s) && s !== 'settings',
@@ -329,7 +406,7 @@ export const ContentPage: React.FC = () => {
         <div className="p-6 border-b t-border flex justify-between items-center">
           <h3 className="text-xl font-bold t-text">Site Content Manager</h3>
           <button
-            onClick={openCreate}
+            onClick={() => openCreate()}
             className="bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium shadow-md text-sm"
           >
             <Plus size={16} /> New Content
@@ -345,21 +422,89 @@ export const ContentPage: React.FC = () => {
               Retry
             </button>
           </div>
-        ) : siteContent.length === 0 ? (
-          <div className="flex items-center justify-center py-20"><div className="t-text-3">No content found</div></div>
         ) : (
           <div className="divide-y t-divide">
             {orderedSections.map((section) => {
               const items = siteContent.filter((c) => c.section === section);
-              if (items.length === 0) { return null; }
-              const label = SECTION_SCHEMAS[section]?.label ?? section;
+              const sectionSchema = SECTION_SCHEMAS[section];
+              // A section with no rows used to be skipped entirely, which is
+              // precisely why an admin hunting for on-screen text could not
+              // find it: the site was rendering built-in fallback copy from a
+              // section that the CMS refused to admit existed. List every known
+              // section and say what state it is in.
+              // An empty section is still listed so the admin can find it — except
+              // a retired one, which has nothing to say and must not invite new
+              // rows (CREATE_SECTIONS already hides deprecated keys from the New
+              // Content dropdown). Retired sections that still HAVE rows stay
+              // visible so that legacy content remains editable.
+              if (items.length === 0 && (!sectionSchema || sectionSchema.deprecated)) { return null; }
+              const label = sectionSchema?.label ?? section;
+              const siteLink = siteLinkFor(section);
               return (
                 <div key={section} className="p-6">
-                  <h4 className="text-sm font-bold t-text-2 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <h4 className="text-sm font-bold t-text-2 uppercase tracking-wider mb-1 flex items-center gap-2">
                     <Layers size={14} />
                     {label} ({items.length})
+                    {items.length === 0 && (
+                      <span className="normal-case tracking-normal font-medium t-text-3">
+                        — using built-in text
+                      </span>
+                    )}
                   </h4>
-                  <div className="space-y-3">
+                  {/* Section keys are internal names — spell out which band of
+                      the live site these rows drive, and link straight to it. */}
+                  {sectionSchema?.where && (
+                    <p className="text-xs t-text-3 flex items-start gap-1.5">
+                      <MapPin size={12} className="mt-0.5 shrink-0" />
+                      <span>
+                        {sectionSchema.where}
+                        {siteLink && (
+                          <a
+                            href={siteLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 inline-flex items-center gap-1 text-brand-600 hover:text-brand-500 font-medium"
+                          >
+                            View on site <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </span>
+                    </p>
+                  )}
+                  {/* A single-row section with more than one row is the trap that
+                      made an edit look like it "reverted": the storefront shows
+                      items[0] and, before ordering was made deterministic, which
+                      row that was varied between page loads. Name the live one
+                      and flag the rest so they can be deleted. */}
+                  {sectionSchema?.singleton && items.length > 1 && (
+                    <div className="mt-4 t-status-danger border rounded-lg p-3 text-xs flex items-start gap-2">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">
+                          {items.length} rows in a single-row section — only the first is shown on the site.
+                        </p>
+                        <p className="mt-1">
+                          Edits to any of the others will look like they do nothing. Delete the extras
+                          to make this section behave predictably.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {items.length === 0 && sectionSchema && !sectionSchema.deprecated && (
+                    <div className="mt-4 rounded-lg border border-dashed t-border p-4 flex items-center justify-between gap-4">
+                      <p className="text-sm t-text-3">
+                        Nothing here yet, so the site shows the wording built into the page.
+                        Add a row to take control of it.
+                      </p>
+                      <button
+                        onClick={() => openCreate(section)}
+                        className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-500"
+                      >
+                        <Plus size={14} /> Add content
+                      </button>
+                    </div>
+                  )}
+                  <div className="space-y-3 mt-4">
                     {items.map((item) => (
                       <div
                         key={item.id}
@@ -371,6 +516,11 @@ export const ContentPage: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-xs t-text-3 font-mono">#{item.orderIndex}</span>
                             <p className="font-medium t-text truncate">{item.title}</p>
+                            {sectionSchema?.singleton && items.length > 1 && (
+                              items[0].id === item.id
+                                ? <span className="px-1.5 py-0.5 t-status-success border text-xs font-bold rounded shrink-0">Live</span>
+                                : <span className="px-1.5 py-0.5 t-status-warning border text-xs font-bold rounded shrink-0">Ignored</span>
+                            )}
                             {!item.isActive && <span className="px-1.5 py-0.5 t-status-danger border text-xs font-bold rounded">Inactive</span>}
                           </div>
                           <p className="text-sm t-text-2 truncate mt-1">{item.body}</p>
@@ -435,10 +585,55 @@ export const ContentPage: React.FC = () => {
             </div>
           )}
 
-          {schema?.singleton && (
+          {/* "Which part of the site am I editing?" — the question the section
+              key alone never answers. Mirrors the hint on the list page. */}
+          {schema?.where && (
+            <p className="text-xs t-text-3 -mt-1 flex items-start gap-1.5">
+              <MapPin size={12} className="mt-0.5 shrink-0" />
+              <span>
+                {schema.where}
+                {siteLinkFor(form.section) && (
+                  <a
+                    href={siteLinkFor(form.section) as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 inline-flex items-center gap-1 text-brand-600 hover:text-brand-500 font-medium"
+                  >
+                    View on site <ExternalLink size={10} />
+                  </a>
+                )}
+              </span>
+            </p>
+          )}
+
+          {schema?.singleton && !singletonConflict && (
             <p className="text-xs t-text-3 -mt-1">
               Single-row section — only the first row (lowest order) is shown on the site.
             </p>
+          )}
+          {singletonConflict && (
+            <div className="t-status-danger border rounded-lg p-3 text-xs flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">
+                  “{schema?.label}” already has {singletonRows.length === 1 ? 'a row' : `${singletonRows.length} rows`}.
+                </p>
+                <p className="mt-1">
+                  Only the first row is shown on the site, so a new one here will most likely
+                  change nothing. Edit the existing row instead.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existing = [...singletonRows].sort((a, b) => a.orderIndex - b.orderIndex)[0];
+                    if (existing) { openEdit(existing); }
+                  }}
+                  className="mt-2 font-semibold underline hover:opacity-80"
+                >
+                  Edit the existing row
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Core title + body, with section-aware labels (some singletons omit them) */}
@@ -454,7 +649,7 @@ export const ContentPage: React.FC = () => {
               />
             </div>
           )}
-          {schema?.coreBody !== false && (
+          {schema?.coreBody !== false ? (
             <div>
               <label className="block text-sm font-medium t-text-2 mb-2">{schema?.bodyLabel ?? 'Body'} *</label>
               <textarea
@@ -464,6 +659,28 @@ export const ContentPage: React.FC = () => {
                 className={inputCls}
                 placeholder={schema?.bodyPlaceholder}
               />
+            </div>
+          ) : form.body.trim() !== '' && (
+            /* This section has no Body on the site, yet this row carries body
+               text — so someone typed it here and it silently vanished when the
+               typed form replaced the generic one. That is how the About page
+               copy was lost. Always surface stranded text rather than hiding
+               it, and say plainly that it is not being displayed. */
+            <div>
+              <label className="block text-sm font-medium t-text-2 mb-2">
+                Unused text on this row
+              </label>
+              <textarea
+                value={form.body}
+                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                rows={4}
+                className={inputCls}
+              />
+              <p className="mt-2 text-xs t-text-3">
+                This section does not show a body on the site, so this text is
+                not visible to visitors. Copy it somewhere it belongs, then
+                clear this box.
+              </p>
             </div>
           )}
 

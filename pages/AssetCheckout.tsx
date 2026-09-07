@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { Button, Thumbnail, TrustBadges } from '../components';
+import { ASSET_BADGES } from '../components/TrustBadges';
 import { useAuth } from '../context/AuthContext';
 import { useScript } from '../hooks/useScript';
 import { checkoutApi, couponsApi, digitalAssetsApi } from '../services/api';
@@ -212,7 +213,7 @@ export const AssetCheckout: React.FC = () => {
           <Link to={`/asset/${asset.slug}`} className="inline-flex items-center gap-2 text-sm t-text-2 hover:t-text transition mb-6">
             <ArrowLeft size={16} /> Back
           </Link>
-          <div className="rounded-2xl overflow-hidden t-border border aspect-[4/3] mb-5">
+          <div className="rounded-2xl overflow-hidden t-border border aspect-video mb-5">
             <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full h-full object-cover" />
           </div>
           <h2 className="text-xl font-bold t-text mb-2">{asset.title}</h2>
@@ -286,7 +287,7 @@ export const AssetCheckout: React.FC = () => {
               {!razorpayLoaded && (
                 <div className="mb-4 p-3 t-status-warning border rounded-lg text-sm">Loading payment gateway...</div>
               )}
-              <TrustBadges className="mb-4" />
+              <TrustBadges badges={ASSET_BADGES} className="mb-4" />
               <Button
                 type="button"
                 variant="primary"

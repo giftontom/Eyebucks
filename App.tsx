@@ -11,6 +11,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { SegmentGate } from './components/SegmentGate';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { SiteContentProvider } from './context/SiteContentContext';
 import { ThemeProvider } from './context/ThemeContext';
 const Storefront = lazy(() => import('./pages/Storefront').then(m => ({ default: m.Storefront })));
 const Courses = lazy(() => import('./pages/Courses').then(m => ({ default: m.Courses })));
@@ -43,6 +44,7 @@ const App: React.FC = () => {
       <ThemeProvider>
       <AuthProvider>
       <LanguageProvider>
+      <SiteContentProvider>
         <BrowserRouter>
           <ScrollToTop />
           <MetaPixel />
@@ -150,6 +152,7 @@ const App: React.FC = () => {
             </Routes>
           </Layout>
         </BrowserRouter>
+      </SiteContentProvider>
       </LanguageProvider>
       </AuthProvider>
       </ThemeProvider>

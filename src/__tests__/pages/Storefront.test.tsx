@@ -28,10 +28,13 @@ vi.mock('../../../services/api', () => ({
 }));
 
 let Storefront: any;
+// Storefront pulls in the whole landing-section tree; its first transform can
+// exceed the default 10s hook timeout on a loaded machine (seen as a false
+// "Hook timed out" file failure). Give the dynamic import generous headroom.
 beforeAll(async () => {
   const mod = await import('../../../pages/Storefront');
   Storefront = mod.Storefront || mod.default;
-});
+}, 30000);
 
 describe('Storefront (Landing Page)', () => {
   beforeEach(() => {

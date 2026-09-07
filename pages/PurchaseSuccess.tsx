@@ -194,7 +194,7 @@ export const PurchaseSuccess: React.FC = () => {
         <div className="t-card t-border border rounded-3xl shadow-2xl overflow-hidden mb-8 animate-fade-in-up">
           <div className="grid md:grid-cols-5 gap-6">
             {/* Course Image */}
-            <div className="md:col-span-2 relative aspect-[4/3] md:aspect-auto">
+            <div className="md:col-span-2 relative aspect-video md:aspect-auto">
               <Thumbnail
                 src={course.thumbnail}
                 alt={course.title}

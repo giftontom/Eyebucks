@@ -7,7 +7,7 @@ import { Badge } from './Badge';
 import { Thumbnail } from './Thumbnail';
 import { WishlistButton } from './WishlistButton';
 
-import { formatPrice } from '../utils/format';
+import { formatPrice, showsComparePrice } from '../utils/format';
 import { CourseType } from '../types';
 import type { Course } from '../types';
 
@@ -25,7 +25,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index, disableRe
   const isNew = course.publishedAt && (Date.now() - new Date(course.publishedAt).getTime()) < 30 * 24 * 60 * 60 * 1000;
   const card = (
     <div data-scene-card className="group flex flex-col t-card rounded-3xl overflow-hidden t-border border hover:border-brand-500/30 dark:hover:border-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:hover:shadow-none h-full backdrop-blur-sm">
-        <Link to={`/course/${course.id}`} className="relative overflow-hidden t-bg-alt block aspect-[4/3]">
+        <Link to={`/course/${course.id}`} className="relative overflow-hidden t-bg-alt block aspect-video">
           <Thumbnail
             src={course.thumbnail}
             alt={course.title}
@@ -72,6 +72,9 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, index, disableRe
           <div className="mt-auto pt-4 md:pt-5 border-t t-border flex items-center justify-between gap-4">
             <div className="flex flex-col">
               <span className="text-xl md:text-2xl font-bold t-text">{formatPrice(course.price)}</span>
+              {showsComparePrice(course.price, course.comparePrice) && (
+                <span className="text-sm t-text-3 line-through">{formatPrice(course.comparePrice)}</span>
+              )}
             </div>
             <Link
               to={`/course/${course.id}`}

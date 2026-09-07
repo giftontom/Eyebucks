@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
@@ -44,6 +44,10 @@ export const DigitalAssetEditorPage: React.FC = () => {
     version: 'v1',
     status: 'DRAFT' as CourseStatus,
     thumbnail: '',
+    // 'upload' = file in private storage (entitlement-gated, expiring links).
+    // 'link'   = externally hosted, e.g. Google Drive. See migration 048.
+    deliveryMode: 'upload' as 'upload' | 'link',
+    externalUrl: '',
   });
 
   // Newly uploaded file (has the storage path); null until the admin uploads.
@@ -74,8 +78,12 @@ export const DigitalAssetEditorPage: React.FC = () => {
           version: asset.version,
           status: asset.status,
           thumbnail: asset.thumbnail || '',
+          deliveryMode: asset.externalUrl ? 'link' : 'upload',
+          externalUrl: asset.externalUrl ?? '',
         });
-        setExistingFile({ fileExt: asset.fileExt || '', fileSize: asset.fileSize || 0 });
+        if (!asset.externalUrl) {
+          setExistingFile({ fileExt: asset.fileExt || '', fileSize: asset.fileSize || 0 });
+        }
       } catch (err) {
         showToast(translateAdminError(err), 'error');
       } finally {
@@ -109,7 +117,17 @@ export const DigitalAssetEditorPage: React.FC = () => {
       showToast('Slug must be lowercase letters, numbers, and hyphens only (e.g. "cinematic-luts")', 'error');
       return;
     }
-    if (!hasFile) {
+    if (form.deliveryMode === 'link') {
+      let validLink = false;
+      try {
+        const u = new URL(form.externalUrl);
+        validLink = u.protocol === 'https:';
+      } catch { validLink = false; }
+      if (!validLink) {
+        showToast('Enter a valid https:// download link', 'error');
+        return;
+      }
+    } else if (!hasFile) {
       showToast('Please upload the asset file', 'error');
       return;
     }
@@ -129,28 +147,43 @@ export const DigitalAssetEditorPage: React.FC = () => {
         thumbnail: form.thumbnail || '',
       };
 
+      // Migration 048: exactly one of storage_path / external_url may be set, so
+      // switching delivery mode must null the other side, not just fill one in.
+      const isLink = form.deliveryMode === 'link';
+
       if (isEditing && assetId) {
         const patch: Partial<DigitalAssetInput> = { ...base };
-        // Only change the stored file if a new one was uploaded.
-        if (uploaded) {
+        if (isLink) {
+          patch.externalUrl = form.externalUrl;
+          patch.storagePath = null;
+        } else if (uploaded) {
+          // Only touch the stored file when a new one was actually uploaded.
           patch.storagePath = uploaded.path;
+          patch.externalUrl = null;
           patch.fileExt = uploaded.fileExt;
           patch.fileSize = uploaded.fileSize;
         }
         await digitalAssetsApi.updateAsset(assetId, patch);
         showToast('Asset updated!', 'success');
       } else {
-        if (!uploaded) {
+        // Branch rather than assert: this is the shape that lets TypeScript
+        // narrow `uploaded` on its own.
+        let input: DigitalAssetInput;
+        if (isLink) {
+          input = { ...base, externalUrl: form.externalUrl, storagePath: null };
+        } else if (uploaded) {
+          input = {
+            ...base,
+            storagePath: uploaded.path,
+            externalUrl: null,
+            fileExt: uploaded.fileExt,
+            fileSize: uploaded.fileSize,
+          };
+        } else {
           showToast('Please upload the asset file', 'error');
           setSaving(false);
           return;
         }
-        const input: DigitalAssetInput = {
-          ...base,
-          storagePath: uploaded.path,
-          fileExt: uploaded.fileExt,
-          fileSize: uploaded.fileSize,
-        };
         await digitalAssetsApi.createAsset(input);
         showToast('Asset created!', 'success');
       }
@@ -224,11 +257,69 @@ export const DigitalAssetEditorPage: React.FC = () => {
 
         <ImageUpload value={form.thumbnail} onChange={url => set('thumbnail', url)} folder="misc" label="Thumbnail / Preview Image" />
 
-        <AssetUploader
-          value={existingFile}
-          onUploadComplete={(data) => { setUploaded(data); setExistingFile({ fileExt: data.fileExt, fileSize: data.fileSize }); }}
-          onRemove={() => { setUploaded(null); setExistingFile(null); }}
-        />
+        <div className="space-y-3">
+          <span className="block text-xs font-semibold t-text-2">Delivery</span>
+          <div className="flex gap-2">
+            {([
+              ['upload', 'Upload file'],
+              ['link', 'External link'],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => set('deliveryMode', mode)}
+                aria-pressed={form.deliveryMode === mode}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
+                  form.deliveryMode === mode
+                    ? 'bg-brand-600 border-brand-600 text-white'
+                    : 't-card t-border t-text hover:bg-[var(--surface-hover)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {form.deliveryMode === 'link' ? (
+            <>
+              <Field id="asset-external-url" label="Download link">
+                <input
+                  id="asset-external-url"
+                  type="url"
+                  className={inputCls}
+                  value={form.externalUrl}
+                  onChange={e => set('externalUrl', e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                />
+              </Field>
+              {/* The uploaded-file path hands out a ~5-minute presigned URL. A
+                  share link cannot be expired or revoked, so say so plainly
+                  rather than letting it look equivalent. */}
+              <div className="t-status-warning border rounded-lg p-3 text-xs flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Anyone with this link can download the file.</p>
+                  <p className="mt-1">
+                    We still check that a buyer paid before handing it over, but the link
+                    itself never expires and can be forwarded. To cut off access later you
+                    have to replace the link for everyone. Uploaded files avoid this — they
+                    get a fresh link that dies after about five minutes.
+                  </p>
+                  <p className="mt-1">
+                    Make sure the Drive file is shared as <strong>&ldquo;Anyone with the
+                    link&rdquo;</strong>, or buyers will hit a permission wall.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <AssetUploader
+              value={existingFile}
+              onUploadComplete={(data) => { setUploaded(data); setExistingFile({ fileExt: data.fileExt, fileSize: data.fileSize }); }}
+              onRemove={() => { setUploaded(null); setExistingFile(null); }}
+            />
+          )}
+        </div>
 
         <div className="flex gap-3 pt-6 border-t t-border">
           <button

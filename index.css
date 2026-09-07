@@ -46,7 +46,8 @@
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-float-delayed: float 6s ease-in-out 3s infinite;
-  --animate-marquee: marquee 25s linear infinite;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-value-pop: value-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-glow-pulse: glow-pulse 4s ease-in-out infinite;
 
@@ -70,9 +71,19 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-20px); }
   }
+  /* -50% because the track renders its content twice; see SocialProofTicker.
+     Translating the full -100% slid the only copy off-screen and snapped. */
+  /* Savings badge entrance on the sticky price bar — a short pop, once, so it
+     is noticed without becoming a distraction while reading. */
+  @keyframes value-pop {
+    0%   { transform: scale(0.82); opacity: 0; }
+    60%  { transform: scale(1.06); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+
   @keyframes marquee {
     0% { transform: translateX(0%); }
-    100% { transform: translateX(-100%); }
+    100% { transform: translateX(-50%); }
   }
   @keyframes shimmer {
     0% { background-position: -1000px 0; }
@@ -317,6 +328,9 @@
 /* A pin track that stays tall on ALL viewports (the steps section scrubs on
    both mobile and desktop via useScrollProgress). */
 .pin-track { height: var(--track-h, auto); }
+/* Anchored sections (the admin CMS "View on site" deep links, e.g.
+   /#how-it-works) must land below the sticky nav, not underneath it. */
+section[id] { scroll-margin-top: calc(var(--nav-h) + 1rem); }
 /* Hide the scrollbar on the mobile horizontal card rail. */
 .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -328,22 +342,81 @@
    the footer clear it instead of hiding behind it. Pair with a md:
    reset since the nav is md:hidden. */
 @utility pb-bottom-nav {
-  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 1.5rem);
+  padding-bottom: calc(var(--bottom-nav-height) + var(--sticky-cta-height) + var(--safe-area-bottom) + 1.5rem);
 }
 @utility bottom-above-nav {
-  bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 1rem);
+  bottom: calc(var(--bottom-nav-height) + var(--sticky-cta-height) + var(--safe-area-bottom) + 1rem);
 }
 /* Sits a sticky bar flush on top of the bottom nav (no breathing gap),
-   so they stack as two bars. When such a bar is translate-y-full to
-   hide, it tucks behind the higher-z nav. */
+   so they stack as two bars. Pair the hidden state with
+   `translate-y-clear-nav` — see below. */
 @utility bottom-nav-offset {
   bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+}
+/* Hidden state for a `bottom-nav-offset` bar. Plain `translate-y-full` only
+   moves the bar down by its own height, which parks it exactly over the nav
+   band — and the nav is only 90% opaque, so the "hidden" bar ghosts through
+   the frosted glass. This clears the nav (and the safe-area inset) so the bar
+   really leaves the viewport. Reset to `translate-y-full` at md+, where the
+   nav is hidden and the bar sits at bottom-0. */
+@utility translate-y-clear-nav {
+  --tw-translate-y: calc(100% + var(--bottom-nav-height) + var(--safe-area-bottom));
+  translate: var(--tw-translate-x, 0) var(--tw-translate-y);
+}
+
+/* A full-viewport fixed layer present on EVERY route.
+ *
+ * The Storefront already has one (`.scene-plate-dark`, the cinematic backdrop);
+ * no other page did. That was the only fixed-positioning difference between the
+ * home page and the catalog — and the bottom nav was reported as jittering on
+ * the catalog while sitting still on home.
+ *
+ * A full-viewport fixed layer changes how Chromium treats its collapsing
+ * address bar, because shrinking the viewport means re-laying-out that layer.
+ * Giving every route the same structure makes them behave the same way.
+ *
+ * Deliberately invisible: it paints the page background it already sits on, so
+ * it cannot alter any page's appearance. `z-index: -1` keeps it behind all
+ * content; `pointer-events: none` keeps it out of hit-testing. No
+ * `will-change` — see the note on .scene-plate-dark for why promoting a fixed
+ * layer here backfires.
+ */
+.viewport-anchor {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--page-bg);
 }
 
 /* ─── Global styles ──────────────────────────────────────── */
 :root {
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --bottom-nav-height: 76px;
+  /* Extra clearance for a page-level sticky CTA bar stacked on top of the
+     bottom nav (CourseDetails' enroll bar). See [data-sticky-cta] below. */
+  --sticky-cta-height: 0px;
+}
+
+/* A page that renders a sticky CTA bar marks the document while it is mounted
+   (CourseDetails does this). The reservation is held for the page's whole
+   lifetime rather than only while the bar is on screen, so showing/hiding the
+   bar never reflows the document under the reader — that shifting footer was
+   the bug. Scoped below `lg` because the bar itself is `lg:hidden`. */
+@media (width < 64rem) {
+  [data-sticky-cta] {
+    --sticky-cta-height: 5.25rem;
+  }
+}
+
+/* Kill horizontal panning outright. Several hero decorations are absolutely
+   positioned past the viewport edge (one spans to x=521 on a 360px screen);
+   on mobile that lets the visual viewport pan sideways, dragging every
+   fixed element — including the bottom nav — with it. `clip` (not `hidden`)
+   forbids the overflow without creating a scroll container, so it cannot
+   interfere with position:sticky descendants. */
+html, body {
+  overflow-x: clip;
 }
 
 body {

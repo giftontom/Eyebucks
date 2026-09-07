@@ -8,7 +8,7 @@ import { logger } from '../../../utils/logger';
 
 import { AdminModal } from './AdminModal';
 import { ConfirmDialog } from './ConfirmDialog';
-
+import { VideoLibraryPicker } from './VideoLibraryPicker';
 
 import type { Module, Lesson } from '../../../types';
 
@@ -32,8 +32,11 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [lessonModuleId, setLessonModuleId] = useState<string | null>(null);
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-  const [videoUploadMode, setVideoUploadMode] = useState<'url' | 'upload'>('url');
+  const [videoUploadMode, setVideoUploadMode] = useState<'url' | 'upload' | 'library'>('url');
   const [lessonForm, setLessonForm] = useState(emptyLessonForm);
+  // Library picker (reuse an already-uploaded Bunny video)
+  const [showVideoPicker, setShowVideoPicker] = useState(false);
+  const [pickedVideoTitle, setPickedVideoTitle] = useState('');
   // Video-upload guard: block stray modal-close while a lesson video uploads.
   const [videoUploading, setVideoUploading] = useState(false);
   const [confirmAbortUpload, setConfirmAbortUpload] = useState(false);
@@ -147,6 +150,7 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
     setEditingLessonId(null);
     setLessonForm(emptyLessonForm);
     setVideoUploadMode('url');
+    setPickedVideoTitle('');
     setShowLessonModal(true);
   };
 
@@ -157,10 +161,13 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
       title: lesson.title,
       duration: lesson.duration,
       videoUrl: lesson.videoUrl,
-      videoId: '',
+      // Preserve the existing GUID — updateLesson writes every non-undefined
+      // field, so '' here would silently wipe lessons.video_id on save.
+      videoId: lesson.videoId ?? '',
       isFreePreview: lesson.isFreePreview,
     });
     setVideoUploadMode('url');
+    setPickedVideoTitle('');
     setShowLessonModal(true);
   };
 
@@ -423,6 +430,16 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
               >
                 Upload Video
               </button>
+              <button
+                type="button"
+                onClick={() => setVideoUploadMode('library')}
+                disabled={videoUploading}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                  videoUploadMode === 'library' ? 'bg-brand-600 text-white' : 't-bg-alt t-border border hover:bg-[var(--surface-hover)] t-text-2'
+                }`}
+              >
+                Choose Existing
+              </button>
             </div>
             {videoUploadMode === 'url' ? (
               <input
@@ -432,6 +449,35 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
                 className="w-full t-input-bg t-border border rounded-lg p-2.5 t-text outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="https://vz-....b-cdn.net/{guid}/playlist.m3u8"
               />
+            ) : videoUploadMode === 'library' ? (
+              <div className="space-y-2">
+                {lessonForm.videoId ? (
+                  <div className="flex items-center justify-between gap-2 t-bg-alt t-border border rounded-lg px-3 py-2.5">
+                    <p className="text-sm t-text truncate">
+                      {pickedVideoTitle || 'Selected video'}
+                      <span className="t-text-3 text-xs ml-2">{lessonForm.videoId.slice(0, 8)}…</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLessonForm(prev => ({ ...prev, videoUrl: '', videoId: '' }));
+                        setPickedVideoTitle('');
+                      }}
+                      className="text-xs t-status-danger shrink-0 hover:opacity-80"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowVideoPicker(true)}
+                    className="w-full py-2.5 rounded-lg border-2 border-dashed t-border hover:border-brand-400 t-text-2 text-sm font-medium transition"
+                  >
+                    Browse Video Library…
+                  </button>
+                )}
+              </div>
             ) : (
               <VideoUploader
                 ref={uploaderRef}
@@ -480,6 +526,25 @@ export const ModuleManager: React.FC<ModuleManagerProps> = ({ courseId, showToas
           </button>
         </div>
       </AdminModal>
+
+      {/* Video Library Picker — reuse an already-uploaded Bunny video */}
+      <VideoLibraryPicker
+        open={showVideoPicker}
+        onClose={() => setShowVideoPicker(false)}
+        zIndex="z-[70]"
+        onSelect={(v) => {
+          const minutes = Math.floor(v.lengthSeconds / 60);
+          const seconds = Math.floor(v.lengthSeconds % 60);
+          setLessonForm(prev => ({
+            ...prev,
+            videoUrl: v.hlsUrl,
+            videoId: v.guid,
+            duration: v.lengthSeconds > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : prev.duration,
+          }));
+          setPickedVideoTitle(v.title);
+          setShowVideoPicker(false);
+        }}
+      />
 
       {/* Cancel-upload confirmation — closing the lesson modal mid-upload */}
       <ConfirmDialog

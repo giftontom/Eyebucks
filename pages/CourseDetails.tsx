@@ -1,9 +1,11 @@
 import { Play, ChevronDown, ChevronUp, Lock, Zap, Star, ArrowRight, Loader2, Layers, Award, Clock, Infinity as InfinityIcon, Smartphone } from 'lucide-react';
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import { Button, JsonLd, Thumbnail, TrustBadges } from '../components';
+import { useBreadcrumbLabel } from '../components/Breadcrumbs';
+import { useSiteSection } from '../context/SiteContentContext';
 import { ReviewList } from '../components/ReviewList';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../hooks/useAccessControl';
@@ -11,12 +13,37 @@ import { useVideoUrl } from '../hooks/useVideoUrl';
 import { coursesApi, checkoutApi } from '../services/api';
 import { CourseType } from '../types';
 import { analytics } from '../utils/analytics';
-import { formatPrice } from '../utils/format';
+import { formatPrice, showsComparePrice } from '../utils/format';
 
 import { CourseDetailsHero } from './course-details/CourseDetailsHero';
 import { CourseDetailsSidebar } from './course-details/CourseDetailsSidebar';
 
 import type { Course } from '../types';
+
+/**
+ * "This course includes" bullets — CMS-editable via the `course_includes`
+ * section (one row per bullet, `metadata.icon` from the keys below). These
+ * defaults are the verbatim previous hardcoded list, shown while the section
+ * has no rows. The first bullet (lesson/course count) is always computed from
+ * the course itself and prepended in the JSX.
+ */
+const INCLUDE_ICONS: Record<string, React.ReactNode> = {
+  infinity: <InfinityIcon size={18} />,
+  smartphone: <Smartphone size={18} />,
+  award: <Award size={18} />,
+  clock: <Clock size={18} />,
+  star: <Star size={18} />,
+  play: <Play size={18} />,
+  layers: <Layers size={18} />,
+};
+
+const DEFAULT_INCLUDES: Array<{ icon: React.ReactNode; text: string }> = [
+  { icon: INCLUDE_ICONS.infinity, text: 'Full lifetime access' },
+  { icon: INCLUDE_ICONS.smartphone, text: 'Access on mobile & desktop' },
+  { icon: INCLUDE_ICONS.award, text: 'Certificate of completion' },
+  { icon: INCLUDE_ICONS.clock, text: 'Learn at your own pace' },
+  { icon: INCLUDE_ICONS.star, text: 'Community & support access' },
+];
 
 export const CourseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +54,42 @@ export const CourseDetails: React.FC = () => {
   const [isLoadingCourse, setIsLoadingCourse] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { hasAccess, isLoading: isCheckingAccess, isEnrolled, isAdmin } = useAccessControl(id);
+  // The breadcrumb is built from the URL, so without this it shows the raw
+  // slug ("C4-editing") instead of the course's actual title.
+  useBreadcrumbLabel(id, course?.title);
+  const includeRows = useSiteSection('course_includes');
+  const pricingRows = useSiteSection('pricing_copy');
+  // Optional marketing tag beside the price; CMS-controlled so it can be
+  // switched off by clearing the field rather than needing a deploy.
+  const urgencyTag = useMemo(() => {
+    const v = (pricingRows?.[0]?.metadata as Record<string, unknown> | undefined)?.urgencyTag;
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+  }, [pricingRows]);
+
+  /**
+   * What the bundle's contents would cost bought separately.
+   *
+   * The savings line previously summed only `bundledCourses`, so the digital
+   * assets bundled in — often the difference between a modest and a compelling
+   * discount — counted for nothing. Both are included now, and the total is
+   * surfaced as well as the saving: "₹14,999 of value for ₹4,999" argues the
+   * case far better than the saving alone.
+   */
+  const bundleValue = useMemo(() => {
+    const courses = (course?.bundledCourses ?? []).reduce((sum, c) => sum + (c.price || 0), 0);
+    const assets = (course?.bundledAssets ?? []).reduce((sum, a) => sum + (a.price || 0), 0);
+    const total = courses + assets;
+    return { courses, assets, total, savings: total - (course?.price ?? 0) };
+  }, [course]);
+  const includeItems = useMemo(
+    () => (includeRows && includeRows.length > 0
+      ? includeRows.map((row) => ({
+          icon: INCLUDE_ICONS[String((row.metadata as Record<string, unknown> | null)?.icon ?? '')] ?? INCLUDE_ICONS.infinity,
+          text: row.title,
+        }))
+      : DEFAULT_INCLUDES),
+    [includeRows],
+  );
 
   const fetchCourse = () => {
     if (!id) { setIsLoadingCourse(false); return; }
@@ -88,10 +151,21 @@ export const CourseDetails: React.FC = () => {
     return () => { cancelled = true; };
   }, [user, course, hasAccess]);
 
-  // Ref for the main Call-to-Action button to track visibility
-  const mainCtaRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
+  // Observe the main Call-to-Action button to decide when the sticky bar shows.
+  // This must be a *callback* ref: the button only mounts after the course has
+  // loaded (the component early-returns a spinner while `isLoadingCourse`), and
+  // it unmounts whenever the visitor leaves the OVERVIEW tab. A `useRef` +
+  // mount-only effect observed nothing at all, leaving the bar permanently
+  // stuck in its hidden state — a callback ref re-runs on every mount/unmount.
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const mainCtaRef = useCallback((node: HTMLButtonElement | null) => {
+    observerRef.current?.disconnect();
+    if (!node) {
+      // No CTA on screen (non-OVERVIEW tab) → the sticky bar is the only
+      // enroll surface, so show it.
+      setShowSticky(true);
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         // Show sticky footer when the main CTA is NOT visible
@@ -99,17 +173,22 @@ export const CourseDetails: React.FC = () => {
       },
       {
         threshold: 0,
-        rootMargin: "-100px 0px 0px 0px" // Offset slightly so it triggers before it's completely gone
-      }
+        rootMargin: '-100px 0px 0px 0px', // Offset slightly so it triggers before it's completely gone
+      },
     );
+    observer.observe(node);
+    observerRef.current = observer;
+  }, []);
 
-    if (mainCtaRef.current) {
-      observer.observe(mainCtaRef.current);
-    }
+  useEffect(() => () => observerRef.current?.disconnect(), []);
 
-    return () => {
-      observer.disconnect();
-    };
+  // Reserve room under the page (and the shared footer, via `pb-bottom-nav`)
+  // for the mobile sticky enroll bar that stacks on top of the bottom nav.
+  // index.css turns this into `--sticky-cta-height` below the lg breakpoint.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.stickyCta = 'true';
+    return () => { delete root.dataset.stickyCta; };
   }, []);
 
   const courseSchema = useMemo(() => {
@@ -269,11 +348,7 @@ export const CourseDetails: React.FC = () => {
                                 course.type === CourseType.BUNDLE
                                     ? { icon: <Layers size={18} />, text: `${course.bundledCourses?.length || 0} full courses included` }
                                     : { icon: <Play size={18} />, text: `${course.chapters?.length || 0} on-demand lessons` },
-                                { icon: <InfinityIcon size={18} />, text: 'Full lifetime access' },
-                                { icon: <Smartphone size={18} />, text: 'Access on mobile & desktop' },
-                                { icon: <Award size={18} />, text: 'Certificate of completion' },
-                                { icon: <Clock size={18} />, text: 'Learn at your own pace' },
-                                { icon: <Star size={18} />, text: 'Community & support access' },
+                                ...includeItems,
                             ].map((item, i) => (
                                 <div key={i} className="flex items-center gap-3 t-text-2">
                                     <span className="text-brand-500 shrink-0">{item.icon}</span>
@@ -371,7 +446,7 @@ export const CourseDetails: React.FC = () => {
                                 onClick={() => navigate(`/course/${bc.id}`)}
                                 className="flex gap-4 p-4 border t-border rounded-xl hover:border-brand-500/30 hover:shadow-md transition cursor-pointer group t-bg"
                             >
-                                <div className="w-24 h-24 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
+                                <div className="w-28 md:w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                                     <Thumbnail src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -397,17 +472,26 @@ export const CourseDetails: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                    {course.bundledCourses && course.bundledCourses.length > 0 && (() => {
-                        const savings = course.bundledCourses.reduce((sum, c) => sum + c.price, 0) - course.price;
-                        return savings > 0 ? (
-                            <div className="t-status-success border rounded-xl p-4 mt-6">
+                    {bundleValue.savings > 0 && (
+                        <div className="t-status-success border rounded-xl p-4 mt-6">
+                            <div className="flex items-baseline justify-between gap-3 flex-wrap">
                                 <p className="text-sm font-medium flex items-center gap-2">
                                     <Zap size={16} />
-                                    Save {formatPrice(savings)} compared to buying individually
+                                    Save {formatPrice(bundleValue.savings)} compared to buying individually
+                                </p>
+                                <p className="text-xs opacity-80">
+                                    Total value <span className="line-through">{formatPrice(bundleValue.total)}</span>
+                                    {' → '}
+                                    <span className="font-bold">{formatPrice(course.price)}</span>
                                 </p>
                             </div>
-                        ) : null;
-                    })()}
+                            {bundleValue.assets > 0 && (
+                                <p className="text-xs opacity-80 mt-1.5">
+                                    Includes {formatPrice(bundleValue.assets)} of digital assets
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {course.bundledAssets && course.bundledAssets.length > 0 && (
                         <div className="pt-2">
@@ -418,7 +502,7 @@ export const CourseDetails: React.FC = () => {
                             <div className="grid gap-3 sm:grid-cols-2">
                                 {course.bundledAssets.map((asset) => (
                                     <div key={asset.id} className="flex gap-3 p-3 border t-border rounded-xl t-bg items-center">
-                                        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
+                                        <div className="w-24 aspect-video rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                                             <Thumbnail src={asset.thumbnail} alt={asset.title} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -490,13 +574,54 @@ export const CourseDetails: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Sticky Buy Button (Conditionally Rendered) */}
-      <div className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 t-card border-t t-border lg:hidden z-40 flex items-center justify-between shadow-lg shadow-black/5 dark:shadow-none transition-transform duration-300 ${showSticky ? 'translate-y-0' : 'translate-y-full'}`}>
+      {/* Mobile Sticky Buy Button (Conditionally Rendered).
+          `translate-y-full` alone does NOT hide this: it moves the bar down by
+          only its own height, which parks it exactly over the bottom nav — and
+          the nav is only 90% opaque, so the price and "Enroll Now" ghosted
+          through the frosted glass. `translate-y-clear-nav` also clears the nav
+          height + safe-area inset so the bar genuinely leaves the viewport;
+          `md:translate-y-full` resets that above the breakpoint where the nav is
+          hidden and the bar sits at bottom-0. Fade it out and take it out of the
+          hit-testing and a11y trees too (`inert` also drops it from the tab
+          order, which `aria-hidden` alone would not). */}
+      <div
+        aria-hidden={!showSticky}
+        inert={!showSticky}
+        className={`fixed bottom-nav-offset md:bottom-0 left-0 right-0 p-4 bg-[var(--page-bg)] border-t t-border lg:hidden z-40 flex items-center justify-between gap-4 shadow-lg shadow-black/5 dark:shadow-none transition-[translate,opacity] duration-300 motion-reduce:transition-none ${
+          showSticky
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-clear-nav md:translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         {!hasAccess ? (
           <>
             <div>
-              <p className="text-xs t-text-2">Total Price</p>
-              <p className="text-xl font-bold t-text">{formatPrice(course.price)}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs t-text-2">Total Price</p>
+                {urgencyTag && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide t-status-danger border">
+                    {urgencyTag}
+                  </span>
+                )}
+              </div>
+              <p className="text-xl font-bold t-text">
+                {formatPrice(course.price)}
+                {showsComparePrice(course.price, course.comparePrice) && (
+                  <span className="ml-2 text-sm font-normal t-text-3 line-through">
+                    {formatPrice(course.comparePrice)}
+                  </span>
+                )}
+              </p>
+              {/* Keyed on the amount so it replays if the figure changes
+                  (e.g. an upgrade credit resolving), not on every render. */}
+              {bundleValue.savings > 0 && (
+                <p
+                  key={bundleValue.savings}
+                  className="text-[11px] font-bold text-[color:var(--status-success-text)] animate-value-pop motion-reduce:animate-none"
+                >
+                  You save {formatPrice(bundleValue.savings)}
+                </p>
+              )}
             </div>
             <Button
               onClick={handleCTA}

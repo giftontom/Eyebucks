@@ -12,7 +12,14 @@ const { mockGetBySection } = vi.hoisted(() => ({
 // Mock the whole services/api barrel so `siteContentApi.getBySection` resolves
 // from our mock regardless of which key is requested.
 vi.mock('../../../services/api', () => ({
-  siteContentApi: { getBySection: mockGetBySection },
+  siteContentApi: { getBySection: mockGetBySection,
+  // SiteContentProvider batches every section into one `getAllActive` call.
+  // Derive that batch from the per-section fixtures below so each test keeps
+  // describing its data section-by-section.
+  getAllActive: async () => (
+    await Promise.all(['hero','hero_slides','banner','faq','creators','creators_copy','value_cards','value_props_copy','instructors','instructors_copy','testimonial','community_copy','how_it_works','how_it_works_steps','featured_copy','pricing_copy','closing','social_proof','showcase','settings'].map((s: string) => mockGetBySection(s)))
+  ).flatMap((r: unknown) => (Array.isArray(r) ? r : [])),
+},
   // Barrel re-exports used by HorizontalGallery / FadeIn via their own files
   // are only needed at runtime — the import paths in the component go through
   // the barrel, so mocking it here is sufficient.
@@ -38,6 +45,7 @@ vi.mock('../../../hooks/useInViewActive', () => ({
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import { ValuePropsSection } from '../../../components/sections/ValuePropsSection';
+import { SiteContentProvider } from '../../../context/SiteContentContext';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -74,13 +82,18 @@ const DEFAULT_CARD_TITLE = 'Practical Learning';
 
 function renderSection() {
   return render(
-    <MemoryRouter>
-      <ValuePropsSection />
-    </MemoryRouter>,
+    <SiteContentProvider>
+      <MemoryRouter>
+        <ValuePropsSection />
+      </MemoryRouter>
+    </SiteContentProvider>,
   );
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
+
+const renderWithCms = (ui: React.ReactElement) =>
+  render(<SiteContentProvider>{ui}</SiteContentProvider>);
 
 describe('ValuePropsSection', () => {
   beforeEach(() => {

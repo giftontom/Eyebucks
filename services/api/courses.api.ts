@@ -95,6 +95,7 @@ function mapCourse(row: CourseQueryRow): Course {
     title: row.title,
     description: row.description,
     price: row.price,
+    comparePrice: row.compare_price ?? null,
     thumbnail: row.thumbnail || '',
     heroVideoId: row.hero_video_id,
     type: row.type,
@@ -261,6 +262,16 @@ export const coursesApi = {
     // lessons; mapCourse only reads ids/order here (chapter + lesson counts), cast is sound.
     const rows = (data || []) as unknown as CourseQueryRow[];
     const courses = rows.map(mapCourse);
+
+    // Language fallback. All published courses are currently tagged ML, so an
+    // EN visitor's language-filtered query returns nothing and the storefront
+    // reads "No courses available yet". When language is the ONLY thing
+    // narrowing the list and it came back empty, re-fetch across all languages
+    // so visitors always see the catalogue. User filters (type/search/rating/
+    // price) are respected — an empty *filtered* result still shows "no match".
+    if (language && total === 0 && !type && !search?.trim() && minRating === 0 && maxPrice === 0) {
+      return coursesApi._getCoursesUncached({ ...options, language: undefined });
+    }
 
     // For BUNDLE courses, fetch bundled course counts (two-step to avoid FK-hint issues)
     const bundleIds = (data || []).filter(c => c.type === 'BUNDLE').map(c => c.id);
