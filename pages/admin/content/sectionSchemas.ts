@@ -368,6 +368,39 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'eyebrow', label: 'Eyebrow / pill', type: 'text', placeholder: 'Catalog' },
     ],
   },
+  assets_copy: {
+    section: 'assets_copy',
+    label: 'Digital Assets Shop Header',
+    group: 'Landing copy',
+    where: 'The /assets shop → the eyebrow pill, heading and subheading above the filters',
+    singleton: true,
+    titleLabel: 'Heading',
+    titlePlaceholder: 'Digital Assets',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow / pill', type: 'text', placeholder: 'Shop' },
+    ],
+  },
+  contact_copy: {
+    section: 'contact_copy',
+    label: 'Contact Page',
+    group: 'Landing copy',
+    where: 'The /contact page → eyebrow, heading, intro paragraph, the email + YouTube cards, and the "Frequently Asked" bullets',
+    singleton: true,
+    titleLabel: 'Heading',
+    titlePlaceholder: 'Contact Us',
+    bodyLabel: 'Intro paragraph',
+    bodyMultiline: true,
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow / pill', type: 'text', placeholder: 'Get in Touch' },
+      { key: 'email', label: 'Support email', type: 'text', placeholder: 'support@eyebuckz.com' },
+      { key: 'emailNote', label: 'Email card note', type: 'text' },
+      { key: 'youtubeUrl', label: 'YouTube URL', type: 'url', placeholder: 'https://youtube.com/@…' },
+      { key: 'youtubeNote', label: 'YouTube card note', type: 'text' },
+      { key: 'faqItems', label: '"Frequently Asked" bullets', type: 'string-array', help: 'One per line. Text before the first colon becomes the bold label.' },
+    ],
+  },
   footer_links: {
     section: 'footer_links',
     label: 'Footer Links',
@@ -592,6 +625,9 @@ export const PAGE_ORDER: string[] = [
   'closing',           // ClosingSection
   'faq',               //   └ the FAQ accordion inside the closing section
   'about_page',        // /about page copy
+  'catalog_copy',      // /courses catalog header
+  'assets_copy',       // /assets shop header
+  'contact_copy',      // /contact page copy
   'footer_links',      // footer link columns (every page)
   'course_includes',   // course page "This course includes" bullets
 ];

@@ -205,7 +205,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 | New admin page | `pages/admin/{Name}Page.tsx` | Add route in `AdminRoutes.tsx` |
 | New Edge Function | `supabase/functions/{kebab-name}/index.ts` | Use `_shared/` helpers |
 | New admin hook | `pages/admin/hooks/use{Name}.ts` | camelCase with `use` prefix |
-| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 053** |
+| New DB migration | `supabase/migrations/{NNN}_{description}.sql` | **Next number: 054** |
 | New business type | `types/index.ts` | |
 | New API type | `types/api.ts` | |
 

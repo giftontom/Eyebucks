@@ -111,6 +111,27 @@ describe('coursesApi', () => {
       expect(q.builder.eq).toHaveBeenCalledWith('language', 'ML');
     });
 
+    // All published courses are currently ML, so an EN visitor's filtered query
+    // is empty and the storefront looked broken ("No courses available yet").
+    it('falls back to all languages when the language filter alone yields nothing', async () => {
+      const empty = makeMainQuery({ data: [], count: 0 });
+      const all = makeMainQuery({ data: [mockCourseRow], count: 1 });
+      mockSupabase.from.mockReturnValueOnce(empty.from).mockReturnValueOnce(all.from);
+      const result = await coursesApi.getCourses({ language: 'EN' });
+      // First query filtered by EN; second (fallback) query did NOT filter language.
+      expect(empty.builder.eq).toHaveBeenCalledWith('language', 'EN');
+      expect(all.builder.eq).not.toHaveBeenCalledWith('language', expect.anything());
+      expect(result.courses).toHaveLength(1);
+    });
+
+    it('does NOT fall back when a user filter is active (still shows "no match")', async () => {
+      const empty = makeMainQuery({ data: [], count: 0 });
+      mockSupabase.from.mockReturnValue(empty.from);
+      const result = await coursesApi.getCourses({ language: 'EN', search: 'cinema' });
+      expect(result.courses).toHaveLength(0);
+      expect(mockSupabase.from).toHaveBeenCalledTimes(1); // no second, unfiltered query
+    });
+
     it('omits the language filter when not provided (default catalog shows all languages)', async () => {
       const q = makeMainQuery();
       mockSupabase.from.mockReturnValue(q.from);

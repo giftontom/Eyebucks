@@ -2,6 +2,7 @@ import { Search, X, ChevronDown } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import { useSiteSection } from '../../context/SiteContentContext';
 import { digitalAssetsApi } from '../../services/api';
 import { logger } from '../../utils/logger';
 import { AssetCard } from '../AssetCard';
@@ -72,7 +73,25 @@ function filtersToQuery(filters: FilterState, page: number): GetAssetsOptions {
   };
 }
 
+const DEFAULT_ASSETS_COPY = {
+  eyebrow: 'Shop',
+  heading: 'Digital Assets',
+  subheading: 'LUTs, presets, sound packs, templates and project files for your craft.',
+};
+
 export const AssetsCatalogSection: React.FC = () => {
+  const assetsCopyRows = useSiteSection('assets_copy');
+  const assetsCopy = React.useMemo(() => {
+    const item = assetsCopyRows?.[0];
+    if (!item) { return DEFAULT_ASSETS_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v : fallback);
+    return {
+      eyebrow: str(meta.eyebrow, DEFAULT_ASSETS_COPY.eyebrow),
+      heading: str(item.title, DEFAULT_ASSETS_COPY.heading),
+      subheading: str(item.body, DEFAULT_ASSETS_COPY.subheading),
+    };
+  }, [assetsCopyRows]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<FilterState>(() => readFilters(searchParams));
   const [searchInput, setSearchInput] = useState(filters.searchQuery);
@@ -160,15 +179,15 @@ export const AssetsCatalogSection: React.FC = () => {
         <div className="flex flex-col mb-8 gap-6">
           <div>
             <span className="inline-block px-3 py-1 bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-full font-bold tracking-wider uppercase text-[10px] mb-3">
-              Shop
+              {assetsCopy.eyebrow}
             </span>
             <h2 className="text-4xl font-bold t-text mb-2 flex items-center gap-3 flex-wrap" style={{ fontFamily: 'var(--font-display)' }}>
-              Digital Assets
+              {assetsCopy.heading}
               {!isLoading && total > 0 && (
                 <span className="text-sm font-medium t-text-3 px-2.5 py-1 rounded-full t-bg-alt t-border border">{total}</span>
               )}
             </h2>
-            <p className="t-text-2 text-lg">LUTs, presets, sound packs, templates and project files for your craft.</p>
+            <p className="t-text-2 text-lg">{assetsCopy.subheading}</p>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
