@@ -41,12 +41,15 @@ describe('SettingsPage', () => {
     await waitFor(() => expect(screen.getByText('Site Settings')).toBeInTheDocument());
   });
 
-  it('renders all 4 setting field labels', async () => {
+  it('renders the setting field labels', async () => {
     render(<SettingsPage />);
     await waitFor(() => expect(screen.getByText('Maintenance Mode')).toBeInTheDocument());
     expect(screen.getByText('Featured Course ID')).toBeInTheDocument();
     expect(screen.getByText('Support Email')).toBeInTheDocument();
-    expect(screen.getByText('Announcement Banner')).toBeInTheDocument();
+    // The footer brand fields are now editable here; the old dead
+    // "Announcement Banner" setting was removed (the banner lives in the CMS).
+    expect(screen.getByText('Footer Tagline')).toBeInTheDocument();
+    expect(screen.queryByText('Announcement Banner')).not.toBeInTheDocument();
   });
 
   it('loads stored support email from API', async () => {

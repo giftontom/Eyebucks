@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useLanguage } from '../../context/LanguageContext';
+import { useSiteSection } from '../../context/SiteContentContext';
 import { coursesApi } from '../../services/api';
 import { formatPrice } from '../../utils/format';
 import { logger } from '../../utils/logger';
@@ -71,8 +72,26 @@ function filtersToQuery(filters: FilterState, page: number, language: CourseLang
   };
 }
 
+const DEFAULT_CATALOG_COPY = {
+  eyebrow: 'Catalog',
+  heading: 'Masterclass Catalog',
+  subheading: 'Choose your path. From cinematography to color grading.',
+};
+
 export const CatalogSection: React.FC = () => {
   const { language } = useLanguage();
+  const catalogRows = useSiteSection('catalog_copy');
+  const catalogCopy = React.useMemo(() => {
+    const item = catalogRows?.[0];
+    if (!item) { return DEFAULT_CATALOG_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v : fallback);
+    return {
+      eyebrow: str(meta.eyebrow, DEFAULT_CATALOG_COPY.eyebrow),
+      heading: str(item.title, DEFAULT_CATALOG_COPY.heading),
+      subheading: str(item.body, DEFAULT_CATALOG_COPY.subheading),
+    };
+  }, [catalogRows]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<FilterState>(() => readFiltersFromParams(searchParams));
   const [searchInput, setSearchInput] = useState(filters.searchQuery);
@@ -172,17 +191,17 @@ export const CatalogSection: React.FC = () => {
         <div className="flex flex-col mb-8 gap-6">
           <div>
             <span className="inline-block px-3 py-1 bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-full font-bold tracking-wider uppercase text-[10px] mb-3">
-              Catalog
+              {catalogCopy.eyebrow}
             </span>
             <h2 className="text-4xl font-bold t-text mb-2 flex items-center gap-3 flex-wrap" style={{ fontFamily: 'var(--font-display)' }}>
-              Masterclass Catalog
+              {catalogCopy.heading}
               {!isLoading && total > 0 && (
                 <span className="text-sm font-medium t-text-3 px-2.5 py-1 rounded-full t-bg-alt t-border border">
                   {total}
                 </span>
               )}
             </h2>
-            <p className="t-text-2 text-lg">Choose your path. From cinematography to color grading.</p>
+            <p className="t-text-2 text-lg">{catalogCopy.subheading}</p>
           </div>
           {/* Desktop: Horizontal filters layout */}
           <div className="hidden md:flex flex-wrap items-center justify-between gap-4">

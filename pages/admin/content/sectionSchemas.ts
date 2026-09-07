@@ -354,6 +354,20 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
       { key: 'offerItems', label: '"What We Offer" bullets', type: 'string-array', help: 'One bullet per line. Leave empty to show the built-in list.' },
     ],
   },
+  catalog_copy: {
+    section: 'catalog_copy',
+    label: 'Course Catalog Header',
+    group: 'Landing copy',
+    where: 'The /courses page → the eyebrow pill, the big "Masterclass Catalog" heading and the subheading above the filters',
+    singleton: true,
+    titleLabel: 'Heading',
+    titlePlaceholder: 'Masterclass Catalog',
+    bodyLabel: 'Subheading',
+    bodyMultiline: true,
+    fields: [
+      { key: 'eyebrow', label: 'Eyebrow / pill', type: 'text', placeholder: 'Catalog' },
+    ],
+  },
   footer_links: {
     section: 'footer_links',
     label: 'Footer Links',

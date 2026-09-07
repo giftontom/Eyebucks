@@ -106,4 +106,32 @@ describe('AnnouncementBanner', () => {
       expect(screen.getByText('Free shipping this week')).toBeInTheDocument();
     });
   });
+
+  /**
+   * Reported as "the banner gap is showing at the top even though the banner is
+   * not there." The row had bgColor #003366 and textColor #003376 — two
+   * near-identical dark blues — so the message was invisible on its own
+   * background and looked like an empty coloured strip.
+   */
+  it('forces a readable text colour when text and background are too similar', async () => {
+    mockGetBySection.mockResolvedValue([
+      { id: 'b1', title: 'New Courses Launching Soon', body: '', metadata: { bgColor: '#003366', textColor: '#003376' } },
+    ]);
+    renderWithCms(<AnnouncementBanner />);
+    const label = await screen.findByText('New Courses Launching Soon');
+    const banner = label.closest('div[style]') as HTMLElement;
+    expect(banner.style.backgroundColor).toBe('rgb(0, 51, 102)');
+    // Not the near-invisible #003376 — forced to white on the dark background.
+    expect(banner.style.color).toBe('rgb(255, 255, 255)');
+  });
+
+  it('keeps an explicitly readable text colour as chosen', async () => {
+    mockGetBySection.mockResolvedValue([
+      { id: 'b1', title: 'Readable banner', body: '', metadata: { bgColor: '#ffffff', textColor: '#111111' } },
+    ]);
+    renderWithCms(<AnnouncementBanner />);
+    const label = await screen.findByText('Readable banner');
+    const banner = label.closest('div[style]') as HTMLElement;
+    expect(banner.style.color).toBe('rgb(17, 17, 17)');
+  });
 });

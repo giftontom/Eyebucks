@@ -33,13 +33,11 @@ const DEFAULT_SETTINGS: SettingField[] = [
     type: 'email',
     value: 'support@eyebuckz.com',
   },
-  {
-    key: 'announcement_banner',
-    label: 'Announcement Banner',
-    description: 'Text shown in a banner at the top of every page. Leave empty to hide.',
-    type: 'text',
-    value: '',
-  },
+  // NOTE: the announcement banner is NOT a setting — it lives in the CMS as the
+  // `banner` section (Admin → Content → Announcement Banner), which supports
+  // colours, a link and dismissal. A plain `announcement_banner` setting used to
+  // sit here but nothing rendered it, so it silently did nothing; it was removed
+  // to end the "I set the banner but it didn't show" confusion.
   {
     key: 'footer_tagline',
     label: 'Footer Tagline',
