@@ -53,7 +53,11 @@ export const AnnouncementBanner: React.FC = () => {
 
   return (
     <div
-      className="relative flex items-center justify-center gap-2 px-4 py-2.5 text-sm"
+      // z-50 matches the sticky nav. Without it the banner sits at z-index:auto
+      // and `.scene-plate-dark` — a fixed, opaque, full-viewport layer at
+      // z-index:0 — paints straight over it, so the banner renders as an empty
+      // tinted strip above the header instead of showing its message.
+      className="relative z-50 flex items-center justify-center gap-2 px-4 py-2.5 text-sm"
       style={{ backgroundColor: bgColor, color: textColor }}
     >
       <span className="font-semibold">{banner.title}</span>
