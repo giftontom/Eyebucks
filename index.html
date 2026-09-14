@@ -27,9 +27,13 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Theme color — matches browser chrome to page theme -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1f4f8" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+    <!-- Theme color — kept in lockstep with the APPLIED theme (the .dark class),
+         not with prefers-color-scheme. The two diverge whenever the user's saved
+         choice differs from their OS setting, and the browser then paints the
+         status bar / gesture bar the opposite colour to the page, which reads as
+         a black band above and below the app. Updated by the bootstrap below and
+         by ThemeContext on every toggle. -->
+    <meta name="theme-color" id="theme-color-meta" content="#f1f4f8" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,9 +47,13 @@
     <script>
       (function() {
         var theme = localStorage.getItem('theme');
-        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        var isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) {
           document.documentElement.classList.add('dark');
         }
+        // Match the browser chrome to the theme we just applied, before paint.
+        var meta = document.getElementById('theme-color-meta');
+        if (meta) { meta.setAttribute('content', isDark ? '#000000' : '#f1f4f8'); }
         document.documentElement.style.visibility = 'visible';
       })();
     </script>
