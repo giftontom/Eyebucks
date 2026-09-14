@@ -44,10 +44,16 @@ const MobileBottomNav: React.FC = () => {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden animate-slide-up"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label="Mobile navigation"
     >
-      <div className="[background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border">
+      {/* The safe-area inset must be padding on the *painted* surface, not on
+          the transparent <nav>. Putting it on the nav leaves an unpainted strip
+          between the bar and the home indicator that page content scrolls
+          through. Clearance (`pb-bottom-nav`) already budgets for this inset. */}
+      <div
+        className="[background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border"
+        style={{ paddingBottom: 'var(--safe-area-bottom)' }}
+      >
         <div className="flex items-end justify-around px-1 h-[var(--bottom-nav-height)]">
           {tabs.map((tab) => {
             const active = path === tab.route;
