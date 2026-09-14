@@ -196,8 +196,8 @@ export const Login: React.FC = () => {
               )}
             </button>
 
-            {/* Dev mode buttons */}
-            {import.meta.env.VITE_DEV_LOGIN === 'true' && (
+            {/* Dev mode buttons — DEV first so production builds drop this subtree */}
+            {import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN === 'true' && (
               <>
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">

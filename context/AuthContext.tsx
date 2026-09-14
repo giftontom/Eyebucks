@@ -154,6 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Only works in development builds — no-op in production.
    */
   const loginDev = async (isAdmin: boolean = false) => {
+    // Guard on DEV, not on VITE_DEV_LOGIN. Vite inlines both at build time, but
+    // DEV is statically false in a production build, so Rollup drops this whole
+    // branch — and the credentials with it. Guarding on VITE_DEV_LOGIN instead
+    // folded to `if ("true" !== "true")`, leaving the credentials in the bundle.
+    if (!import.meta.env.DEV) { return; }
     if (import.meta.env.VITE_DEV_LOGIN !== 'true') { return; }
     const email = isAdmin ? import.meta.env.VITE_DEV_ADMIN_EMAIL : import.meta.env.VITE_DEV_USER_EMAIL;
     const password = import.meta.env.VITE_DEV_PASSWORD;
