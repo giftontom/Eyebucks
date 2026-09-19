@@ -190,7 +190,7 @@ If phrasing could match 2+ skills (e.g., "test this" → `run-tests` vs `e2e-tes
 - **Admin override:** `USING (user_id = auth.uid() OR is_admin())`
 - **Public reads:** condition-based (e.g., `status = 'PUBLISHED'` for courses)
 - **No user DELETE on enrollments** — prevents self-unenrollment
-- **Gap (security):** `users_update_own` policy allows updating the `role` column — user could self-promote to ADMIN
+- **Role column:** `users_update_own` lets a user update their own row, but the `prevent_role_change` BEFORE UPDATE trigger (migration 022) blocks any non-admin role change — verified live. (Earlier docs called this an open self-promotion gap; it is closed.)
 
 ---
 
@@ -571,10 +571,10 @@ supabase functions deploy  # Deploy Edge Functions
 - `context/SiteContentContext.tsx` — batched CMS loader + `useSiteSection`; kills the flash of hardcoded fallback copy
 - `scripts/verify-migrations.sh` — replays migrations against a throwaway local Postgres (`npm run verify:migrations`)
 - `utils/analytics.ts` — PostHog wrapper (`track()`, `identify()`, `page()`)
-- `supabase/migrations/` — **SQL migrations 001-052** (file gaps at 030/031, applied from another branch); next = 053. 052 = catalog_copy CMS section (editable course-catalog heading); 051 = enrollment grant-column guard (closes a paywall bypass); 050 = about_page CMS section (rescues About copy stranded in a footer_links body); 049 = footer_links + course_includes CMS sections; 048 = digital_assets.external_url (link delivery); 047 = courses.compare_price (offer vs actual price); 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
+- `supabase/migrations/` — **SQL migrations 001-054** (file gaps at 030/031, applied from another branch); next = 055. 054 = pin search_path on 6 SECURITY DEFINER functions (closes the "function search path mutable" advisor finding); 053 = contact_copy + assets_copy CMS sections; 052 = catalog_copy CMS section (editable course-catalog heading); 051 = enrollment grant-column guard (closes a paywall bypass); 050 = about_page CMS section (rescues About copy stranded in a footer_links body); 049 = footer_links + course_includes CMS sections; 048 = digital_assets.external_url (link delivery); 047 = courses.compare_price (offer vs actual price); 046 = how_it_works_steps CMS section. 042 = security hardening; 043 = bundle_assets; 044 = upgrade_pricing (module→bundle credit); 045 = coupon re-issue
   - ⚠️ **Never run `supabase db push` on this project.** Remote history holds 030/031 with no local files AND is missing 041-045, which are applied. `db push` would replay them. Apply migrations as raw SQL — see `docs/operations/AUG_INTEGRATION_GO_LIVE.md`.
   - Verify migrations before applying: `npm run verify:migrations 046 047 048` (needs `brew install postgresql@16`; no Docker).
-- `supabase/functions/` — **16 Edge Functions** (see Edge Functions section above)
+- `supabase/functions/` — **17 Edge Functions** (see Edge Functions section above)
 - `pages/admin/content/sectionSchemas.ts` — `SECTION_SCHEMAS` registry; single source of truth for CMS section keys + admin sub-form shape; must stay in sync with migration 033 CHECK constraint
 - `supabase/functions/_shared/emailTemplates.ts` — Branded email templates (enrollment welcome, payment receipt, certificate, asset delivery)
 - `types/index.ts` — Business types (25+ interfaces/enums)
