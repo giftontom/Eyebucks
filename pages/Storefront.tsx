@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 
 import { JsonLd } from '../components';
-import { useSceneGrade, useInViewActive } from '../hooks';
+import { CreatorsSection } from '../components/CreatorsSection';
 import {
   HeroSection,
   SocialProofTicker,
@@ -15,9 +15,8 @@ import {
   PricingSection,
   ClosingSection,
 } from '../components/sections';
-import { CreatorsSection } from '../components/CreatorsSection';
-import { siteContentApi } from '../services/api';
-import { logger } from '../utils/logger';
+import { useSiteSection } from '../context/SiteContentContext';
+import { useSceneGrade, useInViewActive } from '../hooks';
 
 import type { SiteContentItem } from '../types';
 
@@ -36,8 +35,17 @@ interface FAQItem {
 }
 
 export const Storefront: React.FC = () => {
-  const [faqs, setFaqs] = useState<FAQItem[]>(DEFAULT_FAQS);
-  const [creatorItems, setCreatorItems] = useState<SiteContentItem[]>([]);
+  const faqRows = useSiteSection('faq');
+  const creatorRows = useSiteSection('creators');
+
+  const faqs = useMemo<FAQItem[]>(
+    () => (faqRows && faqRows.length > 0
+      ? faqRows.map(i => ({ q: i.title, a: i.body }))
+      : DEFAULT_FAQS),
+    [faqRows],
+  );
+  const creatorItems = useMemo<SiteContentItem[]>(() => creatorRows ?? [], [creatorRows]);
+
   const scenePlateRef = useRef<HTMLDivElement>(null);
   const heroZoneRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -46,15 +54,6 @@ export const Storefront: React.FC = () => {
   // elements (hero CTAs etc.). Cards in galleries are handled by each
   // HorizontalGallery's own centered-card observer.
   useInViewActive(contentRef);
-
-  useEffect(() => {
-    siteContentApi.getBySection('faq').then(items => {
-      if (items.length > 0) {setFaqs(items.map(i => ({ q: i.title, a: i.body })));}
-    }).catch((err) => logger.warn('[Storefront] Failed to load FAQs:', err));
-    siteContentApi.getBySection('creators').then(items => {
-      setCreatorItems(items);
-    }).catch((err) => logger.warn('[Storefront] Failed to load creators content:', err));
-  }, []);
 
   const faqSchema = useMemo(() => ({
     '@context': 'https://schema.org',

@@ -1,8 +1,7 @@
 import { Star, MessageCircle, Users, Video, Zap, ArrowRight, Quote } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 
-import { siteContentApi } from '../../services/api';
-import { logger } from '../../utils/logger';
+import { useSiteSection } from '../../context/SiteContentContext';
 import { AnimatedCounter } from '../AnimatedCounter';
 import { FadeIn, STAGGER_MS } from '../FadeIn';
 
@@ -113,46 +112,41 @@ function SupportingCard({ t }: { t: Testimonial }) {
 }
 
 export const CommunityProofSection: React.FC = () => {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(DEFAULT_TESTIMONIALS);
-  const [copy, setCopy] = useState<CommunityCopy>(DEFAULT_COPY);
+  const testimonialRows = useSiteSection('testimonial');
+  const copyRows = useSiteSection('community_copy');
 
-  useEffect(() => {
-    siteContentApi.getBySection('testimonial')
-      .then(items => {
-        if (items.length > 0) {setTestimonials(items.map(parseTestimonialItem));}
-      })
-      .catch(err => logger.warn('[CommunityProofSection] Failed to load from CMS:', err));
-  }, []);
+  const testimonials = useMemo<Testimonial[]>(
+    () => (testimonialRows && testimonialRows.length > 0
+      ? testimonialRows.map(parseTestimonialItem)
+      : DEFAULT_TESTIMONIALS),
+    [testimonialRows],
+  );
 
-  useEffect(() => {
-    siteContentApi.getBySection('community_copy')
-      .then(items => {
-        const item = items[0];
-        if (!item) {return;}
-        const meta = (item.metadata ?? {}) as Record<string, unknown>;
-        const metaStats = Array.isArray(meta.stats) ? (meta.stats as CommunityStat[]) : null;
-        setCopy({
-          eyebrow: (meta.pill as string) ?? DEFAULT_COPY.eyebrow,
-          heading: item.title ?? DEFAULT_COPY.heading,
-          subheading: item.body ?? DEFAULT_COPY.subheading,
-          verifiedLabel: (meta.verifiedLabel as string) ?? DEFAULT_COPY.verifiedLabel,
-          stats: metaStats && metaStats.length > 0 ? metaStats : DEFAULT_COPY.stats,
-          discordEyebrow: (meta.discordEyebrow as string) ?? DEFAULT_COPY.discordEyebrow,
-          discordTitle: (meta.discordTitle as string) ?? DEFAULT_COPY.discordTitle,
-          discordBody: (meta.discordBody as string) ?? DEFAULT_COPY.discordBody,
-          discordCtaLabel: (meta.discordCtaLabel as string) ?? DEFAULT_COPY.discordCtaLabel,
-          discordUrl: (meta.discordUrl as string) ?? DEFAULT_COPY.discordUrl,
-          discordFootnote: (meta.discordFootnote as string) ?? DEFAULT_COPY.discordFootnote,
-        });
-      })
-      .catch(err => logger.warn('[CommunityProofSection] copy CMS load failed:', err));
-  }, []);
+  const copy = useMemo<CommunityCopy>(() => {
+    const item = copyRows?.[0];
+    if (!item) { return DEFAULT_COPY; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const metaStats = Array.isArray(meta.stats) ? (meta.stats as CommunityStat[]) : null;
+    return {
+      eyebrow: (meta.pill as string) ?? DEFAULT_COPY.eyebrow,
+      heading: item.title ?? DEFAULT_COPY.heading,
+      subheading: item.body ?? DEFAULT_COPY.subheading,
+      verifiedLabel: (meta.verifiedLabel as string) ?? DEFAULT_COPY.verifiedLabel,
+      stats: metaStats && metaStats.length > 0 ? metaStats : DEFAULT_COPY.stats,
+      discordEyebrow: (meta.discordEyebrow as string) ?? DEFAULT_COPY.discordEyebrow,
+      discordTitle: (meta.discordTitle as string) ?? DEFAULT_COPY.discordTitle,
+      discordBody: (meta.discordBody as string) ?? DEFAULT_COPY.discordBody,
+      discordCtaLabel: (meta.discordCtaLabel as string) ?? DEFAULT_COPY.discordCtaLabel,
+      discordUrl: (meta.discordUrl as string) ?? DEFAULT_COPY.discordUrl,
+      discordFootnote: (meta.discordFootnote as string) ?? DEFAULT_COPY.discordFootnote,
+    };
+  }, [copyRows]);
 
   const featured = testimonials[0];
   const supporting = testimonials.slice(1, 3);
 
   return (
-    <section className="py-20 md:py-28 t-bg-alt">
+    <section id="community-proof" className="py-20 md:py-28 t-bg-alt">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header — scene-adaptive: this section flanks the dark Instructors
             island above it, so its on-canvas text flips light while the scene

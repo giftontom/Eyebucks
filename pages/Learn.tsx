@@ -303,7 +303,7 @@ export const Learn: React.FC = () => {
                 to={`/learn/${bc.id}`}
                 className="flex gap-4 p-4 t-card border t-border rounded-xl hover:border-brand-500/40 hover:bg-[var(--surface-hover)] transition group"
               >
-                <div className="w-24 h-16 md:w-32 md:h-20 rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
+                <div className="w-28 md:w-32 aspect-video rounded-lg overflow-hidden flex-shrink-0 t-bg-alt">
                   <Thumbnail src={bc.thumbnail} alt={bc.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 </div>
                 <div className="flex-1 min-w-0">

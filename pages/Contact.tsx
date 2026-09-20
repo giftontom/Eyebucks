@@ -3,7 +3,52 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 
+import { useSiteSection } from '../context/SiteContentContext';
+
+/** Verbatim current copy; used while the `contact_copy` CMS section is empty. */
+const DEFAULT_CONTACT = {
+  eyebrow: 'Get in Touch',
+  heading: 'Contact Us',
+  subheading: "Have a question about a course, payment, or your account? We're here to help.",
+  email: 'support@eyebuckz.com',
+  emailNote: 'For course access, billing, or general questions.',
+  youtubeUrl: 'https://youtube.com/@eyebuckz',
+  youtubeNote: 'Free tutorials, previews, and community updates.',
+  faqItems: [
+    "Access issues: Email us with your order ID and we'll restore access within 24 hours.",
+    "Refunds: We offer refunds within 7 days of purchase if you haven't completed more than 20% of the course.",
+    'Certificates: Certificates are auto-generated when you complete 100% of a course.',
+  ],
+};
+
 export const Contact: React.FC = () => {
+  const rows = useSiteSection('contact_copy');
+  const copy = React.useMemo(() => {
+    const item = rows?.[0];
+    if (!item) { return DEFAULT_CONTACT; }
+    const meta = (item.metadata ?? {}) as Record<string, unknown>;
+    const str = (v: unknown, fallback: string) => (typeof v === 'string' && v.trim() ? v : fallback);
+    const items = Array.isArray(meta.faqItems)
+      ? (meta.faqItems as unknown[]).map(String).map((s) => s.trim()).filter(Boolean)
+      : [];
+    return {
+      eyebrow: str(meta.eyebrow, DEFAULT_CONTACT.eyebrow),
+      heading: str(item.title, DEFAULT_CONTACT.heading),
+      subheading: str(item.body, DEFAULT_CONTACT.subheading),
+      email: str(meta.email, DEFAULT_CONTACT.email),
+      emailNote: str(meta.emailNote, DEFAULT_CONTACT.emailNote),
+      youtubeUrl: str(meta.youtubeUrl, DEFAULT_CONTACT.youtubeUrl),
+      youtubeNote: str(meta.youtubeNote, DEFAULT_CONTACT.youtubeNote),
+      faqItems: items.length > 0 ? items : DEFAULT_CONTACT.faqItems,
+    };
+  }, [rows]);
+
+  // "@handle" shown on the YouTube card, derived from the URL's last path segment.
+  const youtubeHandle = React.useMemo(() => {
+    const m = copy.youtubeUrl.match(/@[\w.-]+/);
+    return m ? m[0] : 'YouTube';
+  }, [copy.youtubeUrl]);
+
   return (
     <>
     <Helmet>
@@ -16,42 +61,50 @@ export const Contact: React.FC = () => {
     <div className="min-h-[60vh] px-4 py-24 t-bg-alt">
       <div className="max-w-2xl mx-auto text-center">
         <div className="inline-block px-4 py-1.5 bg-brand-600/10 border border-brand-600/20 text-brand-400 rounded-full font-bold tracking-wider uppercase text-xs mb-6">
-          Get in Touch
+          {copy.eyebrow}
         </div>
-        <h1 className="text-5xl font-black t-text mb-4">Contact Us</h1>
+        <h1 className="text-5xl font-black t-text mb-4">{copy.heading}</h1>
         <p className="text-lg t-text-2 leading-relaxed mb-12">
-          Have a question about a course, payment, or your account? We're here to help.
+          {copy.subheading}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
           <a
-            href="mailto:support@eyebuckz.com"
+            href={`mailto:${copy.email}`}
             className="t-card t-border border rounded-2xl p-6 hover:border-brand-500/40 transition group text-left shadow-sm"
           >
             <Mail size={28} className="text-brand-400 mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold t-text mb-1">Email Support</h3>
-            <p className="text-sm t-text-2 mb-3">For course access, billing, or general questions.</p>
-            <span className="text-brand-400 text-sm font-medium">support@eyebuckz.com</span>
+            <p className="text-sm t-text-2 mb-3">{copy.emailNote}</p>
+            <span className="text-brand-400 text-sm font-medium">{copy.email}</span>
           </a>
           <a
-            href="https://youtube.com/@eyebuckz"
+            href={copy.youtubeUrl}
             target="_blank"
             rel="noreferrer"
             className="t-card t-border border rounded-2xl p-6 hover:border-[#FF0000]/40 transition group text-left"
           >
             <Youtube size={28} className="text-[var(--link)] mb-3 group-hover:scale-110 transition-transform" />
             <h3 className="font-bold t-text mb-1">YouTube Channel</h3>
-            <p className="text-sm t-text-2 mb-3">Free tutorials, previews, and community updates.</p>
-            <span className="text-[var(--link)] text-sm font-medium">@eyebuckz</span>
+            <p className="text-sm t-text-2 mb-3">{copy.youtubeNote}</p>
+            <span className="text-[var(--link)] text-sm font-medium">{youtubeHandle}</span>
           </a>
         </div>
 
         <div className="t-card t-border border rounded-2xl p-6 mb-10 text-left shadow-sm">
           <h3 className="font-bold t-text mb-3">Frequently Asked</h3>
           <ul className="space-y-2 text-sm t-text-2">
-            <li><strong className="t-text">Access issues:</strong> Email us with your order ID and we'll restore access within 24 hours.</li>
-            <li><strong className="t-text">Refunds:</strong> We offer refunds within 7 days of purchase if you haven't completed more than 20% of the course.</li>
-            <li><strong className="t-text">Certificates:</strong> Certificates are auto-generated when you complete 100% of a course.</li>
+            {copy.faqItems.map((item, i) => {
+              // Bold the label before the first colon, if any.
+              const idx = item.indexOf(':');
+              const label = idx > 0 ? item.slice(0, idx) : '';
+              const rest = idx > 0 ? item.slice(idx + 1).trim() : item;
+              return (
+                <li key={i}>
+                  {label && <strong className="t-text">{label}:</strong>} {rest}
+                </li>
+              );
+            })}
           </ul>
         </div>
 

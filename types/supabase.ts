@@ -340,6 +340,7 @@ export type Database = {
       }
       courses: {
         Row: {
+          compare_price: number | null
           created_at: string | null
           deleted_at: string | null
           description: string
@@ -360,6 +361,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          compare_price?: number | null
           created_at?: string | null
           deleted_at?: string | null
           description: string
@@ -380,6 +382,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          compare_price?: number | null
           created_at?: string | null
           deleted_at?: string | null
           description?: string
@@ -404,6 +407,7 @@ export type Database = {
       digital_assets: {
         Row: {
           compare_price: number | null
+          external_url: string | null
           created_at: string
           deleted_at: string | null
           description: string
@@ -417,7 +421,7 @@ export type Database = {
           price: number
           slug: string
           status: Database["public"]["Enums"]["course_status"]
-          storage_path: string
+          storage_path: string | null
           thumbnail: string
           title: string
           updated_at: string
@@ -425,6 +429,7 @@ export type Database = {
         }
         Insert: {
           compare_price?: number | null
+          external_url?: string | null
           created_at?: string
           deleted_at?: string | null
           description: string
@@ -438,7 +443,7 @@ export type Database = {
           price: number
           slug: string
           status?: Database["public"]["Enums"]["course_status"]
-          storage_path: string
+          storage_path?: string | null
           thumbnail?: string
           title: string
           updated_at?: string
@@ -446,6 +451,7 @@ export type Database = {
         }
         Update: {
           compare_price?: number | null
+          external_url?: string | null
           created_at?: string
           deleted_at?: string | null
           description?: string
@@ -459,7 +465,7 @@ export type Database = {
           price?: number
           slug?: string
           status?: Database["public"]["Enums"]["course_status"]
-          storage_path?: string
+          storage_path?: string | null
           thumbnail?: string
           title?: string
           updated_at?: string

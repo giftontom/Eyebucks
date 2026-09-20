@@ -47,7 +47,20 @@ const MobileBottomNav: React.FC = () => {
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       aria-label="Mobile navigation"
     >
-      <div className="[background-color:color-mix(in_srgb,var(--page-bg)_90%,transparent)] backdrop-blur-3xl border-t t-border">
+      {/* Opaque, and deliberately NOT backdrop-blurred.
+
+          This bar is fixed, full-width, and was 90% transparent behind a 64px
+          backdrop blur. That makes the compositor re-blur everything behind it
+          on every scroll frame — and again throughout the mobile browser's
+          toolbar collapse animation, which is when the bar is already being
+          moved. The blur cost is what turned a smooth ~40px browser shift into
+          visible stutter, and the transparency meant page content slid around
+          behind the labels while it happened.
+
+          Solid background: nothing to re-blur, and nothing shows through, so
+          any residual movement reads as the bar sitting still against the page
+          rather than the page bleeding through it. */}
+      <div className="bg-[var(--page-bg)] border-t t-border">
         <div className="flex items-end justify-around px-1 h-[var(--bottom-nav-height)]">
           {tabs.map((tab) => {
             const active = path === tab.route;

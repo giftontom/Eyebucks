@@ -30,6 +30,14 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
   // Starts true so a below-the-fold hero doesn't autoplay/download video before
   // the IntersectionObserver confirms it's actually visible.
   const [offscreen, setOffscreen] = useState(true);
+  // Which slide images have actually finished loading. On a phone the later
+  // slides are still downloading when the 5s timer fires, so the carousel
+  // advanced to a blank/half-painted frame — it looked like it "jumped before
+  // one finished loading". The timer now waits for the incoming slide.
+  const [loaded, setLoaded] = useState<Record<number, boolean>>({ 0: true });
+  const markLoaded = useCallback((i: number) => {
+    setLoaded(prev => (prev[i] ? prev : { ...prev, [i]: true }));
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
@@ -46,10 +54,14 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
   }, [slides.length]);
 
   useEffect(() => {
-    if (paused || offscreen) {return;}
-    const timer = setInterval(next, interval);
-    return () => clearInterval(timer);
-  }, [paused, offscreen, next, interval]);
+    if (paused || offscreen || slides.length < 2) {return;}
+    const upcoming = (current + 1) % slides.length;
+    // Wait for the incoming image, but never longer than twice the interval:
+    // a 404 or a stalled network must not strand the carousel on one slide.
+    const wait = loaded[upcoming] ? interval : interval * 2;
+    const timer = setTimeout(next, wait);
+    return () => clearTimeout(timer);
+  }, [paused, offscreen, next, interval, current, slides.length, loaded]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -134,9 +146,13 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides = DEFAULT_SLI
               className="w-full h-full object-cover"
               width={1200}
               height={675}
-              loading={i === 0 ? 'eager' : 'lazy'}
+              loading={i === 0 || i === (current + 1) % slides.length ? 'eager' : 'lazy'}
               fetchPriority={i === 0 ? 'high' : 'auto'}
               decoding="async"
+              onLoad={() => markLoaded(i)}
+              // Treat a failed image as "ready" too, otherwise the ceiling
+              // above would be the only thing moving the carousel on.
+              onError={() => markLoaded(i)}
             />
             {/* Video overlay: covers the poster image; if it fails to load the
                 image shows through. Suppressed under reduced-motion. */}

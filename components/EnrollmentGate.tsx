@@ -48,7 +48,7 @@ export const EnrollmentGate: React.FC<EnrollmentGateProps> = ({
       <div className="max-w-4xl w-full">
         <div className="t-card t-border border rounded-3xl shadow-2xl overflow-hidden">
           {/* Header with Course Image */}
-          <div className="relative h-64 md:h-80 overflow-hidden">
+          <div className="relative aspect-video md:h-80 md:aspect-auto overflow-hidden">
             <img
               src={courseThumbnail}
               alt={courseTitle}

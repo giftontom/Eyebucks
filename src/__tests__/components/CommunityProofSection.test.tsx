@@ -9,7 +9,14 @@ const { mockGetBySection } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../services/api', () => ({
-  siteContentApi: { getBySection: mockGetBySection },
+  siteContentApi: { getBySection: mockGetBySection,
+  // SiteContentProvider batches every section into one `getAllActive` call.
+  // Derive that batch from the per-section fixtures below so each test keeps
+  // describing its data section-by-section.
+  getAllActive: async () => (
+    await Promise.all(['hero','hero_slides','banner','faq','creators','creators_copy','value_cards','value_props_copy','instructors','instructors_copy','testimonial','community_copy','how_it_works','how_it_works_steps','featured_copy','pricing_copy','closing','social_proof','showcase','settings'].map((s: string) => mockGetBySection(s)))
+  ).flatMap((r: unknown) => (Array.isArray(r) ? r : [])),
+},
 }));
 
 vi.mock('../../../utils/logger', () => ({
@@ -33,6 +40,7 @@ vi.mock('../../../components/AnimatedCounter', () => ({
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import { CommunityProofSection } from '../../../components/sections/CommunityProofSection';
+import { SiteContentProvider } from '../../../context/SiteContentContext';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -79,6 +87,9 @@ const DEFAULT_DISCORD_TITLE = 'Join the Discord';
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+const renderWithCms = (ui: React.ReactElement) =>
+  render(<SiteContentProvider>{ui}</SiteContentProvider>);
+
 describe('CommunityProofSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -97,54 +108,54 @@ describe('CommunityProofSection', () => {
     });
 
     it('renders the CMS testimonial name', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Student Name')).toBeInTheDocument());
     });
 
     it('renders the CMS testimonial quote', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(/CMS testimonial quote content here\./)).toBeInTheDocument());
     });
 
     it('renders the CMS community heading', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Community Heading')).toBeInTheDocument());
     });
 
     it('renders the CMS pill', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Community Pill')).toBeInTheDocument());
     });
 
     it('renders the CMS discord title', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS discord title')).toBeInTheDocument());
     });
 
     it('renders the CMS discord CTA label', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS discord cta')).toBeInTheDocument());
     });
 
     it('renders the CMS discord footnote', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS footnote.')).toBeInTheDocument());
     });
 
     it('does NOT render the default testimonial name', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Student Name')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_TESTIMONIAL_NAME)).not.toBeInTheDocument();
     });
 
     it('does NOT render the hardcoded default heading', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Community Heading')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_HEADING)).not.toBeInTheDocument();
     });
 
     it('does NOT render the hardcoded default Discord title', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS discord title')).toBeInTheDocument());
       expect(screen.queryByText(DEFAULT_DISCORD_TITLE)).not.toBeInTheDocument();
     });
@@ -154,33 +165,33 @@ describe('CommunityProofSection', () => {
 
   describe('when getBySection resolves [] for all keys (fallback guard)', () => {
     it('renders the hardcoded default heading', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_HEADING)).toBeInTheDocument());
     });
 
     it('renders the default eyebrow pill', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_EYEBROW)).toBeInTheDocument());
     });
 
     it('renders the first default testimonial name', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_TESTIMONIAL_NAME)).toBeInTheDocument());
     });
 
     it('renders the default Discord title', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_DISCORD_TITLE)).toBeInTheDocument());
     });
 
     it('renders the community stats counters', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       // AnimatedCounter is mocked to render "2500+" etc.
       await waitFor(() => expect(screen.getByText('2500+')).toBeInTheDocument());
     });
 
     it('renders the default subheading', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() =>
         expect(
           screen.getByText(/A private community of working creators/i),
@@ -197,17 +208,17 @@ describe('CommunityProofSection', () => {
     });
 
     it('renders the default heading when the API rejects', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_HEADING)).toBeInTheDocument());
     });
 
     it('renders default testimonials when the API rejects', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_TESTIMONIAL_NAME)).toBeInTheDocument());
     });
 
     it('does not throw when the CMS API rejects', async () => {
-      expect(() => render(<CommunityProofSection />)).not.toThrow();
+      expect(() => renderWithCms(<CommunityProofSection />)).not.toThrow();
       await waitFor(() => expect(screen.getByText(DEFAULT_HEADING)).toBeInTheDocument());
     });
   });
@@ -223,17 +234,17 @@ describe('CommunityProofSection', () => {
     });
 
     it('shows CMS testimonial name', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Student Name')).toBeInTheDocument());
     });
 
     it('falls back to default heading when copy row is absent', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_HEADING)).toBeInTheDocument());
     });
 
     it('falls back to default Discord title when copy row is absent', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_DISCORD_TITLE)).toBeInTheDocument());
     });
   });
@@ -249,12 +260,12 @@ describe('CommunityProofSection', () => {
     });
 
     it('shows CMS heading', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText('CMS Community Heading')).toBeInTheDocument());
     });
 
     it('falls back to default testimonials when CMS testimonials are absent', async () => {
-      render(<CommunityProofSection />);
+      renderWithCms(<CommunityProofSection />);
       await waitFor(() => expect(screen.getByText(DEFAULT_TESTIMONIAL_NAME)).toBeInTheDocument());
     });
   });

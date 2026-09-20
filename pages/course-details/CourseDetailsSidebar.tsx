@@ -2,7 +2,7 @@ import { BookOpen, Layers, Lock, User, Zap, Star } from 'lucide-react';
 import React from 'react';
 
 import { Button, ShareButton, TrustBadges, WishlistButton } from '../../components';
-import { formatPrice } from '../../utils/format';
+import { formatPrice, showsComparePrice } from '../../utils/format';
 import { CourseType } from '../../types';
 
 import type { Course } from '../../types';
@@ -20,9 +20,14 @@ interface Props {
   onCta: () => void;
   /** Entitlement-based upgrade quote (module owner → bundle). */
   upgradeQuote?: { creditPaise: number; finalPrice: number } | null;
+  /** Optional "limited time" pill (pricing_copy.urgencyTag) — mirrored here so
+   *  it is visible to DESKTOP buyers, not only in the mobile sticky bar. */
+  urgencyTag?: string | null;
+  /** Bundle savings vs. buying items individually; surfaced on desktop too. */
+  savings?: number;
 }
 
-export const CourseDetailsSidebar: React.FC<Props> = ({ course, hasAccess, ctaConfig, onCta, upgradeQuote }) => (
+export const CourseDetailsSidebar: React.FC<Props> = ({ course, hasAccess, ctaConfig, onCta, upgradeQuote, urgencyTag, savings = 0 }) => (
   <div className="sticky top-24 t-card border t-border rounded-2xl p-6 shadow-lg shadow-black/5 dark:shadow-none">
     {!hasAccess && upgradeQuote ? (
       <div className="mb-8">
@@ -39,7 +44,22 @@ export const CourseDetailsSidebar: React.FC<Props> = ({ course, hasAccess, ctaCo
       </div>
     ) : !hasAccess && (
       <>
-        <h3 className="text-4xl font-bold t-text mb-2">{formatPrice(course.price)}</h3>
+        {urgencyTag && (
+          <span className="inline-block mb-2 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide t-status-danger border">
+            {urgencyTag}
+          </span>
+        )}
+        <div className="flex items-baseline gap-2.5 mb-2">
+          <h3 className="text-4xl font-bold t-text">{formatPrice(course.price)}</h3>
+          {showsComparePrice(course.price, course.comparePrice) && (
+            <span className="text-lg t-text-3 line-through">{formatPrice(course.comparePrice)}</span>
+          )}
+        </div>
+        {savings > 0 && (
+          <p className="text-sm font-bold text-[color:var(--status-success-text)] mb-1">
+            You save {formatPrice(savings)}
+          </p>
+        )}
         <p className="t-text-2 text-sm mb-8">One-time payment. Lifetime access.</p>
       </>
     )}

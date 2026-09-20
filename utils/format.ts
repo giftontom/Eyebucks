@@ -49,3 +49,18 @@ export function formatCompactINR(paise: number): string {
   if (abs >= 1e3) { return `₹${trim(rupees / 1e3)}k`; }
   return `₹${rupees.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 }
+
+/**
+ * Whether a strike-through "actual price" is worth rendering next to `price`.
+ *
+ * A compare price that is absent, or not actually above what is charged, would
+ * render as either a nonsense discount or an invisible one — so every price
+ * surface asks this rather than re-deriving the rule and drifting apart.
+ * Migration 047 enforces the same invariant for courses at the DB level.
+ */
+export function showsComparePrice(
+  price: number,
+  comparePrice: number | null | undefined,
+): comparePrice is number {
+  return comparePrice !== null && comparePrice !== undefined && comparePrice > price;
+}

@@ -300,6 +300,37 @@ describe('CourseDetails', () => {
     renderPage();
     await waitFor(() => screen.getByText('Test Course'));
     fireEvent.click(screen.getByRole('button', { name: /included courses/i }));
-    expect(screen.getByText(/save ₹/i)).toBeInTheDocument();
+    // Specific to the banner: the sticky price bar now carries its own
+    // "You save ₹…" badge, so a bare /save ₹/ matches two elements.
+    expect(screen.getByText(/compared to buying individually/i)).toBeInTheDocument();
+  });
+
+  /**
+   * The saving used to sum `bundledCourses` only, so bundled digital assets —
+   * often the bulk of the perceived value — counted for nothing.
+   */
+  it('counts bundled digital assets in the bundle total value', async () => {
+    mockCoursesApi.getCourse.mockResolvedValue({
+      success: true,
+      course: {
+        ...mockCourse,
+        type: 'BUNDLE',
+        price: 99900,
+        bundledCourses: [
+          { id: 'bc-1', title: 'Course A', description: '', price: 79900, rating: 4, totalStudents: 10, thumbnail: '', moduleCount: 3 },
+        ],
+        bundledAssets: [
+          { id: 'a-1', slug: 'lut', title: 'Film LUT', thumbnail: '', fileType: 'LUT', license: 'PERSONAL', price: 50000 },
+        ],
+      },
+    });
+    renderPage();
+    await waitFor(() => screen.getByText('Test Course'));
+    fireEvent.click(screen.getByRole('button', { name: /included courses/i }));
+    // 79,900 course + 50,000 asset = 129,900 value; less the 99,900 price
+    // leaves 30,000 saved. Without the asset it would have shown a 20,000 loss
+    // and rendered nothing at all.
+    expect(screen.getByText(/₹1,299/)).toBeInTheDocument();
+    expect(screen.getByText(/includes ₹500 of digital assets/i)).toBeInTheDocument();
   });
 });

@@ -24,11 +24,15 @@ import type {
 // client-facing read. `deleted_at` is included only in the admin list variant.
 const STOREFRONT_COLUMNS =
   'id, slug, title, description, price, compare_price, file_type, license, file_size, file_ext, thumbnail, preview_url, version, status, download_count, created_at, updated_at';
-const ADMIN_COLUMNS = `${STOREFRONT_COLUMNS}, deleted_at`;
+// The admin list additionally reads `external_url` so the editor can show and
+// change an existing link. It stays OUT of STOREFRONT_COLUMNS: it is a bearer
+// URL to the paid file (migration 048). `storage_path` is never selected at
+// all — only the entitlement-gated Edge Function resolves that.
+const ADMIN_COLUMNS = `${STOREFRONT_COLUMNS}, deleted_at, external_url`;
 
 /** Row shape returned by the safe column lists (no private/internal columns). */
-type StorefrontAssetRow = Omit<DigitalAssetRow, 'storage_path' | 'deleted_at'>;
-/** Admin column list keeps `deleted_at` (still no private storage_path). */
+type StorefrontAssetRow = Omit<DigitalAssetRow, 'storage_path' | 'deleted_at' | 'external_url'>;
+/** Admin column list keeps `deleted_at` + `external_url` (still no storage_path). */
 type AdminAssetRow = Omit<DigitalAssetRow, 'storage_path'>;
 
 function mapAsset(row: StorefrontAssetRow): DigitalAsset {
@@ -54,7 +58,7 @@ function mapAsset(row: StorefrontAssetRow): DigitalAsset {
 }
 
 function mapAdminAsset(row: AdminAssetRow): AdminDigitalAsset {
-  return { ...mapAsset(row), deletedAt: row.deleted_at };
+  return { ...mapAsset(row), deletedAt: row.deleted_at, externalUrl: row.external_url ?? null };
 }
 
 export type AssetSort = 'newest' | 'price-asc' | 'price-desc' | 'popular';
@@ -91,7 +95,10 @@ export interface DigitalAssetInput {
   comparePrice?: number | null;
   fileType: AssetFileType;
   license?: AssetLicense;
-  storagePath: string; // private Bunny path (from admin-asset-upload)
+  /** Private storage path (from admin-asset-upload). Mutually exclusive with `externalUrl`. */
+  storagePath?: string | null;
+  /** Externally-hosted download, e.g. a Google Drive share link. Mutually exclusive with `storagePath`. */
+  externalUrl?: string | null;
   fileSize?: number | null;
   fileExt?: string | null;
   thumbnail?: string;
@@ -296,7 +303,8 @@ export const digitalAssetsApi = {
       compare_price: input.comparePrice ?? null,
       file_type: input.fileType,
       license: input.license ?? 'PERSONAL',
-      storage_path: input.storagePath,
+      storage_path: input.storagePath ?? null,
+      external_url: input.externalUrl ?? null,
       file_size: input.fileSize ?? null,
       file_ext: input.fileExt ?? null,
       thumbnail: input.thumbnail ?? '',
@@ -323,6 +331,7 @@ export const digitalAssetsApi = {
     if (patch.fileType !== undefined) { row.file_type = patch.fileType; }
     if (patch.license !== undefined) { row.license = patch.license; }
     if (patch.storagePath !== undefined) { row.storage_path = patch.storagePath; }
+    if (patch.externalUrl !== undefined) { row.external_url = patch.externalUrl; }
     if (patch.fileSize !== undefined) { row.file_size = patch.fileSize; }
     if (patch.fileExt !== undefined) { row.file_ext = patch.fileExt; }
     if (patch.thumbnail !== undefined) { row.thumbnail = patch.thumbnail; }

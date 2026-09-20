@@ -111,6 +111,43 @@ describe('coursesApi', () => {
       expect(q.builder.eq).toHaveBeenCalledWith('language', 'ML');
     });
 
+    // All published courses are currently ML, so an EN visitor's filtered query
+    // is empty and the storefront looked broken ("No courses available yet").
+    it('falls back to all languages when the language filter yields nothing, and flags it', async () => {
+      const empty = makeMainQuery({ data: [], count: 0 });
+      const all = makeMainQuery({ data: [mockCourseRow], count: 1 });
+      mockSupabase.from.mockReturnValueOnce(empty.from).mockReturnValueOnce(all.from);
+      const result = await coursesApi.getCourses({ language: 'EN' });
+      // First query filtered by EN; second (fallback) query did NOT filter language.
+      expect(empty.builder.eq).toHaveBeenCalledWith('language', 'EN');
+      expect(all.builder.eq).not.toHaveBeenCalledWith('language', expect.anything());
+      expect(result.courses).toHaveLength(1);
+      expect(result.languageFallbackApplied).toBe(true);
+    });
+
+    // Regression: an EN visitor typing a search used to get "no match" for a
+    // course visible a second earlier, because the fallback was suppressed under
+    // filters. It must now fall back and KEEP the search filter.
+    it('falls back under an active search filter, preserving the search', async () => {
+      const empty = makeMainQuery({ data: [], count: 0 });
+      const all = makeMainQuery({ data: [mockCourseRow], count: 1 });
+      mockSupabase.from.mockReturnValueOnce(empty.from).mockReturnValueOnce(all.from);
+      const result = await coursesApi.getCourses({ language: 'EN', search: 'cinema' });
+      expect(mockSupabase.from).toHaveBeenCalledTimes(2); // fell back
+      expect(all.builder.eq).not.toHaveBeenCalledWith('language', expect.anything());
+      expect(all.builder.or).toHaveBeenCalledWith(expect.stringContaining('cinema')); // search kept
+      expect(result.courses).toHaveLength(1);
+      expect(result.languageFallbackApplied).toBe(true);
+    });
+
+    it('does NOT set the fallback flag when the language has courses', async () => {
+      const q = makeMainQuery({ data: [mockCourseRow], count: 1 });
+      mockSupabase.from.mockReturnValue(q.from);
+      const result = await coursesApi.getCourses({ language: 'ML' });
+      expect(result.languageFallbackApplied).toBe(false);
+      expect(mockSupabase.from).toHaveBeenCalledTimes(1);
+    });
+
     it('omits the language filter when not provided (default catalog shows all languages)', async () => {
       const q = makeMainQuery();
       mockSupabase.from.mockReturnValue(q.from);
@@ -226,6 +263,25 @@ describe('coursesApi', () => {
       const q = makeCountQuery({ count: null });
       mockSupabase.from.mockReturnValue(q.from);
       expect(await coursesApi.getCourseCount()).toBe(0);
+    });
+
+    // Mirror getCourses' fallback so the hero count and the catalogue agree.
+    it('falls back to the all-language count when the language has zero courses', async () => {
+      const empty = makeCountQuery({ count: 0 });
+      const all = makeCountQuery({ count: 3 });
+      mockSupabase.from.mockReturnValueOnce(empty.from).mockReturnValueOnce(all.from);
+      const n = await coursesApi.getCourseCount('EN');
+      expect(n).toBe(3); // not 0
+      expect(empty.builder.eq).toHaveBeenCalledWith('language', 'EN');
+      expect(all.builder.eq).not.toHaveBeenCalledWith('language', expect.anything());
+    });
+
+    it('does NOT re-query when the language already has courses', async () => {
+      const q = makeCountQuery({ count: 3 });
+      mockSupabase.from.mockReturnValue(q.from);
+      const n = await coursesApi.getCourseCount('ML');
+      expect(n).toBe(3);
+      expect(mockSupabase.from).toHaveBeenCalledTimes(1);
     });
   });
 
