@@ -810,8 +810,14 @@ export const adminApi = {
     const { data, error } = await supabase
       .from('site_content')
       .select('*')
+      // Same total ordering as siteContentApi.getAllActive so the admin editor's
+      // per-section "first row" matches the row the storefront actually renders.
+      // Without the updated_at/id tiebreakers, tied order_index rows come back in
+      // arbitrary order and the "Live/Ignored" badge could mark the wrong row.
       .order('section')
-      .order('order_index', { ascending: true });
+      .order('order_index', { ascending: true })
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true });
 
     if (error) {throw new Error(error.message);}
     return {

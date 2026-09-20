@@ -1,6 +1,8 @@
 import { CheckCircle2, Award, Zap, Shield, Download, FileCheck } from 'lucide-react';
 import React from 'react';
 
+import type { AssetLicense } from '../types';
+
 type Badge = {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
@@ -19,12 +21,35 @@ const DEFAULT_BADGES: Badge[] = [
  * Claiming either on an asset checkout is simply untrue, so asset surfaces
  * pass these instead.
  */
-export const ASSET_BADGES: Badge[] = [
-  { icon: Zap, label: 'Instant Download' },
-  { icon: Download, label: 'Re-download Anytime' },
-  { icon: FileCheck, label: 'Commercial-Ready Files' },
-  { icon: Shield, label: 'Secure Checkout' },
-];
+/** The licensing badge must match the asset's ACTUAL license — claiming
+ *  "Commercial-Ready Files" on a PERSONAL asset misrepresents the rights the
+ *  buyer receives (and contradicts the license label on the asset page). */
+function licenseBadge(license?: AssetLicense): Badge {
+  switch (license) {
+    case 'COMMERCIAL': return { icon: FileCheck, label: 'Commercial-Ready Files' };
+    case 'EXTENDED':   return { icon: FileCheck, label: 'Extended License' };
+    case 'PERSONAL':   return { icon: FileCheck, label: 'Personal-Use License' };
+    default:           return { icon: FileCheck, label: 'Licensed Download' };
+  }
+}
+
+/** Trust badges for a digital-asset checkout, with the 3rd badge derived from
+ *  the asset's license. Pass the asset's license so the claim is truthful. */
+export function assetBadges(license?: AssetLicense): Badge[] {
+  return [
+    { icon: Zap, label: 'Instant Download' },
+    { icon: Download, label: 'Re-download Anytime' },
+    licenseBadge(license),
+    { icon: Shield, label: 'Secure Checkout' },
+  ];
+}
+
+/**
+ * Digital assets are a download, not a course: no certificate is issued and
+ * "lifetime access" means the file stays in your library, not course access.
+ * Default asset badges (license-neutral) for surfaces without a known license.
+ */
+export const ASSET_BADGES: Badge[] = assetBadges(undefined);
 
 interface TrustBadgesProps {
   badges?: Badge[];

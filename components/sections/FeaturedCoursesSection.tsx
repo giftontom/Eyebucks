@@ -80,6 +80,16 @@ export const FeaturedCoursesSection: React.FC = () => {
     return null;
   }
 
+  // Cap the desktop columns to the number of courses so a short catalogue
+  // (e.g. 3 courses) fills its row and stays centred by the section's max-width,
+  // instead of sitting left-aligned in a 4-column grid with an empty trailing
+  // cell. Literal class strings so Tailwind's JIT compiles every branch.
+  const desktopGrid =
+    courses.length >= 4 ? 'md:grid-cols-2 lg:grid-cols-4'
+    : courses.length === 3 ? 'md:grid-cols-2 lg:grid-cols-3'
+    : courses.length === 2 ? 'md:grid-cols-2 lg:grid-cols-2'
+    : 'md:grid-cols-1 lg:grid-cols-1';
+
   return (
     // No border-t (it would draw a literal seam line on the scene-graded
     // canvas); pulled up over the hero's reserve so the card rail bridges
@@ -88,7 +98,7 @@ export const FeaturedCoursesSection: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <HorizontalGallery
             count={courses.length}
-            desktopGrid="md:grid-cols-2 lg:grid-cols-4"
+            desktopGrid={desktopGrid}
             heading={
               <FadeIn>
                 <div className="flex flex-col sm:flex-row items-end justify-between mb-12 gap-4">

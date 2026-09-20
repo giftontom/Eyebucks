@@ -134,4 +134,35 @@ describe('AnnouncementBanner', () => {
     const banner = label.closest('div[style]') as HTMLElement;
     expect(banner.style.color).toBe('rgb(17, 17, 17)');
   });
+
+  // The common admin footgun: pick a text colour, leave the background at its
+  // suggested default `var(--page-alt)`. The old guard couldn't parse the var
+  // and returned the (possibly invisible) requested colour unchanged.
+  it('resolves a var() background and forces contrast against it', async () => {
+    document.documentElement.style.setProperty('--page-alt', '#f1f4f8'); // light default
+    try {
+      mockGetBySection.mockResolvedValue([
+        { id: 'b1', title: 'Var bg banner', body: '', metadata: { bgColor: 'var(--page-alt)', textColor: '#eeeeee' } },
+      ]);
+      renderWithCms(<AnnouncementBanner />);
+      const label = await screen.findByText('Var bg banner');
+      const banner = label.closest('div[style]') as HTMLElement;
+      // Light text on a light resolved bg fails AA → forced to near-black.
+      expect(banner.style.color).toBe('rgb(17, 17, 17)');
+    } finally {
+      document.documentElement.style.removeProperty('--page-alt');
+    }
+  });
+
+  // Mid-tone background the old fixed 0.4 luminance pivot mis-handled: #999999
+  // with white text is only ~2.85:1, below AA — must flip to near-black (~6.6:1).
+  it('picks the higher-contrast colour on a mid-tone background', async () => {
+    mockGetBySection.mockResolvedValue([
+      { id: 'b1', title: 'Mid tone', body: '', metadata: { bgColor: '#999999', textColor: '#ffffff' } },
+    ]);
+    renderWithCms(<AnnouncementBanner />);
+    const label = await screen.findByText('Mid tone');
+    const banner = label.closest('div[style]') as HTMLElement;
+    expect(banner.style.color).toBe('rgb(17, 17, 17)');
+  });
 });

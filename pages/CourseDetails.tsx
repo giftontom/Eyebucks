@@ -82,12 +82,17 @@ export const CourseDetails: React.FC = () => {
     return { courses, assets, total, savings: total - (course?.price ?? 0) };
   }, [course]);
   const includeItems = useMemo(
-    () => (includeRows && includeRows.length > 0
-      ? includeRows.map((row) => ({
+    // `null` = section not loaded yet -> show the built-in bullets so the card
+    // isn't briefly empty. An empty array = an admin who deleted every bullet ->
+    // respect that and show none (the computed lesson/course-count bullet is
+    // added separately below, so the card is never truly empty). Only the
+    // not-loaded case falls back to DEFAULT_INCLUDES.
+    () => (includeRows === null
+      ? DEFAULT_INCLUDES
+      : includeRows.map((row) => ({
           icon: INCLUDE_ICONS[String((row.metadata as Record<string, unknown> | null)?.icon ?? '')] ?? INCLUDE_ICONS.infinity,
           text: row.title,
-        }))
-      : DEFAULT_INCLUDES),
+        }))),
     [includeRows],
   );
 
@@ -540,6 +545,8 @@ export const CourseDetails: React.FC = () => {
             ctaConfig={ctaConfig}
             onCta={handleCTA}
             upgradeQuote={upgradeQuote}
+            urgencyTag={urgencyTag}
+            savings={bundleValue.savings}
           />
         </div>
       </div>

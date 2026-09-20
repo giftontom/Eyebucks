@@ -46,7 +46,10 @@
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-float-delayed: float 6s ease-in-out 3s infinite;
-  --animate-marquee: marquee 40s linear infinite;
+  /* Dual-track marquee scrolls 0 -> -50% (one full copy width). At 25s that
+     matches the original single-track 0 -> -100% speed; the 40s it briefly used
+     was ~1.6x slower and made the "slow on mobile" report worse, not better. */
+  --animate-marquee: marquee 25s linear infinite;
   --animate-value-pop: value-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-glow-pulse: glow-pulse 4s ease-in-out infinite;

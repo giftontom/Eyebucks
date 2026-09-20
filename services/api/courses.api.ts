@@ -165,6 +165,9 @@ export interface GetCoursesResult {
   courses: Course[];
   total: number;
   hasMore: boolean;
+  /** True when the requested `language` yielded nothing and results were
+   *  re-fetched across all languages, so the UI can say "showing all languages". */
+  languageFallbackApplied?: boolean;
 }
 
 /**
@@ -185,14 +188,22 @@ export const coursesApi = {
    * `.total`.
    */
   async getCourseCount(language?: CourseLanguage): Promise<number> {
-    let query = supabase
-      .from('courses')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'PUBLISHED');
-    if (language) { query = query.eq('language', language); }
-    const { count, error } = await query;
-    if (error) { throw new Error(error.message); }
-    return count ?? 0;
+    const run = async (lang?: CourseLanguage): Promise<number> => {
+      let query = supabase
+        .from('courses')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'PUBLISHED');
+      if (lang) { query = query.eq('language', lang); }
+      const { count, error } = await query;
+      if (error) { throw new Error(error.message); }
+      return count ?? 0;
+    };
+    const count = await run(language);
+    // Mirror getCourses' language fallback: a language with zero courses must
+    // not make the hero advertise its hardcoded default (e.g. "15+ courses")
+    // while the catalogue shows the real all-language count.
+    if (language && count === 0) { return run(undefined); }
+    return count;
   },
 
   /**
@@ -264,13 +275,17 @@ export const coursesApi = {
     const courses = rows.map(mapCourse);
 
     // Language fallback. All published courses are currently tagged ML, so an
-    // EN visitor's language-filtered query returns nothing and the storefront
-    // reads "No courses available yet". When language is the ONLY thing
-    // narrowing the list and it came back empty, re-fetch across all languages
-    // so visitors always see the catalogue. User filters (type/search/rating/
-    // price) are respected — an empty *filtered* result still shows "no match".
-    if (language && total === 0 && !type && !search?.trim() && minRating === 0 && maxPrice === 0) {
-      return coursesApi._getCoursesUncached({ ...options, language: undefined });
+    // EN visitor's language-filtered query returns nothing. Whenever the
+    // language filter yields an empty result — with OR without other filters —
+    // re-fetch across all languages so the visitor never sees an empty
+    // catalogue for a language that simply has no content. Applying it under a
+    // search/type filter too fixes the reported bug where typing a query
+    // re-emptied a catalogue that was populated a second earlier. The result is
+    // flagged so the UI can surface a "showing all languages" notice; a truly
+    // empty all-languages result still shows the honest "no match" state.
+    if (language && total === 0) {
+      const fallback = await coursesApi._getCoursesUncached({ ...options, language: undefined });
+      return { ...fallback, languageFallbackApplied: true };
     }
 
     // For BUNDLE courses, fetch bundled course counts (two-step to avoid FK-hint issues)
@@ -327,7 +342,7 @@ export const coursesApi = {
       }
     }
 
-    return { success: true, courses, total, hasMore: from + pageSize < total };
+    return { success: true, courses, total, hasMore: from + pageSize < total, languageFallbackApplied: false };
   },
 
   /**

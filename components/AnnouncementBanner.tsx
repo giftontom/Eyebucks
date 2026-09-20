@@ -16,12 +16,28 @@ function readDismissedIds(): string[] {
 }
 
 /**
+ * Resolve a CSS custom property to its concrete value against the document
+ * root, so `var(--page-alt)` — the field's own default background — can be
+ * contrast-checked instead of silently bypassing the guard. Returns the input
+ * unchanged when there is no document (SSR/tests) or the var is undefined.
+ */
+function resolveColor(c: string): string {
+  const s = (c || '').trim();
+  const v = s.match(/^var\(\s*(--[\w-]+)\s*\)$/);
+  if (v && typeof document !== 'undefined' && document.documentElement) {
+    const resolved = getComputedStyle(document.documentElement).getPropertyValue(v[1]).trim();
+    if (resolved) { return resolved; }
+  }
+  return s;
+}
+
+/**
  * Parse a #rgb / #rrggbb / rgb()/rgba() colour to [r,g,b]. Returns null for
- * anything else (e.g. a CSS variable like `var(--text-1)`), which the caller
+ * anything else (e.g. a named colour or an unresolvable var), which the caller
  * treats as "leave it to the theme".
  */
 function parseColor(c: string): [number, number, number] | null {
-  const s = (c || '').trim();
+  const s = resolveColor(c);
   const hex = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (hex) {
     let h = hex[1];
@@ -46,20 +62,27 @@ function contrastRatio(a: [number, number, number], b: [number, number, number])
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
+// WCAG 2.1 AA for normal-size text. The banner body is ~14px and dimmed to
+// opacity-80, so anything below this reads as low-contrast; enforce the full AA.
+const CONTRAST_MIN = 4.5;
+
 /**
  * Guarantees the banner text is legible on its background. An admin can (and
  * did — #003376 text on a #003366 background) pick two near-identical colours,
  * which renders an invisible message on a coloured strip that looks like an
- * empty gap. If the requested text colour is unparseable or fails a minimum
- * contrast, fall back to black or white — whichever reads on the background.
- * When the background is a theme variable we leave the colours to the theme.
+ * empty gap. If the requested text colour is unparseable or fails AA contrast,
+ * fall back to whichever of near-black / white reads BETTER on the background
+ * (not a luminance guess). CSS-var backgrounds are resolved first so the field's
+ * own default (`var(--page-alt)`) is checked, not skipped.
  */
 function readableTextColor(bg: string, requested: string): string {
   const bgRgb = parseColor(bg);
-  if (!bgRgb) { return requested; }
+  if (!bgRgb) { return requested; } // background truly unresolvable — trust the theme
   const reqRgb = parseColor(requested);
-  if (reqRgb && contrastRatio(bgRgb, reqRgb) >= 3) { return requested; }
-  return relativeLuminance(bgRgb) > 0.4 ? '#111111' : '#ffffff';
+  if (reqRgb && contrastRatio(bgRgb, reqRgb) >= CONTRAST_MIN) { return requested; }
+  const white: [number, number, number] = [255, 255, 255];
+  const black: [number, number, number] = [17, 17, 17];
+  return contrastRatio(bgRgb, white) >= contrastRatio(bgRgb, black) ? '#ffffff' : '#111111';
 }
 
 export const AnnouncementBanner: React.FC = () => {

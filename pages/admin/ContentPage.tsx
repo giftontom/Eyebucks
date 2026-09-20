@@ -308,6 +308,16 @@ export const ContentPage: React.FC = () => {
       } else if (f.type === 'string-array') {
         const arr = Array.isArray(v) ? v.map(String) : [];
         out[f.key] = arr.map((s) => s.trim()).filter(Boolean);
+      } else if (f.type === 'stat-list') {
+        // Persist the tiles, coercing the numeric `value` (the editor keeps it as
+        // a string while typing) so the storefront's counter animation gets a
+        // real number, not NaN. Falls back to the field default when unset.
+        const rows = Array.isArray(v) ? v : (f.default as unknown[] | undefined) ?? [];
+        out[f.key] = (rows as Array<Record<string, unknown>>).map((r) => ({
+          value: r.value === '' || r.value === undefined || r.value === null ? 0 : Number(r.value),
+          suffix: typeof r.suffix === 'string' ? r.suffix : '',
+          label: typeof r.label === 'string' ? r.label : '',
+        }));
       } else if (f.type === 'boolean') {
         out[f.key] = v === undefined ? Boolean(f.default) : Boolean(v);
       } else if ((v === undefined || v === '') && f.default !== undefined) {
@@ -516,11 +526,19 @@ export const ContentPage: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-xs t-text-3 font-mono">#{item.orderIndex}</span>
                             <p className="font-medium t-text truncate">{item.title}</p>
-                            {sectionSchema?.singleton && items.length > 1 && (
-                              items[0].id === item.id
-                                ? <span className="px-1.5 py-0.5 t-status-success border text-xs font-bold rounded shrink-0">Live</span>
-                                : <span className="px-1.5 py-0.5 t-status-warning border text-xs font-bold rounded shrink-0">Ignored</span>
-                            )}
+                            {sectionSchema?.singleton && items.length > 1 && (() => {
+                              // The storefront renders the FIRST ACTIVE row in this
+                              // (now-deterministic) order, so that is the "Live" one —
+                              // not items[0], which could be an inactive row.
+                              const liveId = items.find((i) => i.isActive)?.id;
+                              if (item.id === liveId) {
+                                return <span className="px-1.5 py-0.5 t-status-success border text-xs font-bold rounded shrink-0">Live</span>;
+                              }
+                              if (item.isActive) {
+                                return <span className="px-1.5 py-0.5 t-status-warning border text-xs font-bold rounded shrink-0">Ignored</span>;
+                              }
+                              return null; // inactive rows carry only the Inactive tag below
+                            })()}
                             {!item.isActive && <span className="px-1.5 py-0.5 t-status-danger border text-xs font-bold rounded">Inactive</span>}
                           </div>
                           <p className="text-sm t-text-2 truncate mt-1">{item.body}</p>

@@ -474,6 +474,14 @@ export const SECTION_SCHEMAS: Record<string, SectionSchema> = {
         key: 'stats',
         label: 'Community stat tiles',
         type: 'stat-list',
+        // Seeded on create so the editor renders four editable rows immediately
+        // instead of an empty "not set" state that could never be filled in.
+        default: [
+          { value: 2500, suffix: '+', label: 'Active Members' },
+          { value: 12, suffix: 'k+', label: 'Messages / Month' },
+          { value: 500, suffix: '+', label: 'Work Reviews' },
+          { value: 24, suffix: 'h', label: 'Avg Response' },
+        ],
         help: 'The four counters (Active Members, Messages / Month, Work Reviews, Avg Response). Icons stay fixed by position; only these numbers and labels are editable.',
       },
       { key: 'verifiedLabel', label: 'Verified badge label', type: 'text' },

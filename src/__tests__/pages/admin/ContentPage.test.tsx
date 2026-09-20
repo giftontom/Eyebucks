@@ -468,4 +468,39 @@ describe('ContentPage', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  // The "Live/Ignored" badge must name the row the storefront actually renders —
+  // the first ACTIVE row in deterministic order — not items[0], which could be
+  // an inactive row that sorts first.
+  describe('singleton Live badge', () => {
+    it('marks the first active row Live and never an inactive one', async () => {
+      mockAdminApi.getSiteContent.mockResolvedValue({ items: [
+        { id: 'cc-off', section: 'community_copy', title: 'Old ignored copy', body: '', metadata: {}, orderIndex: 0, isActive: false },
+        { id: 'cc-on', section: 'community_copy', title: 'The live copy', body: '', metadata: {}, orderIndex: 1, isActive: true },
+      ]});
+      render(<ContentPage />);
+      await waitFor(() => screen.getByText('The live copy'));
+      const activeRow = screen.getByText('The live copy').closest('.justify-between') as HTMLElement;
+      const inactiveRow = screen.getByText('Old ignored copy').closest('.justify-between') as HTMLElement;
+      expect(within(activeRow).getByText('Live')).toBeInTheDocument();
+      expect(within(inactiveRow).queryByText('Live')).not.toBeInTheDocument();
+      expect(within(inactiveRow).getByText('Inactive')).toBeInTheDocument();
+    });
+  });
+
+  // Reported: "can't edit the stats numbers". The stat-list field had no default,
+  // so the editor showed an empty "not set" state with zero inputs that could
+  // never be filled. It must now seed four editable rows on create.
+  describe('stat-list editing', () => {
+    it('seeds four editable stat rows when creating a community_copy row', async () => {
+      mockAdminApi.getSiteContent.mockResolvedValue({ items: [] });
+      render(<ContentPage />);
+      await waitFor(() => screen.getByText('Site Content Manager'));
+      fireEvent.click(screen.getByRole('button', { name: /new content/i }));
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'community_copy' } });
+      expect(screen.getByLabelText('Stat 1 value')).toBeInTheDocument();
+      expect(screen.getByLabelText('Stat 4 label')).toBeInTheDocument();
+      expect((screen.getByLabelText('Stat 1 value') as HTMLInputElement).value).toBe('2500');
+    });
+  });
 });

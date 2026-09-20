@@ -137,7 +137,7 @@ export const ValuePropsSection: React.FC = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <HorizontalGallery
           count={props.length}
-          desktopGrid="md:grid-cols-3"
+          desktopGrid={props.length >= 3 ? 'md:grid-cols-3' : props.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-1'}
           heading={
             <FadeIn>
               <div className="text-center mb-16 max-w-2xl mx-auto">

@@ -101,6 +101,7 @@ export const CatalogSection: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [langFallback, setLangFallback] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefetching, setIsRefetching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -143,6 +144,7 @@ export const CatalogSection: React.FC = () => {
         setCourses(res.courses);
         setTotal(res.total);
         setHasMore(res.hasMore);
+        setLangFallback(!!res.languageFallbackApplied);
         setPage(1);
         hasLoadedRef.current = true;
       })
@@ -202,6 +204,9 @@ export const CatalogSection: React.FC = () => {
               )}
             </h2>
             <p className="t-text-2 text-lg">{catalogCopy.subheading}</p>
+            {langFallback && courses.length > 0 && (
+              <p className="mt-2 text-sm t-text-3">Showing courses in all languages — none are published in your selected language yet.</p>
+            )}
           </div>
           {/* Desktop: Horizontal filters layout */}
           <div className="hidden md:flex flex-wrap items-center justify-between gap-4">
