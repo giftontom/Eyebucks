@@ -16,6 +16,25 @@
   logged-in non-admin can still read `external_url` — needs the admin read routed through
   service_role (see plan item).
 
+### Round-2 code fixes (committed `f48bc33`, deployed to **dev**; each with a non-vacuous test)
+
+| id | fix | test |
+|----|-----|------|
+| en-catalog | fallback fires under search/filters + "showing all languages" notice + `getCourseCount` fallback | coursesApi (4) |
+| breadcrumb | dynamic label before UUID guard (UUID courses show titles); `/course` crumb non-linking; Home link | Breadcrumbs (5, caught a Home regression) |
+| asset-badges | 3rd badge derived from `asset.license` (no false "Commercial-Ready") | TrustBadges (4) |
+| banner-contrast | resolve `var()` bg, WCAG AA 4.5:1, max-contrast pivot | AnnouncementBanner (+2) |
+| opportunity-cards | desktop grid columns capped to item count (centres 3 cards) | — |
+| ticker | marquee 40s → 25s (restores original speed) | — |
+| course-includes | empty list respected (null-only fallback) | — |
+| cms-revert / cms-pageorder | admin read deterministically ordered; badge marks first ACTIVE row | ContentPage (+1) |
+| cms-stats | stat-list seeds 4 editable rows + numeric coercion on save | ContentPage (+1) |
+| bundle-value | urgencyTag pill + savings surfaced in the desktop sidebar | — |
+
+**Deferred pending owner decision:** `pricing` storefront (real `compare_price` vs plain CMS text vs
+"Starting at"); the `external_url` authenticated-read hardening (needs a service_role admin path);
+footer bottom-bar copy into CMS; a11y pass. The prod frontend deploy remains gated.
+
 ---
 
 # Eyebuckz Fix Audit — Critique, Test Verification & Fix Plan
